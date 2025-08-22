@@ -1,6 +1,7 @@
+@import '../../styles.less';
+
 .home-page {
-  max-width: 1200px;
-  margin: 0 auto;
+  .page-container;
 
   .page-header {
     text-align: center;
@@ -8,14 +9,14 @@
 
     h1 {
       font-size: 3rem;
-      color: #2c3e50;
+      color: @black-color;
       margin-bottom: 0.5rem;
-      font-weight: 300;
+      font-weight: @font-weight-light;
     }
 
     .subtitle {
       font-size: 1.25rem;
-      color: #7f8c8d;
+      color: @dark-gray;
       margin: 0;
     }
   }
@@ -27,12 +28,10 @@
     margin-bottom: 3rem;
 
     .card {
-      background: white;
+      .card;
       padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       text-align: center;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      border-left: 4px solid @primary-color;
 
       &:hover {
         transform: translateY(-4px);
@@ -42,52 +41,39 @@
       .card-icon {
         font-size: 3rem;
         margin-bottom: 1rem;
+        color: @primary-color;
       }
 
       h3 {
-        color: #2c3e50;
+        color: @black-color;
         margin-bottom: 1rem;
         font-size: 1.5rem;
+        font-weight: @font-weight-semi;
       }
 
       p {
-        color: #7f8c8d;
+        color: @dark-gray;
         margin-bottom: 1.5rem;
         line-height: 1.6;
       }
 
       .card-button {
-        background: #3498db;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 6px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-
-        &:hover {
-          background: #2980b9;
-        }
-
-        &:disabled {
-          background: #bdc3c7;
-          cursor: not-allowed;
-        }
+        .btn;
+        .btn-primary;
       }
     }
   }
 
   .recent-activity {
-    background: white;
+    .card;
     padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid @info-color;
 
     h2 {
-      color: #2c3e50;
+      color: @black-color;
       margin-bottom: 1.5rem;
       font-size: 1.75rem;
+      font-weight: @font-weight-semi;
     }
 
     .activity-list {
@@ -95,7 +81,7 @@
         display: flex;
         align-items: flex-start;
         padding: 1rem 0;
-        border-bottom: 1px solid #ecf0f1;
+        border-bottom: 1px solid @light-gray;
 
         &:last-child {
           border-bottom: none;
@@ -105,25 +91,27 @@
           font-size: 1.5rem;
           margin-right: 1rem;
           margin-top: 0.25rem;
+          color: @primary-color;
         }
 
         .activity-content {
           flex: 1;
 
           h4 {
-            color: #2c3e50;
+            color: @black-color;
             margin: 0 0 0.5rem 0;
             font-size: 1.1rem;
+            font-weight: @font-weight-semi;
           }
 
           p {
-            color: #7f8c8d;
+            color: @dark-gray;
             margin: 0 0 0.5rem 0;
             line-height: 1.5;
           }
 
           .activity-time {
-            color: #95a5a6;
+            color: @dark-gray;
             font-size: 0.9rem;
           }
         }

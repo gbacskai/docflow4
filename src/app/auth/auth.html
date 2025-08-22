@@ -1,0 +1,248 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <!-- Login Form -->
+    @if (currentMode() === 'login') {
+      <div class="auth-form">
+        <h2>Welcome Back</h2>
+        <p class="auth-subtitle">Sign in to your account</p>
+
+        <form [formGroup]="loginForm" (ngSubmit)="onLogin()">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input 
+              id="email" 
+              type="email" 
+              formControlName="email" 
+              placeholder="Enter your email"
+              [class.error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched"
+            />
+            @if (loginForm.get('email')?.invalid && loginForm.get('email')?.touched) {
+              <div class="error-message">Please enter a valid email</div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input 
+              id="password" 
+              type="password" 
+              formControlName="password" 
+              placeholder="Enter your password"
+              [class.error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+            />
+            @if (loginForm.get('password')?.invalid && loginForm.get('password')?.touched) {
+              <div class="error-message">Password must be at least 8 characters</div>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div class="alert alert-error">{{ errorMessage() }}</div>
+          }
+
+          @if (successMessage()) {
+            <div class="alert alert-success">{{ successMessage() }}</div>
+          }
+
+          <button 
+            type="submit" 
+            class="btn-primary" 
+            [disabled]="!loginForm.valid || processing()"
+          >
+            {{ processing() ? 'Signing in...' : 'Sign In' }}
+          </button>
+        </form>
+
+        <div class="auth-switch">
+          <p>Don't have an account? 
+            <button type="button" class="link-btn" (click)="switchToSignup()">Sign up</button>
+            <span> | </span>
+            <button type="button" class="link-btn" (click)="switchToConfirm()">Verify your email</button>
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Signup Form -->
+    @if (currentMode() === 'signup') {
+      <div class="auth-form">
+        <h2>Create Account</h2>
+        <p class="auth-subtitle">Sign up for a new account</p>
+
+        <form [formGroup]="signupForm" (ngSubmit)="onSignup()">
+          <div class="form-group">
+            <label for="signup-email">Email</label>
+            <input 
+              id="signup-email" 
+              type="email" 
+              formControlName="email" 
+              placeholder="Enter your email"
+              [class.error]="signupForm.get('email')?.invalid && signupForm.get('email')?.touched"
+            />
+            @if (signupForm.get('email')?.invalid && signupForm.get('email')?.touched) {
+              <div class="error-message">Please enter a valid email</div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <input 
+              id="signup-password" 
+              type="password" 
+              formControlName="password" 
+              placeholder="Enter your password"
+              [class.error]="signupForm.get('password')?.invalid && signupForm.get('password')?.touched"
+            />
+            @if (signupForm.get('password')?.invalid && signupForm.get('password')?.touched) {
+              <div class="error-message">Password must be at least 8 characters</div>
+            }
+          </div>
+
+          <div class="form-group">
+            <label for="confirm-password">Confirm Password</label>
+            <input 
+              id="confirm-password" 
+              type="password" 
+              formControlName="confirmPassword" 
+              placeholder="Confirm your password"
+              [class.error]="signupForm.get('confirmPassword')?.invalid && signupForm.get('confirmPassword')?.touched"
+            />
+            @if (signupForm.get('confirmPassword')?.invalid && signupForm.get('confirmPassword')?.touched) {
+              @if (signupForm.get('confirmPassword')?.hasError('required')) {
+                <div class="error-message">Please confirm your password</div>
+              }
+              @if (signupForm.get('confirmPassword')?.hasError('passwordMismatch')) {
+                <div class="error-message">Passwords do not match</div>
+              }
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div class="alert alert-error">
+              {{ errorMessage() }}
+              @if (isExistingUserError()) {
+                <br><br>
+                <button type="button" class="link-btn" (click)="switchToLogin()">
+                  Switch to Sign In
+                </button>
+              }
+            </div>
+          }
+
+          @if (successMessage()) {
+            <div class="alert alert-success">{{ successMessage() }}</div>
+          }
+
+          <button 
+            type="submit" 
+            class="btn-primary" 
+            [disabled]="!signupForm.valid || processing()"
+          >
+            {{ processing() ? 'Creating account...' : 'Sign Up' }}
+          </button>
+        </form>
+
+        <div class="auth-switch">
+          <p>Already have an account? 
+            <button type="button" class="link-btn" (click)="switchToLogin()">Sign in</button>
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Confirmation Form -->
+    @if (currentMode() === 'confirm') {
+      <div class="auth-form">
+        <h2>Check Your Email</h2>
+        <p class="auth-subtitle">Enter your email and verification code to complete registration</p>
+        
+        <div class="email-verification-info">
+          <div class="verification-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </div>
+          
+          <div class="verification-instructions">
+            <p>Enter your email address and the 6-digit verification code sent to your email.</p>
+            <p><strong>Can't find the email?</strong> Check your spam folder or request a new code below.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="confirmationForm" (ngSubmit)="onConfirm()">
+          <div class="form-group">
+            <label for="confirmation-email">Email Address</label>
+            <input 
+              id="confirmation-email" 
+              type="email" 
+              formControlName="email" 
+              placeholder="Enter your email address"
+              [class.error]="confirmationForm.get('email')?.invalid && confirmationForm.get('email')?.touched"
+            />
+            @if (confirmationForm.get('email')?.invalid && confirmationForm.get('email')?.touched) {
+              <div class="error-message">Please enter a valid email address</div>
+            }
+            
+            <button 
+              type="button" 
+              class="btn-secondary" 
+              (click)="resendCode()" 
+              [disabled]="processing()"
+              style="margin-top: 10px;"
+            >
+              {{ processing() ? 'Sending...' : 'Resend Code' }}
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label for="confirmation-code">Verification Code</label>
+            <input 
+              id="confirmation-code" 
+              type="text" 
+              formControlName="confirmationCode" 
+              placeholder="Enter 6-digit code"
+              maxlength="6"
+              class="verification-code-input"
+              [class.error]="confirmationForm.get('confirmationCode')?.invalid && confirmationForm.get('confirmationCode')?.touched"
+            />
+            @if (confirmationForm.get('confirmationCode')?.invalid && confirmationForm.get('confirmationCode')?.touched) {
+              <div class="error-message">Please enter a valid 6-digit code</div>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <div class="alert alert-error">{{ errorMessage() }}</div>
+          }
+
+          @if (successMessage()) {
+            <div class="alert alert-success">{{ successMessage() }}</div>
+          }
+
+          @if (successMessage()) {
+            <button 
+              type="button" 
+              class="btn-primary" 
+              (click)="switchToLogin()"
+            >
+              Go to Login
+            </button>
+          } @else {
+            <button 
+              type="submit" 
+              class="btn-primary" 
+              [disabled]="!confirmationForm.valid || processing()"
+            >
+              {{ processing() ? 'Verifying...' : 'Verify Email' }}
+            </button>
+          }
+        </form>
+
+        <div class="auth-switch">
+          <p>
+            <button type="button" class="link-btn" (click)="switchToLogin()">Back to Sign In</button>
+          </p>
+        </div>
+      </div>
+    }
+  </div>
+</div>

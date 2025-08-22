@@ -1,1 +1,314 @@
-/* You can add global styles to this file, and also import other style files */
+// Light Bootstrap Dashboard Theme Variables
+@primary-color: #3472F7;
+@success-color: #87CB16;
+@info-color: #1DC7EA;
+@warning-color: #FF9500;
+@danger-color: #FF4A55;
+
+@azure: #23CCEF;
+@purple: #9368E9;
+@red: #FB404B;
+@green: #87CB16;
+@orange: #FFA534;
+@blue: #447DF7;
+
+@white: #FFFFFF;
+@light-gray: #E3E3E3;
+@medium-gray: #DDDDDD;
+@dark-gray: #9A9A9A;
+@black-color: #333333;
+
+@font-size-base: 14px;
+@font-weight-light: 300;
+@font-weight-normal: 400;
+@font-weight-semi: 500;
+@font-weight-bold: 600;
+
+@border-radius-small: 3px;
+@border-radius-base: 4px;
+@border-radius-large: 6px;
+
+@transition-base: all 300ms ease;
+@transition-fast: all 150ms ease;
+@transition-slow: all 370ms ease;
+
+@sidebar-width: 260px;
+
+// Global Styles
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: @font-size-base;
+  font-weight: @font-weight-normal;
+  line-height: 1.5;
+  color: @black-color;
+  background-color: #f4f3ef;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: @font-weight-light;
+  color: @black-color;
+}
+
+h1 { font-size: 52px; }
+h2 { font-size: 36px; }
+h3 { font-size: 28px; }
+h4 { font-size: 22px; }
+h5 { font-size: 16px; }
+h6 { font-size: 14px; }
+
+// Button Styles
+.btn {
+  border: none;
+  border-radius: @border-radius-base;
+  padding: 8px 16px;
+  font-size: @font-size-base;
+  font-weight: @font-weight-normal;
+  cursor: pointer;
+  transition: @transition-base;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+.btn-primary {
+  background-color: @primary-color;
+  color: @white;
+  
+  &:hover:not(:disabled) {
+    background-color: darken(@primary-color, 10%);
+  }
+}
+
+.btn-success {
+  background-color: @success-color;
+  color: @white;
+  
+  &:hover:not(:disabled) {
+    background-color: darken(@success-color, 10%);
+  }
+}
+
+.btn-info {
+  background-color: @info-color;
+  color: @white;
+  
+  &:hover:not(:disabled) {
+    background-color: darken(@info-color, 10%);
+  }
+}
+
+.btn-warning {
+  background-color: @warning-color;
+  color: @white;
+  
+  &:hover:not(:disabled) {
+    background-color: darken(@warning-color, 10%);
+  }
+}
+
+.btn-danger {
+  background-color: @danger-color;
+  color: @white;
+  
+  &:hover:not(:disabled) {
+    background-color: darken(@danger-color, 10%);
+  }
+}
+
+.btn-default {
+  background-color: @medium-gray;
+  color: @black-color;
+  
+  &:hover:not(:disabled) {
+    background-color: darken(@medium-gray, 10%);
+  }
+}
+
+// Form Styles
+.form-control {
+  padding: 8px 12px;
+  border: 1px solid @light-gray;
+  border-radius: @border-radius-base;
+  font-size: @font-size-base;
+  transition: @transition-base;
+  width: 100%;
+  background-color: @white;
+  
+  &:focus {
+    outline: none;
+    border-color: @primary-color;
+    box-shadow: 0 0 0 2px rgba(52, 114, 247, 0.2);
+  }
+  
+  &.error {
+    border-color: @danger-color;
+  }
+}
+
+select.form-control {
+  cursor: pointer;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: @black-color;
+    font-weight: @font-weight-semi;
+  }
+  
+  .error-message {
+    color: @danger-color;
+    font-size: 12px;
+    margin-top: 0.25rem;
+  }
+}
+
+// Card Styles
+.card {
+  background-color: @white;
+  border-radius: @border-radius-large;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
+  margin-bottom: 2rem;
+  transition: @transition-base;
+  
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.card-header {
+  padding: 1.5rem 1.5rem 0;
+  border-bottom: none;
+  background-color: transparent;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.card-footer {
+  padding: 0 1.5rem 1.5rem;
+  border-top: none;
+  background-color: transparent;
+}
+
+// Status Colors
+.status-active, .status-requested {
+  background-color: fade(@success-color, 20%);
+  color: darken(@success-color, 20%);
+}
+
+.status-inactive, .status-rejected {
+  background-color: fade(@danger-color, 20%);
+  color: darken(@danger-color, 20%);
+}
+
+.status-archived, .status-provided {
+  background-color: fade(@dark-gray, 20%);
+  color: darken(@dark-gray, 20%);
+}
+
+.status-review, .status-accepted {
+  background-color: fade(@warning-color, 20%);
+  color: darken(@warning-color, 20%);
+}
+
+.status-approved, .status-published {
+  background-color: fade(@info-color, 20%);
+  color: darken(@info-color, 20%);
+}
+
+// Utility Classes
+.text-primary { color: @primary-color; }
+.text-success { color: @success-color; }
+.text-info { color: @info-color; }
+.text-warning { color: @warning-color; }
+.text-danger { color: @danger-color; }
+.text-muted { color: @dark-gray; }
+
+.bg-primary { background-color: @primary-color; }
+.bg-success { background-color: @success-color; }
+.bg-info { background-color: @info-color; }
+.bg-warning { background-color: @warning-color; }
+.bg-danger { background-color: @danger-color; }
+
+// Loading and Empty States
+.loading, .empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: @dark-gray;
+  
+  p {
+    font-size: 16px;
+    margin: 0;
+  }
+}
+
+// Responsive Grid
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -15px;
+}
+
+.col {
+  padding: 0 15px;
+  flex: 1;
+}
+
+.col-2 { flex: 0 0 16.666667%; }
+.col-3 { flex: 0 0 25%; }
+.col-4 { flex: 0 0 33.333333%; }
+.col-6 { flex: 0 0 50%; }
+.col-8 { flex: 0 0 66.666667%; }
+.col-9 { flex: 0 0 75%; }
+.col-12 { flex: 0 0 100%; }
+
+// Page layout mixins
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+// Media Queries
+@media (max-width: 768px) {
+  .col, .col-2, .col-3, .col-4, .col-6, .col-8, .col-9 {
+    flex: 0 0 100%;
+  }
+}
+
+header {
+  padding-bottom: 10px;
+}

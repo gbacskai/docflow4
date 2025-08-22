@@ -1,136 +1,168 @@
 <div class="document-types-page">
   <header class="page-header">
     <h1>Document Types</h1>
-    <button class="add-button">+ New Document Type</button>
+    <button class="add-button" (click)="openCreateForm()">
+      + New Document Type
+    </button>
   </header>
 
+
+  <!-- Create/Edit/View Form -->
+  @if (showForm()) {
+    <div class="document-type-form">
+      @if (currentMode() === 'view') {
+        <!-- View Mode -->
+        <div class="view-mode">
+          <div class="form-header">
+            <h2>{{ selectedDocumentType()?.name }}</h2>
+            <button class="close-btn" (click)="closeForm()">✕</button>
+          </div>
+          
+          <div class="view-content">
+            <div class="view-section">
+              <div class="view-details">
+                <p class="description">{{ selectedDocumentType()?.description }}</p>
+                <div class="view-meta">
+                  <span class="category">Domains: {{ getDomainNames(selectedDocumentType()?.category || []) }}</span>
+                  <span class="status" [class]="selectedDocumentType()?.isActive ? 'active' : 'inactive'">
+                    {{ selectedDocumentType()?.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="view-actions">
+            <button class="btn-edit" (click)="openEditForm(selectedDocumentType()!)">Edit</button>
+            <button class="btn-close" (click)="closeForm()">Close</button>
+          </div>
+        </div>
+      } @else {
+        <!-- Create/Edit Form -->
+        <div class="form-header">
+          <h2>{{ currentMode() === 'create' ? 'Create New Document Type' : 'Edit Document Type' }}</h2>
+          <button class="close-btn" (click)="closeForm()">✕</button>
+        </div>
+
+        <form [formGroup]="documentTypeForm" (ngSubmit)="onSubmitForm()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Name *</label>
+              <input 
+                id="name" 
+                type="text" 
+                formControlName="name" 
+                placeholder="Enter document type name"
+                [class.error]="documentTypeForm.get('name')?.invalid && documentTypeForm.get('name')?.touched"
+              />
+              @if (documentTypeForm.get('name')?.invalid && documentTypeForm.get('name')?.touched) {
+                <div class="error-message">Name is required (min 3 characters)</div>
+              }
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description *</label>
+            <textarea 
+              id="description" 
+              formControlName="description" 
+              placeholder="Enter document type description"
+              rows="3"
+              [class.error]="documentTypeForm.get('description')?.invalid && documentTypeForm.get('description')?.touched"
+            ></textarea>
+            @if (documentTypeForm.get('description')?.invalid && documentTypeForm.get('description')?.touched) {
+              <div class="error-message">Description is required (min 10 characters)</div>
+            }
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Domains</label>
+              <div class="domains-checkboxes">
+                @for (domain of domains(); track domain.id) {
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      [checked]="isDomainSelected(domain.id)"
+                      (change)="toggleDomain(domain.id, $event)"
+                    />
+                    <span>{{ domain.name }}</span>
+                  </label>
+                }
+              </div>
+              <div class="help-text">Optional: Select domains this document type belongs to</div>
+            </div>
+            <div class="form-group">
+              <label for="isActive">Status *</label>
+              <select id="isActive" formControlName="isActive">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+
+          <div class="form-actions">
+            <button 
+              type="button" 
+              class="btn-cancel" 
+              (click)="closeForm()"
+              [disabled]="processing()"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              class="btn-submit" 
+              [disabled]="!documentTypeForm.valid || processing()"
+            >
+              {{ processing() ? 'Saving...' : (currentMode() === 'create' ? 'Create' : 'Update') }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading document types...</div>
+  }
+
   <div class="document-types-list">
-    <div class="document-type-card">
-      <div class="type-icon">📄</div>
-      <div class="type-content">
-        <h3>Contract</h3>
-        <p>Legal agreements, NDAs, service contracts</p>
-        <div class="type-meta">
-          <span class="usage-count">45 documents</span>
-          <span class="template-count">3 templates</span>
-        </div>
+    @if (documentTypes().length === 0 && !loading()) {
+      <div class="empty-state">
+        <p>No document types found. Create your first document type to get started.</p>
       </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
+    }
 
-    <div class="document-type-card">
-      <div class="type-icon">📊</div>
-      <div class="type-content">
-        <h3>Financial Report</h3>
-        <p>Quarterly reports, budget documents, financial statements</p>
-        <div class="type-meta">
-          <span class="usage-count">32 documents</span>
-          <span class="template-count">5 templates</span>
+    @for (docType of documentTypes(); track docType.id) {
+      <div class="document-type-card" [class.inactive]="!docType.isActive">
+        <div class="type-content">
+          <h3>{{ docType.name }}</h3>
+          <p>{{ docType.description }}</p>
+          <div class="type-meta">
+            @if ((docType.usageCount || 0) > 0) {
+              <span class="usage-count">{{ docType.usageCount }} documents</span>
+            }
+            @if ((docType.templateCount || 0) > 0) {
+              <span class="template-count">{{ docType.templateCount }} templates</span>
+            }
+            @if (docType.category) {
+              <span class="category">{{ getDomainNames(docType.category) }}</span>
+            }
+            @if (!docType.isActive) {
+              <span class="inactive-badge">Inactive</span>
+            }
+          </div>
+        </div>
+        <div class="type-actions">
+          <button class="action-btn" (click)="openViewMode(docType)">View</button>
+          <button class="action-btn" (click)="openEditForm(docType)">Edit</button>
+          <button class="action-btn danger" (click)="deleteDocumentType(docType)" [disabled]="processing()">
+            {{ processing() ? '...' : 'Delete' }}
+          </button>
         </div>
       </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
-
-    <div class="document-type-card">
-      <div class="type-icon">📝</div>
-      <div class="type-content">
-        <h3>Policy Document</h3>
-        <p>Company policies, procedures, guidelines</p>
-        <div class="type-meta">
-          <span class="usage-count">28 documents</span>
-          <span class="template-count">4 templates</span>
-        </div>
-      </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
-
-    <div class="document-type-card">
-      <div class="type-icon">📋</div>
-      <div class="type-content">
-        <h3>Invoice</h3>
-        <p>Billing documents, receipts, payment records</p>
-        <div class="type-meta">
-          <span class="usage-count">156 documents</span>
-          <span class="template-count">2 templates</span>
-        </div>
-      </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
-
-    <div class="document-type-card">
-      <div class="type-icon">🎯</div>
-      <div class="type-content">
-        <h3>Marketing Material</h3>
-        <p>Brochures, presentations, promotional content</p>
-        <div class="type-meta">
-          <span class="usage-count">67 documents</span>
-          <span class="template-count">8 templates</span>
-        </div>
-      </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
-
-    <div class="document-type-card">
-      <div class="type-icon">🔧</div>
-      <div class="type-content">
-        <h3>Technical Specification</h3>
-        <p>API documentation, technical requirements, system specs</p>
-        <div class="type-meta">
-          <span class="usage-count">23 documents</span>
-          <span class="template-count">6 templates</span>
-        </div>
-      </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
-
-    <div class="document-type-card">
-      <div class="type-icon">👥</div>
-      <div class="type-content">
-        <h3>HR Document</h3>
-        <p>Employee records, job descriptions, performance reviews</p>
-        <div class="type-meta">
-          <span class="usage-count">89 documents</span>
-          <span class="template-count">7 templates</span>
-        </div>
-      </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
-
-    <div class="document-type-card">
-      <div class="type-icon">📚</div>
-      <div class="type-content">
-        <h3>Training Material</h3>
-        <p>User manuals, training guides, educational content</p>
-        <div class="type-meta">
-          <span class="usage-count">34 documents</span>
-          <span class="template-count">4 templates</span>
-        </div>
-      </div>
-      <div class="type-actions">
-        <button class="action-btn">Edit</button>
-        <button class="action-btn secondary">Templates</button>
-      </div>
-    </div>
+    }
   </div>
 </div>

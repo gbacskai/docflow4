@@ -1,11 +1,448 @@
-.app-container {
+@import '../styles.less';
+
+.wrapper {
+  position: relative;
+  top: 0;
+  height: 100vh;
   display: flex;
-  min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f3ef;
 }
 
-.content {
-  flex: 1;
-  padding: 2rem;
-  background-color: #f8f9fa;
+.main-panel {
+  position: relative;
+  margin-left: @sidebar-width;
+  width: calc(100% - @sidebar-width);
+  min-height: 100vh;
+  background-color: #f4f3ef;
+  transition: @transition-base;
+  
+  .content {
+    padding: 30px 15px;
+    min-height: calc(100vh - 123px);
+  }
+  
+  .footer {
+    border-top: 1px solid @light-gray;
+    background-color: @white;
+    padding: 15px;
+    
+    .copyright {
+      text-align: center;
+      color: @dark-gray;
+      font-size: 13px;
+    }
+  }
+}
+
+// Mobile header (hidden on desktop)
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: white;
+  border-bottom: 1px solid @light-gray;
+  z-index: 1030;
+  align-items: center;
+  padding: 0 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: @font-weight-semi;
+    color: @black-color;
+    flex: 1;
+    text-align: center;
+  }
+
+  .mobile-menu-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: @transition-base;
+
+    &:hover {
+      background-color: #f5f5f5;
+    }
+
+    .hamburger-line {
+      width: 20px;
+      height: 2px;
+      background-color: @black-color;
+      transition: @transition-base;
+      border-radius: 1px;
+    }
+  }
+}
+
+// Mobile overlay for closing sidebar
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1045;
+}
+
+// Responsive behavior
+@media (max-width: 991px) {
+  .mobile-header {
+    display: flex;
+  }
+
+  .main-panel {
+    margin-left: 0;
+    width: 100%;
+    margin-top: 60px;
+    
+    .content {
+      padding: 30px 15px;
+    }
+  }
+  
+  .sidebar {
+    transform: translate3d(-@sidebar-width, 0, 0);
+    z-index: 1050;
+    
+    &.active {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+}
+
+// Page specific styles
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid @light-gray;
+  
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: @font-weight-light;
+    color: @black-color;
+  }
+  
+  .header-actions {
+    display: flex;
+    gap: 10px;
+  }
+}
+
+// Override existing button styles with theme colors
+button.add-button, .btn-add {
+  .btn;
+  .btn-success;
+}
+
+button.btn-cancel, .btn-cancel {
+  .btn;
+  .btn-default;
+}
+
+button.btn-submit, .btn-submit {
+  .btn;
+  .btn-primary;
+}
+
+button.btn-edit, .btn-edit {
+  .btn;
+  .btn-warning;
+}
+
+button.btn-close, .btn-close {
+  .btn;
+  .btn-default;
+}
+
+button.action-btn {
+  .btn;
+  .btn-primary;
+  font-size: 12px;
+  padding: 6px 12px;
+  
+  &.danger {
+    .btn-danger;
+  }
+}
+
+button.close-btn {
+  .btn;
+  .btn-danger;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+// Form styling updates
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  
+  .form-group {
+    flex: 1;
+  }
+}
+
+input, textarea, select {
+  .form-control;
+  
+  &.error {
+    border-color: @danger-color;
+    box-shadow: 0 0 0 2px fade(@danger-color, 20%);
+  }
+}
+
+// Card components
+.domain-card, .document-type-card, .project-card, .document-card {
+  .card;
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  margin-bottom: 15px;
+  border-left: 4px solid @primary-color;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  &.archived {
+    opacity: 0.7;
+    border-left-color: @dark-gray;
+  }
+  
+  &.status-draft {
+    border-left-color: @warning-color;
+  }
+  
+  &.status-review {
+    border-left-color: @orange;
+  }
+  
+  &.status-approved {
+    border-left-color: @info-color;
+  }
+  
+  &.status-published {
+    border-left-color: @success-color;
+  }
+  
+  &.status-requested {
+    border-left-color: @azure;
+  }
+  
+  &.status-accepted {
+    border-left-color: @green;
+  }
+  
+  &.status-rejected {
+    border-left-color: @red;
+  }
+  
+  &.status-provided {
+    border-left-color: @purple;
+  }
+}
+
+// Form components
+.domain-form, .document-type-form, .new-project-form, .document-form {
+  .card;
+  padding: 30px;
+  margin-bottom: 30px;
+  border-left: 4px solid @primary-color;
+  
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: @font-weight-semi;
+      color: @black-color;
+    }
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 1px solid @light-gray;
+  }
+}
+
+// View mode styling
+.view-mode {
+  .view-content {
+    margin: 20px 0;
+    
+    .view-section {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      
+      .view-icon {
+        font-size: 48px;
+        flex-shrink: 0;
+        opacity: 0.7;
+      }
+      
+      .view-details {
+        flex: 1;
+        
+        .description, .content-preview {
+          font-size: 16px;
+          line-height: 1.6;
+          color: @black-color;
+          margin-bottom: 15px;
+          background-color: #f8f9fa;
+          padding: 15px;
+          border-radius: @border-radius-base;
+          border-left: 4px solid @primary-color;
+        }
+        
+        .view-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          
+          span {
+            padding: 6px 12px;
+            border-radius: @border-radius-base;
+            font-size: 13px;
+            font-weight: @font-weight-semi;
+            background-color: @light-gray;
+            color: @black-color;
+          }
+        }
+      }
+    }
+  }
+  
+  .view-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 1px solid @light-gray;
+  }
+}
+
+// Checkbox styling for multi-select
+.domains-checkboxes {
+  border: 1px solid @light-gray;
+  border-radius: @border-radius-base;
+  padding: 15px;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: @white;
+  
+  &.error {
+    border-color: @danger-color;
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    cursor: pointer;
+    transition: @transition-base;
+    
+    &:hover {
+      background-color: #f8f9fa;
+      border-radius: @border-radius-small;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    
+    input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+    }
+    
+    span {
+      font-size: 14px;
+      color: @black-color;
+    }
+  }
+}
+
+// List containers spacing - gap between page header and lists
+.domains-list, .projects-list, .document-types-list, .documents-list {
+  margin-top: 30px;
+}
+
+// Loading screen styles
+.loading-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.loading-content {
+  text-align: center;
+  color: white;
+
+  .loading-spinner {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

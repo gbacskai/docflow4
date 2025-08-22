@@ -1,6 +1,36 @@
-<div class="app-container">
-  <app-navigation />
-  <div class="content">
-    <router-outlet />
+@if (isLoading()) {
+  <div class="loading-screen">
+    <div class="loading-content">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+      </div>
+      <p>Loading...</p>
+    </div>
   </div>
-</div>
+} @else if (isAuthenticated()) {
+  <div class="wrapper">
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <button class="mobile-menu-btn" (click)="toggleSidebar()">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+      <h1>DocFlow4</h1>
+    </div>
+    
+    <!-- Mobile Overlay -->
+    @if (sidebarOpen()) {
+      <div class="mobile-overlay" (click)="closeSidebar()"></div>
+    }
+    
+    <app-navigation class="sidebar" [class.active]="sidebarOpen()" (navigationClick)="closeSidebar()" />
+    <div class="main-panel">
+      <div class="content">
+        <router-outlet />
+      </div>
+    </div>
+  </div>
+} @else {
+  <app-auth></app-auth>
+}

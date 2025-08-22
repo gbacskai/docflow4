@@ -1,0 +1,55 @@
+<div class="user-menu" (document:click)="onDocumentClick($event)">
+  @if (isAuthenticated()) {
+    <!-- User Menu Button -->
+    <button class="user-menu-button" (click)="toggleMenu()" [class.active]="showMenu()">
+      <div class="user-avatar">
+        <span>{{ (currentUser()?.email || 'U')[0].toUpperCase() }}</span>
+      </div>
+      <div class="user-info">
+        <span class="user-email">{{ currentUser()?.email }}</span>
+        <svg class="chevron" [class.rotated]="showMenu()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6,9 12,15 18,9"></polyline>
+        </svg>
+      </div>
+    </button>
+
+    <!-- Dropdown Menu -->
+    @if (showMenu()) {
+      <div class="dropdown-menu">
+        <button class="menu-item" (click)="onMyAccount()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          My Account
+        </button>
+        
+        <div class="menu-divider"></div>
+        
+        <button class="menu-item logout" (click)="logout()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16,17 21,12 16,7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          Logout
+        </button>
+      </div>
+    }
+  }
+
+  @if (!isAuthenticated() && !isLoading()) {
+    <!-- Auth Buttons for Non-authenticated Users -->
+    <div class="auth-buttons">
+      <button class="auth-btn login-btn" (click)="onLogin()">Login</button>
+      <button class="auth-btn signup-btn" (click)="onSignup()">Sign Up</button>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <!-- Loading State -->
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+    </div>
+  }
+</div>

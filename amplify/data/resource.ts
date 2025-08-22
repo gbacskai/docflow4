@@ -11,7 +11,9 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
-    .authorization(allow => [allow.publicApiKey()]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update'])
+    ]),
   Document: a.model({
       projectId: a.string().required(),
       documentType: a.string().required(),
@@ -29,6 +31,26 @@ const schema = a.schema({
       firstName: a.string().required(),
       lastName: a.string().required(),
       interestedDocumentTypes: a.string().array(),
+      createdAt: a.datetime(),
+      updatedAt: a.datetime()
+    })
+    .authorization(allow => [allow.publicApiKey()]),
+  DocumentType: a.model({
+      name: a.string().required(),
+      description: a.string().required(),
+      category: a.string(),
+      fields: a.string().array(),
+      isActive: a.boolean(),
+      usageCount: a.integer(),
+      templateCount: a.integer(),
+      createdAt: a.datetime(),
+      updatedAt: a.datetime()
+    })
+    .authorization(allow => [allow.publicApiKey()]),
+  Domain: a.model({
+      name: a.string().required(),
+      description: a.string().required(),
+      status: a.enum(['active', 'archived']),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })

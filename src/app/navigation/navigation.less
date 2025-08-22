@@ -1,60 +1,151 @@
+@import '../../styles.less';
+
 .navigation {
-  width: 250px;
-  background-color: #2c3e50;
-  color: white;
-  padding: 0;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: @sidebar-width;
+  background: linear-gradient(0deg, #3472F7 0%, #3472F7 100%);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+  z-index: 1030;
+  overflow-y: auto;
+  transition: @transition-base;
+  display: flex;
+  flex-direction: column;
 
   .nav-header {
-    padding: 1.5rem 1rem;
-    background-color: #34495e;
-    border-bottom: 1px solid #4a5f7a;
-
+    padding: 20px 15px 0;
+    position: relative;
+    
     h2 {
+      color: @white;
+      font-size: 20px;
+      font-weight: @font-weight-semi;
+      text-transform: uppercase;
       margin: 0;
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #ecf0f1;
+      padding: 10px 15px;
+      text-align: center;
+      letter-spacing: 1px;
     }
   }
 
   .nav-menu {
-    list-style: none;
+    margin: 30px 0 0 0;
     padding: 0;
-    margin: 1rem 0;
-
+    list-style: none;
+    flex: 1;
+    
     li {
-      margin: 0;
-
+      position: relative;
+      
       a {
         display: flex;
         align-items: center;
-        padding: 1rem 1.5rem;
-        color: #bdc3c7;
+        padding: 15px 30px;
+        color: rgba(255, 255, 255, 0.8);
         text-decoration: none;
-        transition: all 0.3s ease;
-        border-left: 4px solid transparent;
-
-        &:hover {
-          background-color: #34495e;
-          color: #ecf0f1;
-          border-left-color: #3498db;
-        }
-
-        &.active {
-          background-color: #3498db;
-          color: white;
-          border-left-color: #2980b9;
-          font-weight: 500;
-        }
-
+        transition: @transition-base;
+        font-size: 14px;
+        font-weight: @font-weight-normal;
+        
         .icon {
-          margin-right: 0.75rem;
-          font-size: 1.2rem;
-          width: 1.5rem;
-          display: inline-block;
+          font-size: 20px;
+          margin-right: 15px;
+          width: 24px;
+          text-align: center;
+        }
+        
+        &:hover {
+          color: @white;
+          background-color: rgba(255, 255, 255, 0.1);
+          transform: translateX(5px);
+        }
+        
+        &.active {
+          color: @white;
+          background-color: rgba(255, 255, 255, 0.15);
+          box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.14), 
+                      0 7px 10px -5px rgba(52, 114, 247, 0.4);
+          
+          &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background-color: @white;
+          }
         }
       }
+      
+      &:first-child a {
+        margin-top: 0;
+      }
     }
+  }
+
+  // User menu footer
+  .nav-footer {
+    padding: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: auto;
+  }
+  
+  // Logo/Brand area styling
+  .logo {
+    padding: 20px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 20px;
+    
+    .simple-text {
+      color: @white;
+      font-size: 18px;
+      font-weight: @font-weight-semi;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+  }
+}
+
+// Different color themes (optional)
+.navigation.sidebar-blue {
+  background: linear-gradient(0deg, @blue 0%, lighten(@blue, 10%) 100%);
+}
+
+.navigation.sidebar-green {
+  background: linear-gradient(0deg, @green 0%, lighten(@green, 10%) 100%);
+}
+
+.navigation.sidebar-orange {
+  background: linear-gradient(0deg, @orange 0%, lighten(@orange, 10%) 100%);
+}
+
+.navigation.sidebar-red {
+  background: linear-gradient(0deg, @red 0%, lighten(@red, 10%) 100%);
+}
+
+.navigation.sidebar-purple {
+  background: linear-gradient(0deg, @purple 0%, lighten(@purple, 10%) 100%);
+}
+
+
+// Scrollbar styling for sidebar
+.navigation::-webkit-scrollbar {
+  width: 6px;
+}
+
+.navigation::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navigation::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.5);
   }
 }

@@ -2,24 +2,42 @@
   <div class="nav-header">
     <h2>DocFlow4</h2>
   </div>
+  
   <ul class="nav-menu">
     <li>
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="onNavigationClick()">
         <i class="icon">🏠</i>
         Home
       </a>
     </li>
     <li>
-      <a routerLink="/projects" routerLinkActive="active">
+      <a routerLink="/domains" routerLinkActive="active" (click)="onNavigationClick()">
+        <i class="icon">🌐</i>
+        Domains
+      </a>
+    </li>
+    <li>
+      <a routerLink="/document-types" routerLinkActive="active" (click)="onNavigationClick()">
+        <i class="icon">📄</i>
+        Document Types
+      </a>
+    </li>
+    <li>
+      <a routerLink="/projects" routerLinkActive="active" (click)="onNavigationClick()">
         <i class="icon">📁</i>
         Projects
       </a>
     </li>
     <li>
-      <a routerLink="/document-types" routerLinkActive="active">
-        <i class="icon">📄</i>
-        Document Types
+      <a routerLink="/documents" routerLinkActive="active" (click)="onNavigationClick()">
+        <i class="icon">📝</i>
+        Documents
       </a>
     </li>
   </ul>
+
+  <!-- User Menu at bottom of navigation -->
+  <div class="nav-footer">
+    <app-user-menu></app-user-menu>
+  </div>
 </nav>
