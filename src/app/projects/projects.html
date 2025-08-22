@@ -1,0 +1,42 @@
+<div class="projects-page">
+  <header class="page-header">
+    <h1>Projects</h1>
+    <button class="add-button">+ New Project</button>
+  </header>
+
+  @if (usingMockData()) {
+    <div class="mock-data-banner">
+      ⚠️ Using mock data - Amplify backend not configured
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading projects...</div>
+  }
+
+  <div class="projects-list">
+    @if (projects().length === 0 && !loading()) {
+      <div class="empty-state">
+        <p>No projects found. Create your first project to get started.</p>
+      </div>
+    }
+
+    @for (project of projects(); track project.id) {
+      <div class="project-card">
+        <div class="type-icon">📁</div>
+        <div class="type-content">
+          <h3>{{ project.name }}</h3>
+          <p>{{ project.description }}</p>
+          <div class="type-meta">
+            <span class="status">{{ project.status }}</span>
+            <span class="domain">{{ project.defaultDomain }}</span>
+          </div>
+        </div>
+        <div class="type-actions">
+          <button class="action-btn">Edit</button>
+          <button class="action-btn secondary">View</button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

@@ -1,12 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { Navigation } from './navigation/navigation';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, Navigation],
   templateUrl: './app.html',
   styleUrl: './app.less'
 })
-export class App {
-  protected readonly title = signal('docflow4');
-}
+export class App {}
