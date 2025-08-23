@@ -1,33 +1,53 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { AuthService } from '../services/auth.service';
+import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.service';
 
 @Component({
   selector: 'app-admin',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './admin.html',
   styleUrl: './admin.less',
   standalone: true
 })
-export class Admin {
+export class Admin implements OnInit {
   private authService = inject(AuthService);
+  private adminService = inject(AdminService);
   
-  // Loading states
+  // Signals
+  exports = signal<DatabaseExport[]>([]);
+  isLoading = signal(false);
+  errorMessage = signal('');
+  successMessage = signal('');
+  loadingMessage = signal('Loading...');
+  
+  // Legacy signals for existing template compatibility
   exportLoading = signal(false);
   importLoading = signal(false);
-  
-  // Status messages
   exportStatus = signal<string>('');
   importStatus = signal<string>('');
-  
-  // Statistics
   exportStats = signal<{[key: string]: number}>({});
+  
+  // Dialog states
+  showExportDialog = false;
+  showImportDialog = false;
+  selectedFile: File | null = null;
+  
+  // Form data
+  exportForm: ExportRequest = {
+    exportType: 'user'
+  };
   
   // Current user
   currentUser = this.authService.currentUser;
   
   constructor() {
     this.loadExportStats();
+  }
+
+  async ngOnInit() {
+    await this.loadExports();
   }
   
   async loadExportStats() {
@@ -39,6 +59,126 @@ export class Admin {
       Users: 4,
       Documents: 12
     });
+  }
+
+  async loadExports() {
+    this.isLoading.set(true);
+    this.loadingMessage.set('Loading exports...');
+
+    try {
+      const result = await this.adminService.listExports(true); // Admin view
+      
+      if (result.success && result.exports) {
+        this.exports.set(result.exports);
+      } else {
+        this.errorMessage.set(result.error || 'Failed to load exports');
+      }
+    } catch (error) {
+      this.errorMessage.set('An error occurred while loading exports');
+      console.error('Load exports error:', error);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async refreshExports() {
+    await this.loadExports();
+    this.successMessage.set('Exports list refreshed');
+  }
+
+  async triggerServerlessExport() {
+    this.exportLoading.set(true);
+    this.exportStatus.set('Creating serverless export...');
+    this.errorMessage.set('');
+
+    try {
+      const result = await this.adminService.triggerExport(this.exportForm);
+      
+      if (result.success) {
+        this.exportStatus.set('✅ Serverless export created successfully');
+        this.showExportDialog = false;
+        this.resetExportForm();
+        await this.loadExports();
+      } else {
+        this.exportStatus.set('❌ Failed to create serverless export: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      this.exportStatus.set('❌ An error occurred while creating serverless export');
+      console.error('Serverless export error:', error);
+    } finally {
+      this.exportLoading.set(false);
+    }
+  }
+
+  resetExportForm() {
+    this.exportForm = {
+      exportType: 'user'
+    };
+  }
+
+  async downloadExport(exportItem: DatabaseExport) {
+    this.isLoading.set(true);
+    this.loadingMessage.set('Preparing download...');
+
+    try {
+      const result = await this.adminService.getDownloadUrl(exportItem.id, exportItem.fileName);
+      
+      if (result.success && result.url) {
+        this.successMessage.set('Download started');
+        
+        // Create a temporary download link
+        const link = document.createElement('a');
+        link.href = result.url;
+        link.download = exportItem.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        this.errorMessage.set(result.error || 'Failed to generate download URL');
+      }
+    } catch (error) {
+      this.errorMessage.set('An error occurred while preparing download');
+      console.error('Download error:', error);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async deleteExport(exportItem: DatabaseExport) {
+    if (!confirm(`Are you sure you want to delete "${exportItem.fileName}"?`)) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.loadingMessage.set('Deleting export...');
+
+    try {
+      const result = await this.adminService.deleteExport(exportItem.id, exportItem.fileName);
+      
+      if (result.success) {
+        this.successMessage.set('Export deleted successfully');
+        await this.loadExports();
+      } else {
+        this.errorMessage.set(result.error || 'Failed to delete export');
+      }
+    } catch (error) {
+      this.errorMessage.set('An error occurred while deleting export');
+      console.error('Delete error:', error);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  formatDate(dateString: string): string {
+    return new Date(dateString).toLocaleString();
   }
   
   async exportDatabase() {

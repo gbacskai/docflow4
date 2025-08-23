@@ -37,6 +37,7 @@ export class AuthService {
   private _currentUser = signal<AuthUser | null>(null);
   private _isLoading = signal(false);
   private _isAuthenticated = signal(false);
+  private _testMode = signal(false);
   private userManagementService = inject(UserManagementService);
 
   // Public readonly signals
@@ -250,5 +251,30 @@ export class AuthService {
 
   getUsername(): string | undefined {
     return this._currentUser()?.username;
+  }
+
+
+  // Test mode methods (only for testing)
+  enableTestMode(mockUser?: AuthUser): void {
+    if (typeof window !== 'undefined' && (window as any).playwright) {
+      this._testMode.set(true);
+      this._isAuthenticated.set(true);
+      this._currentUser.set(mockUser || {
+        userId: 'test-user-123',
+        username: 'testuser',
+        email: 'test@example.com',
+        emailVerified: true
+      });
+      console.log('🧪 Test mode enabled with mock authentication');
+    }
+  }
+
+  disableTestMode(): void {
+    if (typeof window !== 'undefined' && (window as any).playwright) {
+      this._testMode.set(false);
+      this._isAuthenticated.set(false);
+      this._currentUser.set(null);
+      console.log('🧪 Test mode disabled');
+    }
   }
 }

@@ -18,6 +18,14 @@ yarn-error.log
 .c9/
 *.launch
 .settings/
+
+# Test reports and artifacts
+cypress/report/
+cypress/videos/
+cypress/screenshots/
+*.log
+test-*.png
+auth-redirect-test-report.json
 *.sublime-workspace
 
 # Visual Studio Code
