@@ -25,7 +25,7 @@
   },
   "private": true,
   "engines": {
-    "node": "21.x.x",
+    "node": "24.x.x",
     "npm": ">=10.0.0"
   },
   "dependencies": {
