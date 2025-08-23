@@ -13,6 +13,12 @@
       </li>
       @if (isCurrentUserAdmin()) {
         <li>
+          <a routerLink="/admin" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">🔧</i>
+            Admin
+          </a>
+        </li>
+        <li>
           <a routerLink="/domains" routerLinkActive="active" (click)="onNavigationClick()">
             <i class="icon">🌐</i>
             Domains

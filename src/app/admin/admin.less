@@ -1,0 +1,321 @@
+.admin-page {
+  padding: 2rem;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+
+  // Header
+  .page-header {
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border-radius: 12px;
+    color: white;
+
+    .title-section {
+      h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 2.5rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      p {
+        margin: 0;
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+    }
+  }
+
+  // Database Statistics
+  .stats-section {
+    margin-bottom: 2rem;
+
+    h2 {
+      margin-bottom: 1rem;
+      color: #2c3e50;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+
+      .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        border-left: 4px solid #3498db;
+
+        .stat-number {
+          font-size: 2rem;
+          font-weight: 700;
+          color: #2c3e50;
+          line-height: 1;
+        }
+
+        .stat-label {
+          font-size: 0.9rem;
+          color: #7f8c8d;
+          margin-top: 0.25rem;
+        }
+      }
+    }
+  }
+
+  // Admin Sections
+  .admin-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+    overflow: hidden;
+
+    .section-header {
+      padding: 2rem 2rem 1rem 2rem;
+      border-bottom: 1px solid #ecf0f1;
+
+      h2 {
+        margin: 0 0 0.5rem 0;
+        color: #2c3e50;
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      p {
+        margin: 0;
+        color: #7f8c8d;
+        font-size: 1rem;
+      }
+    }
+
+    .action-panel {
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 2rem;
+      align-items: start;
+
+      .export-info, .import-info {
+        .info-item {
+          margin-bottom: 1.5rem;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          strong {
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 0.5rem;
+          }
+
+          ul {
+            margin: 0.5rem 0 0 1rem;
+            padding: 0;
+
+            li {
+              color: #7f8c8d;
+              margin-bottom: 0.25rem;
+            }
+          }
+        }
+      }
+
+      .action-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-width: 200px;
+
+        .file-input-wrapper {
+          position: relative;
+
+          input[type="file"] {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+            pointer-events: none;
+          }
+
+          label {
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+            text-align: center;
+          }
+        }
+      }
+    }
+
+    .info-panel {
+      padding: 2rem;
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+
+        .info-card {
+          padding: 1rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+          border-left: 3px solid #3498db;
+
+          .info-label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 0.25rem;
+          }
+
+          .info-value {
+            font-weight: 600;
+            color: #2c3e50;
+          }
+        }
+      }
+    }
+  }
+
+  // Buttons
+  .btn-primary, .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    text-decoration: none;
+
+    &.large {
+      padding: 1rem 2rem;
+      font-size: 1.1rem;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-primary {
+    background: #27ae60;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+  }
+
+  .btn-secondary {
+    background: #3498db;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #2980b9;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    }
+  }
+
+  // Status Messages
+  .status-message {
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+
+    &.success {
+      background: #d5f4e6;
+      color: #27ae60;
+      border: 1px solid #27ae60;
+    }
+
+    &.error {
+      background: #fadbd8;
+      color: #e74c3c;
+      border: 1px solid #e74c3c;
+    }
+
+    &.warning {
+      background: #fef9e7;
+      color: #f39c12;
+      border: 1px solid #f39c12;
+    }
+  }
+
+  // Loading Spinner
+  .loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  // Responsive Design
+  @media (max-width: 1024px) {
+    .action-panel {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+
+    .page-header {
+      padding: 1.5rem;
+
+      .title-section h1 {
+        font-size: 2rem;
+      }
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    .admin-section {
+      .section-header {
+        padding: 1.5rem 1.5rem 1rem 1.5rem;
+
+        h2 {
+          font-size: 1.3rem;
+        }
+      }
+
+      .action-panel {
+        padding: 1.5rem;
+      }
+
+      .info-panel {
+        padding: 1.5rem;
+
+        .info-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    }
+  }
+}

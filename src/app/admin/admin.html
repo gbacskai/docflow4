@@ -1,0 +1,155 @@
+<div class="admin-page">
+  <header class="page-header">
+    <div class="title-section">
+      <h1>🔧 Admin Panel</h1>
+      <p>Database management and system administration</p>
+    </div>
+  </header>
+
+  <!-- Database Statistics -->
+  <div class="stats-section">
+    <h2>Database Overview</h2>
+    <div class="stats-grid">
+      @for (stat of exportStats() | keyvalue; track stat.key) {
+        <div class="stat-card">
+          <div class="stat-number">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.key }}</div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Database Export Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>📤 Database Export</h2>
+      <p>Export all database tables to a JSON file (excluding uploaded files)</p>
+    </div>
+    
+    <div class="action-panel">
+      <div class="export-info">
+        <div class="info-item">
+          <strong>What gets exported:</strong>
+          <ul>
+            <li>All Projects data</li>
+            <li>All Domains data</li>
+            <li>All Document Types data</li>
+            <li>All Users data</li>
+            <li>All Documents metadata (file URLs excluded)</li>
+          </ul>
+        </div>
+        <div class="info-item">
+          <strong>Export format:</strong> JSON file with timestamp
+        </div>
+      </div>
+      
+      <div class="action-controls">
+        <button 
+          class="btn-primary large" 
+          (click)="exportDatabase()" 
+          [disabled]="exportLoading()"
+        >
+          @if (exportLoading()) {
+            <span class="loading-spinner"></span>
+            Exporting...
+          } @else {
+            📤 Export Database
+          }
+        </button>
+        
+        @if (exportStatus()) {
+          <div class="status-message" [class.success]="exportStatus().includes('✅')" [class.error]="exportStatus().includes('❌')">
+            {{ exportStatus() }}
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Database Import Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>📥 Database Import</h2>
+      <p>Import database from a previously exported JSON file</p>
+    </div>
+    
+    <div class="action-panel">
+      <div class="import-info">
+        <div class="info-item">
+          <strong>⚠️ Important warnings:</strong>
+          <ul>
+            <li>This will <strong>add</strong> records to existing data</li>
+            <li>Duplicate records may cause import errors</li>
+            <li>This operation cannot be undone</li>
+            <li>Always backup your data before importing</li>
+          </ul>
+        </div>
+        <div class="info-item">
+          <strong>Supported format:</strong> JSON files exported from this system
+        </div>
+      </div>
+      
+      <div class="action-controls">
+        <div class="file-input-wrapper">
+          <input 
+            type="file" 
+            accept=".json" 
+            (change)="onFileSelected($event)"
+            [disabled]="importLoading()"
+            id="import-file"
+          />
+          <label for="import-file" class="btn-secondary large">
+            @if (importLoading()) {
+              <span class="loading-spinner"></span>
+              Importing...
+            } @else {
+              📥 Select Import File
+            }
+          </label>
+        </div>
+        
+        @if (importStatus()) {
+          <div class="status-message" [class.success]="importStatus().includes('✅')" [class.error]="importStatus().includes('❌')" [class.warning]="importStatus().includes('⚠️')">
+            {{ importStatus() }}
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- System Information -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>ℹ️ System Information</h2>
+      <p>Current system status and information</p>
+    </div>
+    
+    <div class="info-panel">
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-label">System Version</div>
+          <div class="info-value">DocFlow v4.0</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Current User</div>
+          <div class="info-value">{{ currentUser()?.username || 'Unknown' }}</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">User Role</div>
+          <div class="info-value">Administrator</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Access Level</div>
+          <div class="info-value">Full Access</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Messages Button -->
+  <div class="admin-section">
+    <button class="btn-secondary" (click)="clearMessages()">
+      🧹 Clear All Messages
+    </button>
+  </div>
+</div>
