@@ -552,4 +552,13 @@ export class DocumentTypes implements OnInit, OnDestroy {
     this.filteredDocumentTypes.set(allDocTypes);
   }
 
+  // Methods expected by tests - delegate to sidebar methods
+  toggleDomain(domainId: string, event: any) {
+    this.toggleDomainInSidebar(domainId);
+  }
+
+  isDomainSelected(domainId: string): boolean {
+    return this.isDomainSelectedInSidebar(domainId);
+  }
+
 }

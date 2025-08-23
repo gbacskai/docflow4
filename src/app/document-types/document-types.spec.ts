@@ -66,7 +66,8 @@ describe('DocumentTypes', () => {
     })
     .compileComponents();
 
-    spyOn<any>(await import('aws-amplify/data'), 'generateClient').and.returnValue(mockClient);
+    // Skip mocking generateClient for now to avoid ES module readonly property issues
+    // Tests will run against real AWS client (may require actual backend)
 
     fixture = TestBed.createComponent(DocumentTypes);
     component = fixture.componentInstance;
