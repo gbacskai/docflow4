@@ -1,0 +1,195 @@
+
+// Comprehensive mixins to reduce component CSS sizes
+
+// Layout mixins
+.page-header-mixin() {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 10px;
+  
+  h1 {
+    font-size: 2.5rem;
+    color: #2c3e50;
+    margin: 0;
+    font-weight: 300;
+  }
+}
+
+.card-mixin() {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  padding: 1.5rem;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// Form mixins
+.form-header-mixin() {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  
+  h2 {
+    color: #2c3e50;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 500;
+  }
+}
+
+.form-group-mixin() {
+  margin-bottom: 1rem;
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #2c3e50;
+    font-weight: 500;
+  }
+  
+  input, textarea, select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    
+    &:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+    }
+    
+    &.error {
+      border-color: #e74c3c;
+    }
+  }
+}
+
+// Button mixins
+.btn-base-mixin() {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary-mixin() {
+  .btn-base-mixin();
+  background: #3498db;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #2980b9;
+  }
+}
+
+.btn-success-mixin() {
+  .btn-base-mixin();
+  background: #27ae60;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #219a52;
+  }
+}
+
+.btn-warning-mixin() {
+  .btn-base-mixin();
+  background: #f39c12;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #e67e22;
+  }
+}
+
+.btn-danger-mixin() {
+  .btn-base-mixin();
+  background: #e74c3c;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: #c0392b;
+  }
+}
+
+// Sidebar mixins
+.sidebar-base-mixin() {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sidebar-content-mixin() {
+  background: white;
+  height: 100vh;
+  overflow-y: auto;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header-mixin() {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  
+  h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.2rem;
+  }
+}
+
+// Status badge mixin
+.status-badge-mixin() {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  text-transform: capitalize;
+  font-size: 0.8rem;
+  
+  &.status-active {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  &.status-completed {
+    background: #cce5ff;
+    color: #004085;
+  }
+  
+  &.status-archived {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  &.status-pending {
+    background: #fef9e7;
+    color: #f39c12;
+  }
+}
