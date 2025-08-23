@@ -3,17 +3,17 @@ backend:
   phases:
     build:
       commands:
-        - nvm use $VERSION_NODE_21
+        - nvm use 24.5.0
         - npm ci --cache .npm --prefer-offline
 frontend:
   phases:
     preBuild:
       commands:
-        - nvm use $VERSION_NODE_24
+        - nvm use 24.5.0
         - npm ci --cache .npm --prefer-offline
     build:
       commands:
-        - nvm use $VERSION_NODE_24
+        - nvm use 24.5.0
         - npm run build
   artifacts:
     baseDirectory: dist/docflow4
@@ -25,5 +25,5 @@ frontend:
       - node_modules/**/*
 env:
   variables:
-    NODE_VERSION: $VERSION_NODE_24
+    NODE_VERSION: 24.5.0
     _LIVE_UPDATES: '[{"name":"Amplify CLI","pkg":"@aws-amplify/cli","type":"npm","version":"latest"}]'
