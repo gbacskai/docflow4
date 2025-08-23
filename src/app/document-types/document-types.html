@@ -23,7 +23,7 @@
               <div class="view-details">
                 <p class="description">{{ selectedDocumentType()?.description }}</p>
                 <div class="view-meta">
-                  <span class="category">Domains: {{ getDomainNames(selectedDocumentType()?.category || []) }}</span>
+                  <span class="domains">Domains: {{ getDomainNames(selectedDocumentType()?.domainIds || []) }}</span>
                   <span class="status" [class]="selectedDocumentType()?.isActive ? 'active' : 'inactive'">
                     {{ selectedDocumentType()?.isActive ? 'Active' : 'Inactive' }}
                   </span>
@@ -78,16 +78,33 @@
           <div class="form-row">
             <div class="form-group">
               <label>Domains</label>
-              <div class="domains-checkboxes">
-                @for (domain of domains(); track domain.id) {
-                  <label class="checkbox-label">
-                    <input 
-                      type="checkbox" 
-                      [checked]="isDomainSelected(domain.id)"
-                      (change)="toggleDomain(domain.id, $event)"
-                    />
-                    <span>{{ domain.name }}</span>
-                  </label>
+              <div class="domains-selector">
+                <button 
+                  type="button"
+                  class="select-domains-btn" 
+                  (click)="openDomainSidebar()"
+                >
+                  📋 Select Domains
+                </button>
+                @if (documentTypeForm.get('domainIds')?.value?.length > 0) {
+                  <div class="selected-domains-display">
+                    <h4>Selected Domains:</h4>
+                    <div class="selected-domains-list">
+                      @for (domainId of documentTypeForm.get('domainIds')?.value; track domainId) {
+                        <div class="selected-domain-item">
+                          <div class="domain-name">{{ getDomainName(domainId) }}</div>
+                          <div class="domain-description">{{ getDomainDescription(domainId) }}</div>
+                        </div>
+                      }
+                    </div>
+                    <div class="selection-count">
+                      {{ documentTypeForm.get('domainIds')?.value?.length }} domain(s) selected
+                    </div>
+                  </div>
+                } @else {
+                  <div class="no-domains-message">
+                    <small>No domains selected</small>
+                  </div>
                 }
               </div>
               <div class="help-text">Optional: Select domains this document type belongs to</div>
@@ -147,8 +164,8 @@
             @if ((docType.templateCount || 0) > 0) {
               <span class="template-count">{{ docType.templateCount }} templates</span>
             }
-            @if (docType.category) {
-              <span class="category">{{ getDomainNames(docType.category) }}</span>
+            @if (docType.domainIds && docType.domainIds.length > 0) {
+              <span class="domains">{{ getDomainNames(docType.domainIds) }}</span>
             }
             @if (!docType.isActive) {
               <span class="inactive-badge">Inactive</span>
@@ -165,4 +182,82 @@
       </div>
     }
   </div>
+
+  <!-- Domain Selection Sidebar -->
+  @if (showDomainSidebar()) {
+    <div class="sidebar-overlay" (click)="cancelDomainSelection()">
+      <div class="domain-sidebar" (click)="$event.stopPropagation()">
+        <div class="sidebar-header">
+          <h3>Select Domains</h3>
+          <button class="close-sidebar-btn" (click)="cancelDomainSelection()">✕</button>
+        </div>
+        
+        <div class="sidebar-search">
+          <div class="search-input-wrapper">
+            <input 
+              type="text"
+              class="search-input"
+              placeholder="Search domains..."
+              (input)="onSearchInputChange($event)"
+              [disabled]="searchingDomains()"
+              #searchInput
+            />
+            @if (searchingDomains()) {
+              <div class="search-spinner">🔄</div>
+            } @else if (domainSearchQuery()) {
+              <button class="clear-search-btn" (click)="clearSearch()">✕</button>
+            }
+          </div>
+        </div>
+        
+        <div class="sidebar-content">
+          @if (getFilteredDomains().length === 0) {
+            <div class="no-domains-found">
+              @if (domainSearchQuery()) {
+                <p>No domains found matching "{{ domainSearchQuery() }}"</p>
+                <button class="btn-clear-search" (click)="clearSearch()">Clear Search</button>
+              } @else {
+                <p>No domains available</p>
+              }
+            </div>
+          } @else {
+            <div class="domains-list">
+              @for (domain of getFilteredDomains(); track trackDomainById($index, domain)) {
+              <div class="domain-item" [class.selected]="isDomainSelectedInSidebar(domain.id)" 
+                   (click)="onDomainItemClick(domain.id, domain.name)">
+                <div class="domain-info" (click)="toggleDomainInSidebar(domain.id)">
+                  <div class="domain-checkbox">
+                    <input 
+                      type="checkbox"
+                      [checked]="isDomainSelectedInSidebar(domain.id)"
+                      (click)="$event.stopPropagation()"
+                      (change)="$event.stopPropagation(); toggleDomainInSidebar(domain.id)"
+                    />
+                  </div>
+                  <div class="domain-details">
+                    <h4>{{ domain.name }}</h4>
+                    <p>{{ domain.description }}</p>
+                    <span class="domain-status" [class]="'status-' + domain.status">
+                      {{ domain.status | titlecase }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              }
+            </div>
+          }
+        </div>
+        
+        <div class="sidebar-footer">
+          <div class="selection-summary">
+            {{ tempSelectedDomains().length }} domain(s) selected
+          </div>
+          <div class="sidebar-actions">
+            <button class="btn-cancel" (click)="cancelDomainSelection()">Cancel</button>
+            <button class="btn-apply" (click)="applyDomainSelection()">Apply Selection</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
 </div>

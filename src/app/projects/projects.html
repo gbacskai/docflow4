@@ -99,13 +99,28 @@
 
         <div class="form-group">
           <label for="adminUsers">Admin Users</label>
-          <input 
-            id="adminUsers" 
-            type="text" 
-            formControlName="adminUsers" 
-            placeholder="user1, user2, user3 (comma-separated)"
-          />
-          <small>Enter admin user IDs separated by commas (optional)</small>
+          <div class="admin-users-selector">
+            <div class="selected-admin-users">
+              @if (newProjectForm.get('adminUsers')?.value?.length > 0) {
+                @for (userId of newProjectForm.get('adminUsers')?.value; track userId) {
+                  <span class="selected-user-tag">
+                    {{ getOwnerName(userId) }}
+                  </span>
+                }
+              } @else {
+                <span class="no-selection">No admin users selected</span>
+              }
+            </div>
+            <button 
+              type="button" 
+              class="select-users-btn" 
+              (click)="openAdminUsersSidebar()"
+              [disabled]="currentMode() === 'view'"
+            >
+              Select Admin Users
+            </button>
+          </div>
+          <small>Select users who will have administrative access to this project (optional)</small>
         </div>
 
         <div class="form-actions">
@@ -149,7 +164,6 @@
 
     @for (project of projects(); track project.id) {
       <div class="project-card">
-        <div class="type-icon">📁</div>
         <div class="type-content">
           <h3>{{ project.name }}</h3>
           <p>{{ project.description }}</p>
@@ -157,13 +171,91 @@
             <span class="status" [class]="'status-' + project.status">{{ project.status }}</span>
             <span class="owner">Owner: {{ getOwnerName(project.ownerId) }}</span>
             <span class="domain">{{ getDomainName(project.defaultDomain) }}</span>
+            <span class="admin-users">Admin Users: {{ getAdminUserNames(project.adminUsers) }}</span>
           </div>
         </div>
         <div class="type-actions">
-          <button class="action-btn" (click)="openEditProject(project)">Edit</button>
-          <button class="action-btn secondary" (click)="openViewProject(project)">View</button>
+          <button class="action-btn-small" (click)="openEditProject(project)">Edit</button>
+          <button class="action-btn-small secondary" (click)="openViewProject(project)">View</button>
         </div>
       </div>
     }
   </div>
+
+  @if (showAdminUsersSidebar()) {
+    <div class="admin-users-sidebar-overlay">
+      <div class="admin-users-sidebar">
+        <div class="sidebar-header">
+          <h3>Select Admin Users</h3>
+          <button type="button" class="close-sidebar-btn" (click)="closeAdminUsersSidebar()">✕</button>
+        </div>
+
+        <div class="search-section">
+          <div class="search-input-container">
+            <input 
+              #userSearchInput
+              type="text" 
+              class="search-input" 
+              placeholder="Search users by name or email..."
+              (input)="onUserSearchInputChange($event)"
+            />
+            @if (userSearchQuery()) {
+              <button type="button" class="clear-search-btn" (click)="clearUserSearch()">✕</button>
+            }
+          </div>
+          @if (searchingUsers()) {
+            <div class="search-status">Searching...</div>
+          }
+        </div>
+
+        <div class="users-list">
+          @if (loadingUsers()) {
+            <div class="loading-message">Loading users...</div>
+          }
+
+          @if (getFilteredUsers().length === 0 && !loadingUsers() && !searchingUsers()) {
+            <div class="no-results">
+              @if (userSearchQuery()) {
+                No users found matching "{{ userSearchQuery() }}"
+              } @else {
+                No users available
+              }
+            </div>
+          }
+
+          @for (user of getFilteredUsers(); track trackUserById($index, user)) {
+            <div 
+              class="user-item"
+              [class.selected]="isAdminUserSelectedInSidebar(user.id)"
+              (click)="toggleAdminUserInSidebar(user.id); onUserItemClick(user.id, user.firstName + ' ' + user.lastName)"
+            >
+              <div class="user-content">
+                <div class="user-info">
+                  <div class="user-name">{{ user.firstName }} {{ user.lastName }}</div>
+                  <div class="user-email">{{ user.email }}</div>
+                  @if (user.userType) {
+                    <span class="user-type" [class]="'type-' + user.userType">{{ user.userType }}</span>
+                  }
+                </div>
+                <div class="selection-indicator">
+                  @if (isAdminUserSelectedInSidebar(user.id)) {
+                    <span class="checkmark">✓</span>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="sidebar-actions">
+          <button type="button" class="btn-cancel" (click)="cancelAdminUserSelection()">
+            Cancel
+          </button>
+          <button type="button" class="btn-apply" (click)="applyAdminUserSelection()">
+            Apply Selection ({{ tempSelectedAdminUsers().length }})
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

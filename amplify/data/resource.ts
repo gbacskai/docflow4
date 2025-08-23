@@ -19,18 +19,25 @@ const schema = a.schema({
       documentType: a.string().required(),
       assignedProviders: a.string().array(),
       acceptedProvider: a.string(),
-      status: a.enum(['requested', 'accepted', 'rejected', 'provided']),
+      status: a.enum(['requested', 'accepted', 'rejected', 'provided', 'amended']),
       dueDate: a.datetime(),
+      fileUrls: a.string().array(),
+      fileNames: a.string().array(),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .authorization(allow => [allow.publicApiKey()]),
   User: a.model({
       email: a.string().required(),
-      userType: a.enum(['admin', 'client']),
-      firstName: a.string().required(),
-      lastName: a.string().required(),
+      userType: a.enum(['admin', 'client', 'provider']),
+      firstName: a.string(),
+      lastName: a.string(),
       interestedDocumentTypes: a.string().array(),
+      status: a.enum(['invited', 'active', 'inactive', 'archived']),
+      cognitoUserId: a.string(), // Cognito user ID for linking authenticated users
+      invitedBy: a.string(),
+      invitedAt: a.datetime(),
+      lastLoginAt: a.datetime(),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
@@ -40,6 +47,7 @@ const schema = a.schema({
       description: a.string().required(),
       category: a.string(),
       fields: a.string().array(),
+      domainIds: a.string().array(),
       isActive: a.boolean(),
       usageCount: a.integer(),
       templateCount: a.integer(),

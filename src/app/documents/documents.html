@@ -19,7 +19,6 @@
           
           <div class="view-content">
             <div class="view-section">
-              <div class="view-icon">📄</div>
               <div class="view-details">
                 <div class="view-meta">
                   <span class="document-type">Type: {{ getDocumentTypeName(selectedDocument()?.documentType || '') }}</span>
@@ -49,6 +48,64 @@
                 @if (selectedDocument()?.acceptedProvider) {
                   <div class="accepted-provider">
                     <strong>Accepted Provider:</strong> {{ selectedDocument()?.acceptedProvider }}
+                  </div>
+                }
+                @if (selectedDocument()?.fileNames && selectedDocument()?.fileUrls && selectedDocument()!.fileNames!.length > 0) {
+                  <div class="uploaded-files">
+                    <strong>Uploaded Files:</strong> 
+                    <div class="files-list">
+                      @for (fileName of selectedDocument()?.fileNames; track $index) {
+                        <div class="file-item">
+                          <div class="file-controls">
+                            <button class="file-download-btn" (click)="downloadFile(selectedDocument()?.fileUrls?.[$index] || '')">
+                              📎 {{ fileName }}
+                            </button>
+                            <button 
+                              class="file-preview-btn" 
+                              (click)="toggleFilePreview(selectedDocument()!.id, $index)"
+                              [class.active]="isFilePreviewExpanded(selectedDocument()!.id, $index)"
+                            >
+                              {{ isFilePreviewExpanded(selectedDocument()!.id, $index) ? '🔼' : '🔽' }}
+                            </button>
+                          </div>
+                          @if (isFilePreviewExpanded(selectedDocument()!.id, $index)) {
+                            <div class="file-preview">
+                              @if (isImageFile(fileName)) {
+                                <div class="preview-thumbnail" (click)="openViewer(selectedDocument()?.fileUrls?.[$index] || '', fileName)">
+                                  <img 
+                                    [src]="selectedDocument()?.fileUrls?.[$index] || ''" 
+                                    [alt]="fileName"
+                                    class="preview-image"
+                                  />
+                                  <div class="preview-overlay">
+                                    <span class="preview-text">🔍 Click to view full size</span>
+                                  </div>
+                                </div>
+                              } @else if (isPdfFile(fileName)) {
+                                <div class="preview-thumbnail" (click)="openViewer(selectedDocument()?.fileUrls?.[$index] || '', fileName)">
+                                  <iframe 
+                                    [src]="getSafeUrl(selectedDocument()?.fileUrls?.[$index] || '')"
+                                    class="preview-pdf"
+                                    frameborder="0"
+                                  ></iframe>
+                                  <div class="preview-overlay">
+                                    <span class="preview-text">🔍 Click to view full screen</span>
+                                  </div>
+                                </div>
+                              } @else {
+                                <div class="preview-placeholder">
+                                  <p>📄 {{ fileName }}</p>
+                                  <p>File type: {{ getFileExtension(fileName).toUpperCase() }}</p>
+                                  <button class="btn-open-file" (click)="downloadFile(selectedDocument()?.fileUrls?.[$index] || '')">
+                                    Open File
+                                  </button>
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
                   </div>
                 }
               </div>
@@ -111,6 +168,7 @@
                 <option value="accepted">Accepted</option>
                 <option value="rejected">Rejected</option>
                 <option value="provided">Provided</option>
+                <option value="amended">Amended</option>
               </select>
             </div>
             <div class="form-group">
@@ -144,6 +202,49 @@
             />
           </div>
 
+          <!-- File Upload Section -->
+          <div class="form-group">
+            <label>Files (Optional)</label>
+            <div class="file-upload-area">
+              <input 
+                type="file" 
+                #formFileInput 
+                (change)="onFilesSelected($event)" 
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                multiple
+                style="display: none"
+              />
+              <button 
+                type="button"
+                class="file-upload-btn" 
+                (click)="formFileInput.click()"
+                [disabled]="processing()"
+              >
+                📎 Choose Files
+              </button>
+              
+              @if (selectedFiles().length > 0) {
+                <div class="form-selected-files">
+                  <div class="files-preview-form">
+                    @for (file of selectedFiles(); track $index) {
+                      <div class="selected-file-form">
+                        <span class="file-name">{{ file.name }}</span>
+                        <span class="file-size">({{ (file.size / 1024).toFixed(1) }}KB)</span>
+                        <button 
+                          type="button"
+                          class="remove-file-btn" 
+                          (click)="removeFile($index)"
+                        >✕</button>
+                      </div>
+                    }
+                  </div>
+                  <small class="file-help">{{ selectedFiles().length }} file(s) selected</small>
+                </div>
+              }
+              <small class="help-text">Upload files for this document (optional)</small>
+            </div>
+          </div>
+
           <div class="form-actions">
             <button 
               type="button" 
@@ -171,6 +272,11 @@
   }
 
   <div class="documents-list">
+    <!-- Debug info -->
+    <div style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 4px;">
+      <small>Debug: Documents count: {{ documents().length }}, Loading: {{ loading() }}</small>
+    </div>
+
     @if (documents().length === 0 && !loading()) {
       <div class="empty-state">
         <p>No document requests found. Create your first document request to get started.</p>
@@ -178,8 +284,7 @@
     }
 
     @for (document of documents(); track document.id) {
-      <div class="document-card" [class]="'status-' + document.status">
-        <div class="document-icon">📄</div>
+      <div class="document-card" [class]="'status-' + document.status" (click)="openViewMode(document)">
         <div class="document-content">
           <h3>{{ getProjectName(document.projectId) }} - {{ getDocumentTypeName(document.documentType) }}</h3>
           <div class="document-meta">
@@ -201,15 +306,161 @@
               <strong>Accepted:</strong> {{ document.acceptedProvider }}
             </div>
           }
+          @if (document.fileNames && document.fileUrls && document.fileNames.length > 0) {
+            <div class="uploaded-files">
+              <strong>Files:</strong> 
+              <div class="files-list">
+                @for (fileName of document.fileNames; track $index) {
+                  <div class="file-item">
+                    <div class="file-controls">
+                      <button class="file-download-btn" (click)="downloadFile(document.fileUrls[$index] || '')">
+                        📎 {{ fileName }}
+                      </button>
+                      <button 
+                        class="file-preview-btn" 
+                        (click)="toggleFilePreview(document.id, $index)"
+                        [class.active]="isFilePreviewExpanded(document.id, $index)"
+                      >
+                        {{ isFilePreviewExpanded(document.id, $index) ? '🔼' : '🔽' }}
+                      </button>
+                    </div>
+                    @if (isFilePreviewExpanded(document.id, $index)) {
+                      <div class="file-preview">
+                        @if (isImageFile(fileName)) {
+                          <div class="preview-thumbnail" (click)="openViewer(document.fileUrls[$index] || '', fileName)">
+                            <img 
+                              [src]="document.fileUrls[$index] || ''" 
+                              [alt]="fileName"
+                              class="preview-image"
+                            />
+                            <div class="preview-overlay">
+                              <span class="preview-text">🔍 Click to view full size</span>
+                            </div>
+                          </div>
+                        } @else if (isPdfFile(fileName)) {
+                          <div class="preview-thumbnail" (click)="openViewer(document.fileUrls[$index] || '', fileName)">
+                            <iframe 
+                              [src]="getSafeUrl(document.fileUrls[$index] || '')"
+                              class="preview-pdf"
+                              frameborder="0"
+                            ></iframe>
+                            <div class="preview-overlay">
+                              <span class="preview-text">🔍 Click to view full screen</span>
+                            </div>
+                          </div>
+                        } @else {
+                          <div class="preview-placeholder">
+                            <p>📄 {{ fileName }}</p>
+                            <p>File type: {{ getFileExtension(fileName).toUpperCase() }}</p>
+                            <button class="btn-open-file" (click)="downloadFile(document.fileUrls[$index] || '')">
+                              Open File
+                            </button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
-        <div class="document-actions">
-          <button class="action-btn" (click)="openViewMode(document)">View</button>
-          <button class="action-btn" (click)="openEditForm(document)">Edit</button>
-          <button class="action-btn danger" (click)="deleteDocument(document)" [disabled]="processing()">
-            {{ processing() ? '...' : 'Delete' }}
-          </button>
+        <div class="document-actions" (click)="$event.stopPropagation()">
+          @if (document.status === 'accepted' && (!document.fileUrls || !document.fileUrls.length)) {
+            <div class="file-upload-section">
+              <input 
+                type="file" 
+                #fileInput 
+                (change)="onFilesSelected($event)" 
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                multiple
+                style="display: none"
+              />
+              <button class="action-btn upload-btn" (click)="fileInput.click()" [disabled]="uploading()">
+                📎 Choose Files
+              </button>
+              
+              @if (selectedFiles().length > 0) {
+                <div class="selected-files">
+                  <div class="files-preview">
+                    @for (file of selectedFiles(); track $index) {
+                      <div class="selected-file">
+                        <span>{{ file.name }}</span>
+                        <button class="remove-file-btn" (click)="removeFile($index)" type="button">✕</button>
+                      </div>
+                    }
+                  </div>
+                  <button 
+                    class="action-btn primary" 
+                    (click)="uploadFilesAndUpdateStatus(document)" 
+                    [disabled]="uploading()"
+                  >
+                    {{ uploading() ? 'Uploading...' : `Upload ${selectedFiles().length} Files & Submit` }}
+                  </button>
+                </div>
+              }
+            </div>
+          } @else {
+            <button class="action-btn" (click)="openEditForm(document); $event.stopPropagation()">Edit</button>
+          }
         </div>
       </div>
     }
   </div>
+
+  <!-- Full-Screen File Viewer Modal -->
+  @if (viewerOpen()) {
+    <div class="file-viewer-modal" (click)="closeViewer()">
+      <div class="viewer-header">
+        <div class="viewer-title">
+          <h3>{{ viewerFileName() }}</h3>
+          <span class="file-type-badge">{{ getFileExtension(viewerFileName()).toUpperCase() }}</span>
+        </div>
+        <div class="viewer-controls">
+          <button class="viewer-btn" (click)="downloadCurrentFile()" title="Download">
+            📥 Download
+          </button>
+          <button class="viewer-btn close-btn" (click)="closeViewer()" title="Close">
+            ✕
+          </button>
+        </div>
+      </div>
+      
+      <div class="viewer-content" (click)="$event.stopPropagation()">
+        @if (viewerFileType() === 'image') {
+          <div class="image-viewer">
+            <img 
+              [src]="viewerFileUrl() || ''" 
+              [alt]="viewerFileName() || ''"
+              class="viewer-image"
+              (load)="onImageLoad()"
+              (error)="onImageError(viewerFileUrl())"
+            />
+            <div class="image-debug" style="position: absolute; bottom: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 5px; font-size: 12px;">
+              URL: {{ viewerFileUrl() }}
+            </div>
+          </div>
+        } @else if (viewerFileType() === 'pdf') {
+          <div class="pdf-viewer">
+            <iframe 
+              [src]="getSafeUrl(viewerFileUrl())"
+              class="viewer-pdf"
+              frameborder="0"
+            ></iframe>
+          </div>
+        } @else {
+          <div class="unsupported-viewer">
+            <div class="unsupported-content">
+              <h4>📄 {{ viewerFileName() }}</h4>
+              <p>File type: {{ getFileExtension(viewerFileName()).toUpperCase() }}</p>
+              <p>This file type cannot be previewed in the browser.</p>
+              <button class="btn-download-large" (click)="downloadCurrentFile()">
+                📥 Download File
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
 </div>

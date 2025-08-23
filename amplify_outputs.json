@@ -192,6 +192,22 @@
               "isRequired": false,
               "attributes": []
             },
+            "fileUrls": {
+              "name": "fileUrls",
+              "isArray": true,
+              "type": "String",
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true
+            },
+            "fileNames": {
+              "name": "fileNames",
+              "isArray": true,
+              "type": "String",
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true
+            },
             "createdAt": {
               "name": "createdAt",
               "isArray": false,
@@ -268,14 +284,14 @@
               "name": "firstName",
               "isArray": false,
               "type": "String",
-              "isRequired": true,
+              "isRequired": false,
               "attributes": []
             },
             "lastName": {
               "name": "lastName",
               "isArray": false,
               "type": "String",
-              "isRequired": true,
+              "isRequired": false,
               "attributes": []
             },
             "interestedDocumentTypes": {
@@ -285,6 +301,43 @@
               "isRequired": false,
               "attributes": [],
               "isArrayNullable": true
+            },
+            "status": {
+              "name": "status",
+              "isArray": false,
+              "type": {
+                "enum": "UserStatus"
+              },
+              "isRequired": false,
+              "attributes": []
+            },
+            "cognitoUserId": {
+              "name": "cognitoUserId",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "invitedBy": {
+              "name": "invitedBy",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "invitedAt": {
+              "name": "invitedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            },
+            "lastLoginAt": {
+              "name": "lastLoginAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
             },
             "createdAt": {
               "name": "createdAt",
@@ -365,6 +418,14 @@
             },
             "fields": {
               "name": "fields",
+              "isArray": true,
+              "type": "String",
+              "isRequired": false,
+              "attributes": [],
+              "isArrayNullable": true
+            },
+            "domainIds": {
+              "name": "domainIds",
               "isArray": true,
               "type": "String",
               "isRequired": false,
@@ -533,14 +594,25 @@
             "requested",
             "accepted",
             "rejected",
-            "provided"
+            "provided",
+            "amended"
           ]
         },
         "UserUserType": {
           "name": "UserUserType",
           "values": [
             "admin",
-            "client"
+            "client",
+            "provider"
+          ]
+        },
+        "UserStatus": {
+          "name": "UserStatus",
+          "values": [
+            "invited",
+            "active",
+            "inactive",
+            "archived"
           ]
         },
         "DomainStatus": {
@@ -553,6 +625,39 @@
       },
       "nonModels": {}
     }
+  },
+  "storage": {
+    "aws_region": "ap-southeast-2",
+    "bucket_name": "amplify-docflow4-00003-sa-docflow4storagebucketa54-7zhuvrvwqlyr",
+    "buckets": [
+      {
+        "name": "docflow4-storage",
+        "bucket_name": "amplify-docflow4-00003-sa-docflow4storagebucketa54-7zhuvrvwqlyr",
+        "aws_region": "ap-southeast-2",
+        "paths": {
+          "documents/*": {
+            "authenticated": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "public/*": {
+            "guest": [
+              "get",
+              "list"
+            ],
+            "authenticated": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          }
+        }
+      }
+    ]
   },
   "version": "1.4"
 }

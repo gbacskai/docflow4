@@ -1,0 +1,362 @@
+<div class="users-page">
+  <header class="page-header">
+    <h1>Users</h1>
+    <div class="header-actions">
+      <button class="invite-button" (click)="openInviteForm()">
+        ✉️ Invite User
+      </button>
+    </div>
+  </header>
+
+  <!-- Create/Edit/View/Invite Form -->
+  @if (showForm()) {
+    <div class="user-form">
+      @if (currentMode() === 'view') {
+        <!-- View Mode -->
+        <div class="view-mode">
+          <div class="form-header">
+            <h2>{{ selectedUser()?.firstName }} {{ selectedUser()?.lastName }}</h2>
+            <button class="close-btn" (click)="closeForm()">✕</button>
+          </div>
+          
+          <div class="view-content">
+            <div class="view-section">
+              <div class="view-details">
+                <div class="user-info">
+                  <p class="email">{{ selectedUser()?.email }}</p>
+                  <div class="user-badges">
+                    @if (isCurrentUserAdmin()) {
+                      <span class="user-type {{ getUserTypeColor(selectedUser()?.userType) }}">
+                        {{ selectedUser()?.userType | titlecase }}
+                      </span>
+                    }
+                    <span class="user-status {{ getUserStatusColor(selectedUser()?.status) }}">
+                      {{ selectedUser()?.status | titlecase }}
+                    </span>
+                  </div>
+                </div>
+                <div class="view-meta">
+                  <span class="document-types">Document Types: {{ getDocumentTypeNames(selectedUser()?.interestedDocumentTypes || []) }}</span>
+                  @if (selectedUser()?.invitedAt) {
+                    <span class="invited-date">Invited: {{ formatDate(selectedUser()?.invitedAt) }} by {{ getInviterInfo(selectedUser()?.invitedBy) }}</span>
+                  }
+                  @if (selectedUser()?.lastLoginAt) {
+                    <span class="last-login">Last Login: {{ formatDate(selectedUser()?.lastLoginAt) }}</span>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="view-actions">
+            <button class="btn-edit" (click)="openEditForm(selectedUser()!)">Edit</button>
+            <button class="btn-close" (click)="closeForm()">Close</button>
+          </div>
+        </div>
+      } @else {
+        <!-- Create/Edit/Invite Form -->
+        <div class="form-header">
+          <h2>
+            @if (currentMode() === 'edit') {
+              Edit User
+            } @else if (currentMode() === 'invite') {
+              Invite User
+            }
+          </h2>
+          <button class="close-btn" (click)="closeForm()">✕</button>
+        </div>
+
+        <form [formGroup]="currentMode() === 'invite' ? inviteForm : userForm" (ngSubmit)="onSubmitForm()">
+          @if (currentMode() === 'invite') {
+            <!-- Simplified Invite Form - Email Only -->
+            <div class="form-group">
+              <label for="email">Email Address *</label>
+              <input 
+                id="email" 
+                type="email" 
+                formControlName="email" 
+                placeholder="Enter email address to invite"
+                [class.error]="inviteForm.get('email')?.invalid && inviteForm.get('email')?.touched"
+              />
+              @if (inviteForm.get('email')?.invalid && inviteForm.get('email')?.touched) {
+                <div class="error-message">Valid email is required</div>
+              }
+              <div class="help-text">An invitation email will be sent to this address</div>
+            </div>
+
+            <div class="form-group">
+              <label for="customMessage">Custom Message (Optional)</label>
+              <textarea 
+                id="customMessage" 
+                formControlName="customMessage" 
+                placeholder="Add a personal message to the invitation email"
+                rows="3"
+              ></textarea>
+              <div class="help-text">This message will be included in the invitation email</div>
+            </div>
+          } @else {
+            <!-- Full Edit Form -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Email *</label>
+                <input 
+                  id="email" 
+                  type="email" 
+                  formControlName="email" 
+                  placeholder="Enter user email"
+                  [class.error]="userForm.get('email')?.invalid && userForm.get('email')?.touched"
+                />
+                @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+                  <div class="error-message">Valid email is required</div>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="firstName">First Name *</label>
+                <input 
+                  id="firstName" 
+                  type="text" 
+                  formControlName="firstName" 
+                  placeholder="Enter first name"
+                  [class.error]="userForm.get('firstName')?.invalid && userForm.get('firstName')?.touched"
+                />
+                @if (userForm.get('firstName')?.invalid && userForm.get('firstName')?.touched) {
+                  <div class="error-message">First name is required (min 2 characters)</div>
+                }
+              </div>
+              <div class="form-group">
+                <label for="lastName">Last Name *</label>
+                <input 
+                  id="lastName" 
+                  type="text" 
+                  formControlName="lastName" 
+                  placeholder="Enter last name"
+                  [class.error]="userForm.get('lastName')?.invalid && userForm.get('lastName')?.touched"
+                />
+                @if (userForm.get('lastName')?.invalid && userForm.get('lastName')?.touched) {
+                  <div class="error-message">Last name is required (min 2 characters)</div>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              @if (isCurrentUserAdmin()) {
+                <div class="form-group">
+                  <label for="userType">User Type *</label>
+                  <select id="userType" formControlName="userType">
+                    <option value="client">Client</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              }
+              </div>
+              <div class="form-group">
+                <label for="status">Status *</label>
+                <select id="status" formControlName="status">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="invited">Invited</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Document Types</label>
+              <div class="document-types-selector">
+                <button 
+                  type="button"
+                  class="select-document-types-btn" 
+                  (click)="openDocumentTypesSidebar()"
+                >
+                  📋 Select Document Types
+                </button>
+                @if (userForm.get('interestedDocumentTypes')?.value?.length > 0) {
+                  <div class="selected-document-types-display">
+                    <h4>Selected Document Types:</h4>
+                    <div class="selected-document-types-list">
+                      @for (docTypeId of userForm.get('interestedDocumentTypes')?.value; track docTypeId) {
+                        <div class="selected-document-type-item">
+                          <div class="document-type-name">{{ getDocumentTypeName(docTypeId) }}</div>
+                          <div class="document-type-description">{{ getDocumentTypeDescription(docTypeId) }}</div>
+                        </div>
+                      }
+                    </div>
+                    <div class="selection-count">
+                      {{ userForm.get('interestedDocumentTypes')?.value?.length }} document type(s) selected
+                    </div>
+                  </div>
+                } @else {
+                  <div class="no-document-types-message">
+                    <small>No document types selected</small>
+                  </div>
+                }
+              </div>
+              <div class="help-text">Optional: Select document types this user is interested in</div>
+            </div>
+          }
+
+          <div class="form-actions">
+            <button 
+              type="button" 
+              class="btn-cancel" 
+              (click)="closeForm()"
+              [disabled]="processing()"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              class="btn-submit" 
+              [disabled]="!(currentMode() === 'invite' ? inviteForm : userForm).valid || processing()"
+            >
+              @if (processing()) {
+                Processing...
+              } @else if (currentMode() === 'edit') {
+                Update User
+              } @else if (currentMode() === 'invite') {
+                Send Invitation
+              }
+            </button>
+          </div>
+        </form>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading users...</div>
+  }
+
+  <div class="users-list">
+    @if (users().length === 0 && !loading()) {
+      <div class="empty-state">
+        <p>No users found. Create your first user or send an invitation to get started.</p>
+      </div>
+    }
+
+    @for (user of users(); track user.id) {
+      <div class="user-card" [class]="getUserStatusColor(user.status)">
+        <div class="user-content">
+          <div class="user-header">
+            <h3>{{ user.firstName }} {{ user.lastName }}</h3>
+            <div class="user-badges">
+              @if (isCurrentUserAdmin()) {
+                <span class="user-type {{ getUserTypeColor(user.userType) }}">
+                  {{ user.userType | titlecase }}
+                </span>
+              }
+              <span class="user-status {{ getUserStatusColor(user.status) }}">
+                {{ user.status | titlecase }}
+              </span>
+            </div>
+          </div>
+          <p class="user-email">{{ user.email }}</p>
+          <div class="user-meta">
+            @if (user.interestedDocumentTypes && user.interestedDocumentTypes.length > 0) {
+              <span class="document-types">{{ getDocumentTypeNames(user.interestedDocumentTypes) }}</span>
+            }
+            @if (user.invitedAt) {
+              <span class="invited-date">Invited: {{ formatDate(user.invitedAt) }} by {{ getInviterInfo(user.invitedBy) }}</span>
+            }
+            @if (user.lastLoginAt) {
+              <span class="last-login">Last Login: {{ formatDate(user.lastLoginAt) }}</span>
+            }
+          </div>
+        </div>
+        <div class="user-actions">
+          <button class="action-btn" (click)="openViewMode(user)">View</button>
+          <button class="action-btn" (click)="openEditForm(user)">Edit</button>
+          @if (user.status !== 'archived') {
+            <button class="action-btn archive" (click)="archiveUser(user)" [disabled]="processing()">
+              {{ processing() ? '...' : 'Archive' }}
+            </button>
+          }
+          <button class="action-btn danger" (click)="deleteUser(user)" [disabled]="processing()">
+            {{ processing() ? '...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Document Type Selection Sidebar -->
+  @if (showDocumentTypesSidebar()) {
+    <div class="sidebar-overlay" (click)="cancelDocumentTypeSelection()">
+      <div class="document-types-sidebar" (click)="$event.stopPropagation()">
+        <div class="sidebar-header">
+          <h3>Select Document Types</h3>
+          <button class="close-sidebar-btn" (click)="cancelDocumentTypeSelection()">✕</button>
+        </div>
+        
+        <div class="sidebar-search">
+          <div class="search-input-wrapper">
+            <input 
+              type="text"
+              class="search-input"
+              placeholder="Search document types..."
+              (input)="onDocTypeSearchInputChange($event)"
+              [disabled]="searchingDocumentTypes()"
+              #docTypeSearchInput
+            />
+            @if (searchingDocumentTypes()) {
+              <div class="search-spinner">🔄</div>
+            } @else if (docTypeSearchQuery()) {
+              <button class="clear-search-btn" (click)="clearDocTypeSearch()">✕</button>
+            }
+          </div>
+        </div>
+        
+        <div class="sidebar-content">
+          @if (getFilteredDocumentTypes().length === 0) {
+            <div class="no-document-types-found">
+              @if (docTypeSearchQuery()) {
+                <p>No document types found matching "{{ docTypeSearchQuery() }}"</p>
+                <button class="btn-clear-search" (click)="clearDocTypeSearch()">Clear Search</button>
+              } @else {
+                <p>No document types available</p>
+              }
+            </div>
+          } @else {
+            <div class="document-types-list">
+              @for (docType of getFilteredDocumentTypes(); track trackDocumentTypeById($index, docType)) {
+                <div class="document-type-item" [class.selected]="isDocumentTypeSelectedInSidebar(docType.id)" 
+                     (click)="onDocTypeItemClick(docType.id, docType.name)">
+                  <div class="document-type-info" (click)="toggleDocumentTypeInSidebar(docType.id)">
+                    <div class="document-type-checkbox">
+                      <input 
+                        type="checkbox"
+                        [checked]="isDocumentTypeSelectedInSidebar(docType.id)"
+                        (click)="$event.stopPropagation()"
+                        (change)="$event.stopPropagation(); toggleDocumentTypeInSidebar(docType.id)"
+                      />
+                    </div>
+                    <div class="document-type-details">
+                      <h4>{{ docType.name }}</h4>
+                      <p>{{ docType.description }}</p>
+                      @if (docType.category) {
+                        <span class="document-type-category">{{ docType.category }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        
+        <div class="sidebar-footer">
+          <div class="selection-summary">
+            {{ tempSelectedDocumentTypes().length }} document type(s) selected
+          </div>
+          <div class="sidebar-actions">
+            <button class="btn-cancel" (click)="cancelDocumentTypeSelection()">Cancel</button>
+            <button class="btn-apply" (click)="applyDocumentTypeSelection()">Apply Selection</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { 
   signUp, 
   signIn, 
@@ -10,6 +10,7 @@ import {
   autoSignIn,
   type SignUpOutput 
 } from 'aws-amplify/auth';
+import { UserManagementService } from './user-management.service';
 
 export interface AuthUser {
   userId: string;
@@ -36,6 +37,7 @@ export class AuthService {
   private _currentUser = signal<AuthUser | null>(null);
   private _isLoading = signal(false);
   private _isAuthenticated = signal(false);
+  private userManagementService = inject(UserManagementService);
 
   // Public readonly signals
   currentUser = this._currentUser.asReadonly();
@@ -53,15 +55,35 @@ export class AuthService {
       const session = await fetchAuthSession();
       
       if (user && session.tokens) {
+        const email = user.signInDetails?.loginId;
+        
+        if (email) {
+          // Ensure user entry exists in User table and handle invitation merging
+          await this.userManagementService.ensureUserEntry(
+            user.userId, 
+            email, 
+            user.username
+          );
+          
+          // Update last login time
+          await this.userManagementService.updateLastLogin(user.userId);
+        }
+        
         this._currentUser.set({
           userId: user.userId,
           username: user.username,
-          email: user.signInDetails?.loginId
+          email: email
         });
         this._isAuthenticated.set(true);
+        
+        console.log('🔐 User authenticated successfully:', {
+          userId: user.userId,
+          username: user.username,
+          email: email
+        });
       }
     } catch (error) {
-      console.log('No authenticated user found');
+      console.log('No authenticated user found:', error);
       this._currentUser.set(null);
       this._isAuthenticated.set(false);
     } finally {
@@ -181,7 +203,7 @@ export class AuthService {
       });
 
       if (isSignedIn) {
-        await this.initializeAuth(); // Refresh user data
+        await this.initializeAuth(); // This will handle user entry management
         return { success: true };
       } else {
         return { 
