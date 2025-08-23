@@ -10,6 +10,7 @@
     "test": "ng test",
     "test:headless": "HEADLESS=true ng test --watch=false",
     "test:ci": "NODE_ENV=ci ng test --watch=false --browsers=ChromeCI",
+    "test:ci-smart": "node run-ci-tests.js",
     "test:coverage": "HEADLESS=true ng test --watch=false --code-coverage",
     "test:all": "npm run test:headless && npm run test:e2e",
     "test:e2e": "npm start & SERVER_PID=$! && npx wait-on http://localhost:4200 && npm run test:node-scripts && npm run test:report && kill $SERVER_PID",

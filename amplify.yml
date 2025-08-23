@@ -17,9 +17,8 @@ frontend:
       commands:
         - 'echo "🧪 Running test suite before deployment..."'
         - nvm use 24.5.0
-        - 'echo "📋 Running Angular unit tests..."'
-        - 'npm run test:headless || { echo "❌ Angular unit tests failed"; exit 1; }'
-        - 'echo "✅ Angular unit tests passed"'
+        - 'echo "📋 Running CI test suite..."'
+        - 'node run-ci-tests.js || { echo "❌ CI tests failed"; exit 1; }'
         - 'echo "🎭 Installing Playwright for e2e tests..."'
         - npx playwright install chromium
         - 'echo "🚀 Starting development server for e2e tests..."'

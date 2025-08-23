@@ -67,6 +67,28 @@ module.exports = function (config) {
           '--disable-ipc-flooding-protection',
           '--no-first-run'
         ]
+      },
+      ChromeAWS: {
+        base: 'Chrome',
+        flags: [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-web-security',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--disable-extensions',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-ipc-flooding-protection',
+          '--no-first-run',
+          '--disable-setuid-sandbox',
+          '--disable-logging',
+          '--disable-plugins',
+          '--disable-translate',
+          '--disable-default-apps'
+        ]
       }
     }
   });
