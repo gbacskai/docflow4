@@ -13,6 +13,8 @@ import { CommonModule } from '@angular/common';
 })
 export class DocumentTypes implements OnInit, OnDestroy {
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
+  filteredDocumentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
+  docTypeSearchQuery = signal<string>('');
   domains = signal<Array<Schema['Domain']['type']>>([]);
   filteredDomains = signal<Array<Schema['Domain']['type']>>([]);
   loading = signal(true);
@@ -29,21 +31,110 @@ export class DocumentTypes implements OnInit, OnDestroy {
   @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
+  private docTypeSearchTimeout: any = null;
   
   documentTypeForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
+    identifier: ['', [Validators.minLength(2), this.identifierValidator.bind(this), this.uniqueIdentifierValidator.bind(this)]],
     description: ['', [Validators.required, Validators.minLength(10)]],
     domainIds: [[]], // Domain IDs array - optional
     isActive: [true, [Validators.required]]
   });
 
+  // Custom validator for identifier field
+  private identifierValidator(control: any) {
+    const value = control.value;
+    if (!value) return null; // Let required validator handle empty values
+    
+    // Check if it contains only lowercase letters, numbers, and hyphens/underscores
+    const validPattern = /^[a-z0-9_-]+$/;
+    if (!validPattern.test(value)) {
+      return { invalidIdentifier: { message: 'Identifier must contain only lowercase letters, numbers, hyphens, and underscores' } };
+    }
+    
+    // Check if it starts with a letter
+    if (!/^[a-z]/.test(value)) {
+      return { invalidIdentifier: { message: 'Identifier must start with a lowercase letter' } };
+    }
+    
+    return null; // Valid
+  }
+
+  // Custom validator for unique identifier
+  private uniqueIdentifierValidator(control: any) {
+    const value = control.value;
+    if (!value) return null; // Skip validation if empty
+    
+    const currentDocTypes = this.documentTypes();
+    const currentEditingId = this.selectedDocumentType()?.id;
+    
+    // Check if identifier already exists (excluding current document type in edit mode)
+    const isDuplicate = currentDocTypes.some(docType => 
+      docType.identifier === value && docType.id !== currentEditingId
+    );
+    
+    if (isDuplicate) {
+      return { duplicateIdentifier: { message: 'This identifier is already in use. Please choose a different one.' } };
+    }
+    
+    return null; // Valid
+  }
+
   async ngOnInit() {
     await Promise.all([this.loadDocumentTypes(), this.loadDomains()]);
+    
+    // Auto-generate identifier from name field
+    this.documentTypeForm.get('name')?.valueChanges.subscribe(name => {
+      if (name && this.currentMode() === 'create') {
+        const identifier = this.generateIdentifier(name);
+        this.documentTypeForm.get('identifier')?.setValue(identifier);
+      }
+    });
+
+    // Trigger validation when identifier field changes
+    this.documentTypeForm.get('identifier')?.valueChanges.subscribe(() => {
+      // Small delay to ensure validation happens after value is set
+      setTimeout(() => {
+        this.documentTypeForm.get('identifier')?.updateValueAndValidity();
+      }, 100);
+    });
+  }
+
+  // Generate unique identifier from name
+  private generateIdentifier(name: string): string {
+    const baseIdentifier = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-_]/g, '') // Remove special characters except spaces, hyphens, underscores
+      .replace(/\s+/g, '_') // Replace spaces with underscores
+      .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+      .replace(/^[^a-z]+/, '') // Remove leading non-letters
+      .substring(0, 50); // Limit length
+    
+    // Check if this identifier already exists
+    const existingIdentifiers = this.documentTypes()
+      .map(docType => docType.identifier)
+      .filter(id => id !== null && id !== undefined);
+    
+    let uniqueIdentifier = baseIdentifier;
+    let counter = 1;
+    
+    // If identifier exists, append a number to make it unique
+    while (existingIdentifiers.includes(uniqueIdentifier)) {
+      const suffix = `_${counter}`;
+      const maxLength = 50 - suffix.length;
+      uniqueIdentifier = baseIdentifier.substring(0, maxLength) + suffix;
+      counter++;
+    }
+    
+    return uniqueIdentifier;
   }
 
   ngOnDestroy() {
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout);
+    }
+    if (this.docTypeSearchTimeout) {
+      clearTimeout(this.docTypeSearchTimeout);
     }
   }
 
@@ -53,9 +144,16 @@ export class DocumentTypes implements OnInit, OnDestroy {
       const client = generateClient<Schema>();
       const { data } = await client.models.DocumentType.list();
       this.documentTypes.set(data);
+      this.applyDocTypeSearch(); // Initialize filtered document types
+      
+      // Trigger validation refresh for identifier uniqueness
+      if (this.documentTypeForm.get('identifier')) {
+        this.documentTypeForm.get('identifier')?.updateValueAndValidity();
+      }
     } catch (error) {
       console.error('Error loading document types:', error);
       this.documentTypes.set([]);
+      this.filteredDocumentTypes.set([]);
     } finally {
       this.loading.set(false);
     }
@@ -87,8 +185,12 @@ export class DocumentTypes implements OnInit, OnDestroy {
     this.currentMode.set('edit');
     this.selectedDocumentType.set(docType);
     
+    // Generate identifier if it doesn't exist (for legacy records)
+    const identifier = docType.identifier || this.generateIdentifier(docType.name || '');
+    
     this.documentTypeForm.patchValue({
       name: docType.name,
+      identifier: identifier,
       description: docType.description,
       domainIds: docType.domainIds || [],
       isActive: docType.isActive ?? true
@@ -165,6 +267,10 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
   trackDomainById(index: number, domain: Schema['Domain']['type']): string {
     return domain.id;
+  }
+
+  trackDocTypeById(index: number, docType: Schema['DocumentType']['type']): string {
+    return docType?.id || index.toString();
   }
 
   applyDomainSelection() {
@@ -318,6 +424,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
       const docTypeData = {
         name: formValue.name,
+        identifier: formValue.identifier || this.generateIdentifier(formValue.name || ''),
         description: formValue.description,
         domainIds: formValue.domainIds || [],
         isActive: formValue.isActive
@@ -407,6 +514,42 @@ export class DocumentTypes implements OnInit, OnDestroy {
     
     const names = validIds.map(id => this.getDomainName(id));
     return names.join(', ');
+  }
+
+  // Document Type Search functionality
+  onDocTypeSearchInputChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const query = target.value.toLowerCase().trim();
+    this.docTypeSearchQuery.set(query);
+    
+    if (this.docTypeSearchTimeout) {
+      clearTimeout(this.docTypeSearchTimeout);
+    }
+
+    this.docTypeSearchTimeout = setTimeout(() => {
+      this.applyDocTypeSearch();
+    }, 300);
+  }
+
+  applyDocTypeSearch() {
+    const query = this.docTypeSearchQuery();
+    const allDocTypes = this.documentTypes().filter(docType => docType && docType.id);
+    
+    if (!query) {
+      this.filteredDocumentTypes.set(allDocTypes);
+    } else {
+      const filtered = allDocTypes.filter(docType =>
+        docType.name?.toLowerCase().includes(query) ||
+        docType.description?.toLowerCase().includes(query)
+      );
+      this.filteredDocumentTypes.set(filtered);
+    }
+  }
+
+  clearDocTypeSearch() {
+    this.docTypeSearchQuery.set('');
+    const allDocTypes = this.documentTypes().filter(docType => docType && docType.id);
+    this.filteredDocumentTypes.set(allDocTypes);
   }
 
 }

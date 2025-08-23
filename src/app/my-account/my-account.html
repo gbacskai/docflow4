@@ -13,11 +13,13 @@
     <div class="account-sections">
       <div class="section-card">
         <div class="section-header">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          <h2>Profile Information</h2>
+          <div class="section-header-left">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <h2>Profile Information</h2>
+          </div>
         </div>
         <div class="section-content">
           <div class="info-row">
@@ -37,35 +39,206 @@
 
       <div class="section-card">
         <div class="section-header">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          <h2>Account Created</h2>
-        </div>
-        <div class="section-content">
-          <div class="info-row">
-            <label>Member Since</label>
-            <span>{{ currentDate }}</span>
+          <div class="section-header-left">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <h2>Edit Profile</h2>
           </div>
-        </div>
-      </div>
-
-      <div class="section-card">
-        <div class="section-header">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </svg>
-          <h2>Account Settings</h2>
+          <button class="edit-profile-btn-header" (click)="toggleProfileEditForm()">
+            @if (showProfileEditForm()) {
+              Cancel
+            } @else {
+              ✏️ Edit
+            }
+          </button>
         </div>
         <div class="section-content">
-          <p class="coming-soon">Additional account settings will be available soon.</p>
+          @if (currentUserData()) {
+            <div class="profile-overview">
+              <div class="profile-info">
+                <div class="info-row">
+                  <label>Name</label>
+                  <span>{{ currentUserData()?.firstName }} {{ currentUserData()?.lastName || 'Not set' }}</span>
+                </div>
+                <div class="info-row">
+                  <label>Document Types</label>
+                  <span>{{ getCurrentUserDocumentTypeNames() }}</span>
+                </div>
+              </div>
+            </div>
+
+            @if (showProfileEditForm()) {
+              <form [formGroup]="userForm" (ngSubmit)="onSubmitProfileForm()" class="profile-edit-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="firstName">First Name *</label>
+                    <input 
+                      id="firstName" 
+                      type="text" 
+                      formControlName="firstName" 
+                      placeholder="Enter first name"
+                      [class.error]="userForm.get('firstName')?.invalid && userForm.get('firstName')?.touched"
+                    />
+                    @if (userForm.get('firstName')?.invalid && userForm.get('firstName')?.touched) {
+                      <div class="error-message">First name is required (min 2 characters)</div>
+                    }
+                  </div>
+                  <div class="form-group">
+                    <label for="lastName">Last Name *</label>
+                    <input 
+                      id="lastName" 
+                      type="text" 
+                      formControlName="lastName" 
+                      placeholder="Enter last name"
+                      [class.error]="userForm.get('lastName')?.invalid && userForm.get('lastName')?.touched"
+                    />
+                    @if (userForm.get('lastName')?.invalid && userForm.get('lastName')?.touched) {
+                      <div class="error-message">Last name is required (min 2 characters)</div>
+                    }
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Document Types</label>
+                  <div class="document-types-selector">
+                    <button 
+                      type="button"
+                      class="select-document-types-btn" 
+                      (click)="openDocumentTypesSidebar()"
+                    >
+                      📋 Select Document Types
+                    </button>
+                    @if (userForm.get('interestedDocumentTypes')?.value?.length > 0) {
+                      <div class="selected-document-types-display">
+                        <h4>Selected Document Types:</h4>
+                        <div class="selected-document-types-list">
+                          @for (docTypeId of userForm.get('interestedDocumentTypes')?.value; track docTypeId) {
+                            <div class="selected-document-type-item">
+                              <div class="document-type-name">{{ getDocumentTypeName(docTypeId) }}</div>
+                              <div class="document-type-description">{{ getDocumentTypeDescription(docTypeId) }}</div>
+                            </div>
+                          }
+                        </div>
+                        <div class="selection-count">
+                          {{ userForm.get('interestedDocumentTypes')?.value?.length }} document type(s) selected
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="no-document-types-message">
+                        <small>No document types selected</small>
+                      </div>
+                    }
+                  </div>
+                  <div class="help-text">Optional: Select document types you are interested in</div>
+                </div>
+
+                <div class="form-actions">
+                  <button 
+                    type="button" 
+                    class="btn-cancel" 
+                    (click)="toggleProfileEditForm()"
+                    [disabled]="processing()"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    class="btn-submit" 
+                    [disabled]="!userForm.valid || processing()"
+                  >
+                    @if (processing()) {
+                      Updating...
+                    } @else {
+                      Update Profile
+                    }
+                  </button>
+                </div>
+              </form>
+            }
+          } @else {
+            <p class="loading-profile">Loading profile data...</p>
+          }
         </div>
       </div>
     </div>
+
+    <!-- Document Type Selection Sidebar -->
+    @if (showDocumentTypesSidebar()) {
+      <div class="sidebar-overlay" (click)="cancelDocumentTypeSelection()">
+        <div class="document-types-sidebar" (click)="$event.stopPropagation()">
+          <div class="sidebar-header">
+            <h3>Select Document Types</h3>
+            <button class="close-sidebar-btn" (click)="cancelDocumentTypeSelection()">✕</button>
+          </div>
+          
+          <div class="sidebar-search">
+            <div class="search-input-wrapper">
+              <input 
+                type="text"
+                class="search-input"
+                placeholder="Search document types..."
+                (input)="onDocTypeSearchInputChange($event)"
+                [disabled]="loading()"
+                #docTypeSearchInput
+              />
+              @if (docTypeSearchQuery()) {
+                <button class="clear-search-btn" (click)="clearDocTypeSearch()">✕</button>
+              }
+            </div>
+          </div>
+          
+          <div class="sidebar-content">
+            @if (getFilteredDocumentTypes().length === 0) {
+              <div class="no-document-types-found">
+                @if (docTypeSearchQuery()) {
+                  <p>No document types found matching "{{ docTypeSearchQuery() }}"</p>
+                  <button class="btn-clear-search" (click)="clearDocTypeSearch()">Clear Search</button>
+                } @else {
+                  <p>No document types available</p>
+                }
+              </div>
+            } @else {
+              <div class="document-types-list">
+                @for (docType of getFilteredDocumentTypes(); track trackDocumentTypeById($index, docType)) {
+                  <div class="document-type-item" [class.selected]="isDocumentTypeSelectedInSidebar(docType.id)" 
+                       (click)="onDocTypeItemClick(docType.id, docType.name)">
+                    <div class="document-type-info" (click)="toggleDocumentTypeInSidebar(docType.id)">
+                      <div class="document-type-checkbox">
+                        <input 
+                          type="checkbox"
+                          [checked]="isDocumentTypeSelectedInSidebar(docType.id)"
+                          (click)="$event.stopPropagation()"
+                          (change)="$event.stopPropagation(); toggleDocumentTypeInSidebar(docType.id)"
+                        />
+                      </div>
+                      <div class="document-type-details">
+                        <h4>{{ docType.name }}</h4>
+                        <p>{{ docType.description }}</p>
+                        @if (docType.category) {
+                          <span class="document-type-category">{{ docType.category }}</span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+          
+          <div class="sidebar-footer">
+            <div class="selection-summary">
+              {{ tempSelectedDocumentTypes().length }} document type(s) selected
+            </div>
+            <div class="sidebar-actions">
+              <button class="btn-cancel" (click)="cancelDocumentTypeSelection()">Cancel</button>
+              <button class="btn-apply" (click)="applyDocumentTypeSelection()">Apply Selection</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
   } @else {
     <div class="not-authenticated">
       <h1>Access Denied</h1>

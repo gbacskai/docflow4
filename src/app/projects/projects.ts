@@ -1,9 +1,10 @@
-import { Component, OnInit, signal, inject, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { UserDataService } from '../services/user-data.service';
 
 @Component({
   selector: 'app-projects',
@@ -12,8 +13,12 @@ import { AuthService } from '../services/auth.service';
   styleUrl: './projects.less',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class Projects implements OnInit {
+export class Projects implements OnInit, OnDestroy {
   projects = signal<Array<Schema['Project']['type']>>([]);
+  filteredProjects = signal<Array<Schema['Project']['type']>>([]);
+  searchFilteredProjects = signal<Array<Schema['Project']['type']>>([]);
+  projectSearchQuery = signal<string>('');
+  showAllProjects = signal<boolean>(false); // false = show only active, true = show all
   users = signal<Array<Schema['User']['type']>>([]);
   domains = signal<Array<Schema['Domain']['type']>>([]);
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
@@ -29,13 +34,23 @@ export class Projects implements OnInit {
   updatingProject = signal(false);
   showAdminUsersSidebar = signal(false);
   tempSelectedAdminUsers = signal<string[]>([]);
+  showOwnerSidebar = signal(false);
+  tempSelectedOwner = signal<string>('');
+  originalOwner = signal<string>(''); // Track original owner for confirmation
+  ownerSearchQuery = signal<string>('');
+  filteredOwnerUsers = signal<Array<Schema['User']['type']>>([]);
+  searchingOwnerUsers = signal(false);
   userSearchQuery = signal<string>('');
   
   @ViewChild('userSearchInput') userSearchInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('ownerSearchInput') ownerSearchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private userDataService = inject(UserDataService);
   private searchTimeout: any = null;
+  private projectSearchTimeout: any = null;
+  private ownerSearchTimeout: any = null;
   
   newProjectForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
@@ -48,6 +63,29 @@ export class Projects implements OnInit {
 
   async ngOnInit() {
     await Promise.all([this.loadProjects(), this.loadUsers(), this.loadDomains(), this.loadDocumentTypes()]);
+    
+    // Wait for user data to be loaded and then reapply filtering
+    const checkUserDataAndFilter = () => {
+      if (!this.userDataService.loading()) {
+        this.applyProjectFiltering();
+      } else {
+        setTimeout(checkUserDataAndFilter, 500);
+      }
+    };
+    
+    checkUserDataAndFilter();
+  }
+
+  ngOnDestroy() {
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+    if (this.projectSearchTimeout) {
+      clearTimeout(this.projectSearchTimeout);
+    }
+    if (this.ownerSearchTimeout) {
+      clearTimeout(this.ownerSearchTimeout);
+    }
   }
 
   async loadProjects() {
@@ -56,12 +94,118 @@ export class Projects implements OnInit {
       const client = generateClient<Schema>();
       const { data } = await client.models.Project.list();
       this.projects.set(data);
+      this.applyProjectFiltering();
     } catch (error) {
       console.error('Error loading projects:', error);
       this.projects.set([]);
+      this.filteredProjects.set([]);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private applyProjectFiltering() {
+    const allProjects = this.projects();
+    let projectsToFilter = allProjects;
+    
+    // Apply status filter first (Active vs All)
+    if (!this.showAllProjects()) {
+      projectsToFilter = allProjects.filter(project => project.status === 'active');
+    }
+    
+    // If user is admin, show filtered projects (by status)
+    if (this.userDataService.isCurrentUserAdmin()) {
+      this.filteredProjects.set(projectsToFilter);
+      this.applySearch(); // Apply search filter after permission filtering
+      return;
+    }
+    
+    // For non-admin users, only show projects where they are owner or admin
+    const currentUser = this.userDataService.getCurrentUserData();
+    if (!currentUser?.id) {
+      this.filteredProjects.set([]);
+      this.searchFilteredProjects.set([]);
+      return;
+    }
+    
+    const userAccessibleProjects = projectsToFilter.filter(project => {
+      // User is the owner
+      const isOwner = project.ownerId === currentUser.id;
+      
+      // User is in adminUsers array
+      const isAdmin = project.adminUsers ? project.adminUsers.includes(currentUser.id) : false;
+      
+      return isOwner || isAdmin;
+    });
+    
+    this.filteredProjects.set(userAccessibleProjects);
+    this.applySearch(); // Apply search filter after permission filtering
+  }
+
+  isCurrentUserAdmin(): boolean {
+    return this.userDataService.isCurrentUserAdmin();
+  }
+
+  canUserEditProject(project: Schema['Project']['type']): boolean {
+    // Admin users can edit any project
+    if (this.userDataService.isCurrentUserAdmin()) {
+      return true;
+    }
+    
+    // Project owner can edit
+    const currentUser = this.userDataService.getCurrentUserData();
+    if (!currentUser?.id) {
+      return false;
+    }
+    
+    const isOwner = project.ownerId === currentUser.id;
+    const isProjectAdmin = project.adminUsers ? project.adminUsers.includes(currentUser.id) : false;
+    
+    return isOwner || isProjectAdmin;
+  }
+
+  // Project search functionality
+  onProjectSearchInputChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const query = target.value.toLowerCase().trim();
+    this.projectSearchQuery.set(query);
+    
+    if (this.projectSearchTimeout) {
+      clearTimeout(this.projectSearchTimeout);
+    }
+
+    this.projectSearchTimeout = setTimeout(() => {
+      this.applySearch();
+    }, 300);
+  }
+
+  applySearch() {
+    const query = this.projectSearchQuery();
+    const projectsToFilter = this.filteredProjects();
+    
+    if (!query) {
+      this.searchFilteredProjects.set(projectsToFilter);
+    } else {
+      const filtered = projectsToFilter.filter(project =>
+        project.name?.toLowerCase().includes(query) ||
+        project.description?.toLowerCase().includes(query)
+      );
+      this.searchFilteredProjects.set(filtered);
+    }
+  }
+
+  clearProjectSearch() {
+    this.projectSearchQuery.set('');
+    this.searchFilteredProjects.set(this.filteredProjects());
+  }
+
+  toggleProjectFilter() {
+    this.showAllProjects.set(!this.showAllProjects());
+    this.applyProjectFiltering();
+  }
+
+  getFilterButtonText(): string {
+    return this.showAllProjects() ? 'Active' : 'All';
   }
 
   async loadUsers() {
@@ -110,6 +254,11 @@ export class Projects implements OnInit {
     
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
     return fullName || user.email || 'Unknown User';
+  }
+
+  getOwnerEmail(ownerId: string): string {
+    const user = this.users().find(u => u.id === ownerId);
+    return user ? user.email : '';
   }
 
   getDomainName(domainId: string): string {
@@ -202,6 +351,157 @@ export class Projects implements OnInit {
   }
 
   trackUserById(index: number, user: Schema['User']['type']): string {
+    return user.id;
+  }
+
+  // Owner Selection Sidebar Methods
+  openOwnerSidebar() {
+    const currentOwnerId = this.newProjectForm.get('ownerId')?.value || '';
+    this.tempSelectedOwner.set(currentOwnerId);
+    this.originalOwner.set(currentOwnerId);
+    
+    // Initialize filtered owner users with all users
+    setTimeout(() => {
+      this.filteredOwnerUsers.set(this.users());
+    }, 0);
+    
+    this.showOwnerSidebar.set(true);
+  }
+
+  closeOwnerSidebar() {
+    this.showOwnerSidebar.set(false);
+    this.tempSelectedOwner.set('');
+    this.originalOwner.set('');
+    this.ownerSearchQuery.set('');
+    this.filteredOwnerUsers.set([]);
+  }
+
+  selectOwnerInSidebar(userId: string) {
+    this.tempSelectedOwner.set(userId);
+  }
+
+  isOwnerSelectedInSidebar(userId: string): boolean {
+    return this.tempSelectedOwner() === userId;
+  }
+
+  async applyOwnerSelection() {
+    const newOwnerId = this.tempSelectedOwner();
+    const originalOwnerId = this.originalOwner();
+    
+    // If owner is being changed, show confirmation
+    if (newOwnerId !== originalOwnerId && originalOwnerId && newOwnerId) {
+      const newOwnerName = this.getOwnerName(newOwnerId);
+      const originalOwnerName = this.getOwnerName(originalOwnerId);
+      
+      const confirmed = confirm(
+        `Are you sure you want to change the project owner from "${originalOwnerName}" to "${newOwnerName}"?`
+      );
+      
+      if (!confirmed) {
+        return; // Cancel the change
+      }
+    }
+    
+    // Apply the selection
+    this.newProjectForm.patchValue({
+      ownerId: newOwnerId
+    });
+    
+    this.closeOwnerSidebar();
+  }
+
+  cancelOwnerSelection() {
+    this.closeOwnerSidebar();
+  }
+
+  // Owner Search Methods
+  onOwnerSearchInputChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const query = target.value;
+    
+    if (this.ownerSearchTimeout) {
+      clearTimeout(this.ownerSearchTimeout);
+    }
+    
+    if (!query || query.trim() === '') {
+      this.ownerSearchTimeout = setTimeout(() => {
+        this.ownerSearchQuery.set('');
+        this.filteredOwnerUsers.set(this.users());
+        setTimeout(() => {
+          if (this.ownerSearchInput) {
+            this.ownerSearchInput.nativeElement.focus();
+          }
+        }, 0);
+      }, 200);
+      return;
+    }
+    
+    this.ownerSearchTimeout = setTimeout(async () => {
+      this.ownerSearchQuery.set(query);
+      await this.searchOwnerUsers(query.trim());
+    }, 300);
+  }
+
+  async clearOwnerSearch() {
+    if (this.ownerSearchTimeout) {
+      clearTimeout(this.ownerSearchTimeout);
+    }
+    
+    this.ownerSearchQuery.set('');
+    this.filteredOwnerUsers.set(this.users());
+    
+    if (this.ownerSearchInput) {
+      this.ownerSearchInput.nativeElement.value = '';
+      this.ownerSearchInput.nativeElement.focus();
+    }
+  }
+
+  async searchOwnerUsers(query: string) {
+    try {
+      this.searchingOwnerUsers.set(true);
+      
+      const searchInputFocused = this.ownerSearchInput?.nativeElement === document.activeElement;
+      
+      // Filter users client-side for case-insensitive search
+      const allUsers = this.users();
+      const queryLower = query.toLowerCase();
+      
+      const filteredData = allUsers.filter(user => {
+        const firstNameMatch = user.firstName && user.firstName.toLowerCase().includes(queryLower);
+        const lastNameMatch = user.lastName && user.lastName.toLowerCase().includes(queryLower);
+        const emailMatch = user.email && user.email.toLowerCase().includes(queryLower);
+        const fullNameMatch = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase().includes(queryLower);
+        
+        return firstNameMatch || lastNameMatch || emailMatch || fullNameMatch;
+      });
+      
+      this.filteredOwnerUsers.set(filteredData);
+      
+      if (searchInputFocused && this.ownerSearchInput) {
+        setTimeout(() => {
+          this.ownerSearchInput.nativeElement.focus();
+        }, 0);
+      }
+      
+    } catch (error) {
+      console.error('Error searching owner users:', error);
+      this.filteredOwnerUsers.set(this.users());
+      
+      if (this.ownerSearchInput) {
+        setTimeout(() => {
+          this.ownerSearchInput.nativeElement.focus();
+        }, 0);
+      }
+    } finally {
+      this.searchingOwnerUsers.set(false);
+    }
+  }
+
+  getFilteredOwnerUsers() {
+    return this.filteredOwnerUsers();
+  }
+
+  trackOwnerUserById(index: number, user: Schema['User']['type']): string {
     return user.id;
   }
 

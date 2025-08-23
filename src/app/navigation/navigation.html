@@ -4,42 +4,53 @@
   </div>
   
   <ul class="nav-menu">
-    <li>
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="onNavigationClick()">
-        <i class="icon">🏠</i>
-        Home
-      </a>
-    </li>
-    <li>
-      <a routerLink="/domains" routerLinkActive="active" (click)="onNavigationClick()">
-        <i class="icon">🌐</i>
-        Domains
-      </a>
-    </li>
-    <li>
-      <a routerLink="/document-types" routerLinkActive="active" (click)="onNavigationClick()">
-        <i class="icon">📄</i>
-        Document Types
-      </a>
-    </li>
-    <li>
-      <a routerLink="/projects" routerLinkActive="active" (click)="onNavigationClick()">
-        <i class="icon">📁</i>
-        Projects
-      </a>
-    </li>
-    <li>
-      <a routerLink="/documents" routerLinkActive="active" (click)="onNavigationClick()">
-        <i class="icon">📝</i>
-        Documents
-      </a>
-    </li>
-    <li>
-      <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
-        <i class="icon">👥</i>
-        Users
-      </a>
-    </li>
+    @if (isAuthenticated()) {
+      <li>
+        <a routerLink="/dashboard" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">📊</i>
+          Dashboard
+        </a>
+      </li>
+      @if (isCurrentUserAdmin()) {
+        <li>
+          <a routerLink="/domains" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">🌐</i>
+            Domains
+          </a>
+        </li>
+        <li>
+          <a routerLink="/document-types" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">📄</i>
+            Document Types
+          </a>
+        </li>
+      }
+      <li>
+        <a routerLink="/projects" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">📁</i>
+          Projects
+        </a>
+      </li>
+      <li>
+        <a routerLink="/documents" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">📝</i>
+          Documents
+        </a>
+      </li>
+      <li>
+        <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">👥</i>
+          Users
+        </a>
+      </li>
+    } @else {
+      <li>
+        <a routerLink="/home" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">🏠</i>
+          Home
+        </a>
+      </li>
+    }
   </ul>
 
   <!-- User Menu at bottom of navigation -->

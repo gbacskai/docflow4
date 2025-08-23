@@ -1,0 +1,166 @@
+<div class="landing-page">
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="nav">
+        <div class="logo">
+          <h1>DocFlow</h1>
+          <span class="version">v4.0</span>
+        </div>
+        <button class="login-btn" (click)="navigateToLogin()">
+          🔐 Login
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1 class="hero-title">
+          Streamline Your Document Workflow
+        </h1>
+        <p class="hero-description">
+          DocFlow is a comprehensive document management system designed to simplify 
+          project-based document collection, organization, and collaboration. 
+          Perfect for businesses that need to manage complex document workflows.
+        </p>
+        <div class="hero-actions">
+          <button class="cta-btn primary" (click)="navigateToLogin()">
+            Get Started
+          </button>
+          <button class="cta-btn secondary">
+            Learn More
+          </button>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="feature-preview">
+          <div class="preview-card">
+            <div class="preview-header">
+              <span class="preview-title">📋 Projects</span>
+            </div>
+            <div class="preview-content">
+              <div class="preview-item active">✅ Website Redesign</div>
+              <div class="preview-item">📝 Brand Guidelines</div>
+              <div class="preview-item">🏢 Corporate Docs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>Everything You Need for Document Management</h2>
+        <p>Powerful features designed to make document workflow management effortless</p>
+      </div>
+      <div class="features-grid">
+        @for (feature of features; track feature.title) {
+          <div class="feature-card">
+            <div class="feature-icon">{{ feature.icon }}</div>
+            <h3>{{ feature.title }}</h3>
+            <p>{{ feature.description }}</p>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <h2>How DocFlow Works</h2>
+        <p>Simple steps to get your document workflow up and running</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Create Projects</h3>
+            <p>Set up projects and define the documents you need to collect</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Assign Providers</h3>
+            <p>Invite document providers and assign them to specific document types</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Track Progress</h3>
+            <p>Monitor document submission status and manage the entire workflow</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Complete Projects</h3>
+            <p>Review, approve, and finalize your document collection process</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta-section">
+    <div class="container">
+      <div class="cta-content">
+        <h2>Ready to Streamline Your Workflow?</h2>
+        <p>Join thousands of organizations using DocFlow to manage their document workflows efficiently</p>
+        <button class="cta-btn primary large" (click)="navigateToLogin()">
+          Start Using DocFlow
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h4>DocFlow</h4>
+          <p>Streamlining document workflows for modern businesses</p>
+        </div>
+        <div class="footer-section">
+          <h4>Features</h4>
+          <ul>
+            <li>Project Management</li>
+            <li>Document Types</li>
+            <li>User Management</li>
+            <li>Domain Organization</li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Support</h4>
+          <ul>
+            <li>Documentation</li>
+            <li>Help Center</li>
+            <li>Contact Support</li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li>About Us</li>
+            <li>Privacy Policy</li>
+            <li>Terms of Service</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 DocFlow. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</div>

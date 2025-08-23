@@ -1,9 +1,28 @@
 <div class="projects-page">
   <header class="page-header">
-    <h1>Projects</h1>
-    @if (!showNewProjectForm()) {
-      <button class="add-button" (click)="toggleNewProjectForm()">+ New Project</button>
-    }
+    <div class="title-section">
+      <h1>Projects</h1>
+      <button class="filter-toggle-btn" (click)="toggleProjectFilter()">
+        {{ getFilterButtonText() }}
+      </button>
+    </div>
+    <div class="header-actions">
+      <div class="search-wrapper">
+        <input 
+          type="text"
+          class="search-input"
+          placeholder="Search projects..."
+          [value]="projectSearchQuery()"
+          (input)="onProjectSearchInputChange($event)"
+        />
+        @if (projectSearchQuery()) {
+          <button class="clear-search-btn" (click)="clearProjectSearch()">✕</button>
+        }
+      </div>
+      @if (!showNewProjectForm()) {
+        <button class="add-button" (click)="toggleNewProjectForm()">+ New Project</button>
+      }
+    </div>
   </header>
 
 
@@ -69,23 +88,33 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label for="ownerId">Project Owner *</label>
-            <select 
-              id="ownerId" 
-              formControlName="ownerId"
-              [class.error]="newProjectForm.get('ownerId')?.invalid && newProjectForm.get('ownerId')?.touched"
-            >
-              <option value="">Select project owner...</option>
-              @for (user of users(); track user.id) {
-                <option [value]="user.id">{{ user.firstName }} {{ user.lastName }} ({{ user.email }})</option>
+            <label>Project Owner *</label>
+            <div class="owner-selector">
+              @if (newProjectForm.get('ownerId')?.value) {
+                <div class="selected-owner-display">
+                  <div class="selected-owner-info">
+                    <div class="owner-name">{{ getOwnerName(newProjectForm.get('ownerId')?.value) }}</div>
+                    <div class="owner-email">{{ getOwnerEmail(newProjectForm.get('ownerId')?.value) }}</div>
+                  </div>
+                </div>
+              } @else {
+                <div class="no-owner-message">
+                  <small>No owner selected</small>
+                </div>
               }
-            </select>
+              <button 
+                type="button" 
+                class="select-owner-btn" 
+                (click)="openOwnerSidebar()"
+                [disabled]="currentMode() === 'view'"
+              >
+                👤 Select Owner
+              </button>
+            </div>
             @if (newProjectForm.get('ownerId')?.invalid && newProjectForm.get('ownerId')?.touched) {
               <div class="error-message">Project owner is required</div>
             }
-            @if (loadingUsers()) {
-              <small>Loading users...</small>
-            }
+            <small>Select a user who will be the project owner</small>
           </div>
           <div class="form-group">
             <label for="status">Status *</label>
@@ -156,13 +185,18 @@
   }
 
   <div class="projects-list">
-    @if (projects().length === 0 && !loading()) {
+    @if (searchFilteredProjects().length === 0 && !loading()) {
       <div class="empty-state">
-        <p>No projects found. Create your first project to get started.</p>
+        @if (projectSearchQuery()) {
+          <p>No projects found matching "{{ projectSearchQuery() }}". Try a different search term.</p>
+          <button class="btn-clear-search" (click)="clearProjectSearch()">Clear Search</button>
+        } @else {
+          <p>No projects found. Create your first project to get started.</p>
+        }
       </div>
     }
 
-    @for (project of projects(); track project.id) {
+    @for (project of searchFilteredProjects(); track project.id) {
       <div class="project-card">
         <div class="type-content">
           <h3>{{ project.name }}</h3>
@@ -175,7 +209,9 @@
           </div>
         </div>
         <div class="type-actions">
-          <button class="action-btn-small" (click)="openEditProject(project)">Edit</button>
+          @if (canUserEditProject(project)) {
+            <button class="action-btn-small" (click)="openEditProject(project)">Edit</button>
+          }
           <button class="action-btn-small secondary" (click)="openViewProject(project)">View</button>
         </div>
       </div>
@@ -254,6 +290,87 @@
           <button type="button" class="btn-apply" (click)="applyAdminUserSelection()">
             Apply Selection ({{ tempSelectedAdminUsers().length }})
           </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Owner Selection Sidebar -->
+  @if (showOwnerSidebar()) {
+    <div class="owner-sidebar-overlay" (click)="cancelOwnerSelection()">
+      <div class="owner-sidebar" (click)="$event.stopPropagation()">
+        <div class="sidebar-header">
+          <h3>Select Project Owner</h3>
+          <button class="close-sidebar-btn" (click)="cancelOwnerSelection()">✕</button>
+        </div>
+        
+        <div class="sidebar-search">
+          <div class="search-input-wrapper">
+            <input 
+              type="text"
+              class="search-input"
+              placeholder="Search users by name or email..."
+              (input)="onOwnerSearchInputChange($event)"
+              [disabled]="searchingOwnerUsers()"
+              #ownerSearchInput
+            />
+            @if (searchingOwnerUsers()) {
+              <div class="search-spinner">🔄</div>
+            } @else if (ownerSearchQuery()) {
+              <button class="clear-search-btn" (click)="clearOwnerSearch()">✕</button>
+            }
+          </div>
+        </div>
+        
+        <div class="sidebar-content">
+          @if (getFilteredOwnerUsers().length === 0) {
+            <div class="no-users-found">
+              @if (ownerSearchQuery()) {
+                <p>No users found matching "{{ ownerSearchQuery() }}"</p>
+                <button class="btn-clear-search" (click)="clearOwnerSearch()">Clear Search</button>
+              } @else {
+                <p>No users available</p>
+              }
+            </div>
+          } @else {
+            <div class="users-list">
+              @for (user of getFilteredOwnerUsers(); track trackOwnerUserById($index, user)) {
+              <div class="user-item" [class.selected]="isOwnerSelectedInSidebar(user.id)" 
+                   (click)="selectOwnerInSidebar(user.id)">
+                <div class="user-info">
+                  <div class="selection-indicator">
+                    <input 
+                      type="radio"
+                      [checked]="isOwnerSelectedInSidebar(user.id)"
+                      (click)="$event.stopPropagation()"
+                    />
+                  </div>
+                  <div class="user-details">
+                    <h4>{{ user.firstName }} {{ user.lastName }}</h4>
+                    <p>{{ user.email }}</p>
+                    @if (user.userType) {
+                      <span class="user-type" [class]="'type-' + user.userType">{{ user.userType }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+              }
+            </div>
+          }
+        </div>
+        
+        <div class="sidebar-footer">
+          <div class="selection-summary">
+            @if (tempSelectedOwner()) {
+              Selected: {{ getOwnerName(tempSelectedOwner()) }}
+            } @else {
+              No owner selected
+            }
+          </div>
+          <div class="sidebar-actions">
+            <button class="btn-cancel" (click)="cancelOwnerSelection()">Cancel</button>
+            <button class="btn-apply" (click)="applyOwnerSelection()" [disabled]="!tempSelectedOwner()">Apply Selection</button>
+          </div>
         </div>
       </div>
     </div>

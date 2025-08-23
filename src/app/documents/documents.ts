@@ -87,7 +87,10 @@ export class Documents implements OnInit {
       this.loadingProjects.set(true);
       const client = generateClient<Schema>();
       const { data } = await client.models.Project.list();
-      this.projects.set(data);
+      
+      // Filter to show only active projects
+      const activeProjects = data.filter(project => project.status === 'active');
+      this.projects.set(activeProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
       this.projects.set([]);

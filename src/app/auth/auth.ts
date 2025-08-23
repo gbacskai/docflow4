@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 @Component({
@@ -12,6 +13,7 @@ import { AuthService } from '../services/auth.service';
 export class Auth {
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
+  private router = inject(Router);
 
   // Use a more persistent way to track mode
   private _currentMode = signal<'login' | 'signup' | 'confirm'>('login');
@@ -108,6 +110,8 @@ export class Auth {
     if (result.success) {
       this.successMessage.set('Login successful!');
       this.loginForm.reset();
+      // Redirect to dashboard after successful login
+      this.router.navigate(['/dashboard']);
     } else {
       this.errorMessage.set(result.error || 'Login failed');
     }

@@ -402,6 +402,13 @@
               "isRequired": true,
               "attributes": []
             },
+            "identifier": {
+              "name": "identifier",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
             "description": {
               "name": "description",
               "isArray": false,

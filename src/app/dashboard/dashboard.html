@@ -1,0 +1,177 @@
+<div class="dashboard-page">
+  @if (loading()) {
+    <div class="loading">Loading dashboard...</div>
+  } @else {
+    <!-- Header Section -->
+    <div class="dashboard-header">
+      <div class="welcome-section">
+        <h1>{{ getGreeting() }}, {{ currentUser()?.username || 'User' }}!</h1>
+        <p>Here's an overview of your DocFlow system</p>
+      </div>
+      <div class="date-section">
+        <div class="current-date">{{ getCurrentDate() }}</div>
+      </div>
+    </div>
+
+    <!-- KPI Cards Section -->
+    <div class="kpi-section">
+      <div class="kpi-card">
+        <div class="kpi-icon">📋</div>
+        <div class="kpi-content">
+          <div class="kpi-number">{{ totalProjects() }}</div>
+          <div class="kpi-label">Total Projects</div>
+        </div>
+      </div>
+
+      <div class="kpi-card active">
+        <div class="kpi-icon">🟢</div>
+        <div class="kpi-content">
+          <div class="kpi-number">{{ activeProjects() }}</div>
+          <div class="kpi-label">Active Projects</div>
+        </div>
+      </div>
+
+      <div class="kpi-card completed">
+        <div class="kpi-icon">✅</div>
+        <div class="kpi-content">
+          <div class="kpi-number">{{ completedProjects() }}</div>
+          <div class="kpi-label">Completed Projects</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">🏢</div>
+        <div class="kpi-content">
+          <div class="kpi-number">{{ totalDomains() }}</div>
+          <div class="kpi-label">Domains</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">📄</div>
+        <div class="kpi-content">
+          <div class="kpi-number">{{ totalDocumentTypes() }}</div>
+          <div class="kpi-label">Document Types</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">👥</div>
+        <div class="kpi-content">
+          <div class="kpi-number">{{ totalUsers() }}</div>
+          <div class="kpi-label">Users</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts and Analytics Section -->
+    <div class="analytics-section">
+      <div class="chart-card">
+        <h3>Project Status Distribution</h3>
+        <div class="status-chart">
+          @for (status of projectStatusData(); track status.label) {
+            <div class="status-item">
+              <div class="status-bar">
+                <div 
+                  class="status-fill" 
+                  [style.width.%]="status.percentage"
+                  [style.background-color]="status.color"
+                ></div>
+              </div>
+              <div class="status-info">
+                <span class="status-label">{{ status.label }}</span>
+                <span class="status-count">{{ status.count }} ({{ status.percentage }}%)</span>
+              </div>
+            </div>
+          }
+        </div>
+        @if (totalProjects() === 0) {
+          <div class="no-data">No projects available</div>
+        }
+      </div>
+
+      <div class="summary-card">
+        <h3>Quick Stats</h3>
+        <div class="stat-items">
+          <div class="stat-item">
+            <div class="stat-icon">📈</div>
+            <div class="stat-content">
+              <div class="stat-value">{{ toFixed(((activeProjects() / mathMax(totalProjects(), 1)) * 100), 0) }}%</div>
+              <div class="stat-label">Active Project Rate</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-content">
+              <div class="stat-value">{{ toFixed((totalDocumentTypes() / mathMax(totalDomains(), 1)), 1) }}</div>
+              <div class="stat-label">Avg Doc Types per Domain</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon">👤</div>
+            <div class="stat-content">
+              <div class="stat-value">{{ toFixed((totalProjects() / mathMax(totalUsers(), 1)), 1) }}</div>
+              <div class="stat-label">Avg Projects per User</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="activity-section">
+      <div class="activity-card">
+        <h3>Recent Projects</h3>
+        @if (recentProjects().length > 0) {
+          <div class="activity-list">
+            @for (project of recentProjects(); track project.id) {
+              <div class="activity-item">
+                <div class="activity-icon">
+                  @if (project.status === 'active') { 🟢 }
+                  @if (project.status === 'completed') { ✅ }
+                  @if (project.status === 'archived') { 📦 }
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">{{ project.name }}</div>
+                  <div class="activity-meta">
+                    <span class="activity-domain">{{ getDomainName(project.defaultDomain) }}</span>
+                    <span class="activity-date">{{ formatDate(project.updatedAt || project.createdAt) }}</span>
+                  </div>
+                </div>
+                <div class="activity-status" [class]="'status-' + project.status">
+                  {{ project.status }}
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="no-activity">No recent projects</div>
+        }
+      </div>
+
+      <div class="info-card">
+        <h3>System Information</h3>
+        <div class="info-items">
+          <div class="info-item">
+            <div class="info-label">System Version</div>
+            <div class="info-value">DocFlow v4.0</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Your Role</div>
+            <div class="info-value">{{ currentUser()?.username || 'User' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Last Login</div>
+            <div class="info-value">{{ getCurrentDate() }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Account Status</div>
+            <div class="info-value">
+              <span class="status-badge active">Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

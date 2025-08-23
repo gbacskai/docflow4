@@ -31,6 +31,8 @@ export class UserMenu {
   async logout() {
     this.closeMenu();
     await this.authService.signOut();
+    // Redirect to root path after logout
+    this.router.navigate(['/']);
   }
 
   onMyAccount() {

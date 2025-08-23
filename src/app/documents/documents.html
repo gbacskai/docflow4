@@ -141,6 +141,13 @@
               @if (documentForm.get('projectId')?.invalid && documentForm.get('projectId')?.touched) {
                 <div class="error-message">Project is required</div>
               }
+              @if (loadingProjects()) {
+                <small>Loading projects...</small>
+              } @else if (projects().length === 0) {
+                <small class="no-projects-message">No active projects available</small>
+              } @else {
+                <small>Only active projects are shown</small>
+              }
             </div>
             <div class="form-group">
               <label for="documentType">Document Type *</label>

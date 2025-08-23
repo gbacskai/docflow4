@@ -40,9 +40,9 @@ export class Users implements OnInit, OnDestroy {
     email: ['', [Validators.required, Validators.email]],
     firstName: ['', [Validators.required, Validators.minLength(2)]],
     lastName: ['', [Validators.required, Validators.minLength(2)]],
-    userType: ['client', [Validators.required]],
+    userType: ['client'],
     interestedDocumentTypes: [[]],
-    status: ['active', [Validators.required]]
+    status: ['active']
   });
 
   inviteForm: FormGroup = this.fb.group({
@@ -109,6 +109,41 @@ export class Users implements OnInit, OnDestroy {
     return currentUser?.userType === 'admin';
   }
 
+  canEditUser(user: Schema['User']['type']): boolean {
+    const currentUser = this.currentUserData();
+    if (!currentUser) return false;
+    
+    // Admin users can edit any active user
+    if (this.isCurrentUserAdmin()) {
+      return user.status === 'active';
+    }
+    
+    // Non-admin users can only edit their own record if they are active
+    return user.id === currentUser.id && user.status === 'active';
+  }
+
+  isEditingOwnProfile(): boolean {
+    const currentUser = this.currentUserData();
+    const selectedUser = this.selectedUser();
+    
+    return !!(currentUser && selectedUser && 
+             currentUser.id === selectedUser.id && 
+             this.currentMode() === 'edit');
+  }
+
+  isViewingOwnProfile(): boolean {
+    const currentUser = this.currentUserData();
+    const selectedUser = this.selectedUser();
+    
+    return !!(currentUser && selectedUser && 
+             currentUser.id === selectedUser.id && 
+             this.currentMode() === 'view');
+  }
+
+  isOwnProfile(user: Schema['User']['type']): boolean {
+    const currentUser = this.currentUserData();
+    return !!(currentUser && user && currentUser.id === user.id);
+  }
 
   openInviteForm() {
     this.currentMode.set('invite');
@@ -118,17 +153,29 @@ export class Users implements OnInit, OnDestroy {
   }
 
   openEditForm(user: Schema['User']['type']) {
+    // Check if current user has permission to edit this user
+    if (!this.canEditUser(user)) {
+      console.warn('Access denied: Cannot edit this user');
+      return;
+    }
+    
     this.currentMode.set('edit');
     this.selectedUser.set(user);
     
-    this.userForm.patchValue({
+    const formData: any = {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      userType: user.userType,
-      interestedDocumentTypes: user.interestedDocumentTypes || [],
-      status: user.status || 'active'
-    });
+      interestedDocumentTypes: user.interestedDocumentTypes || []
+    };
+    
+    // Only populate admin-only fields if current user is admin
+    if (this.isCurrentUserAdmin()) {
+      formData.userType = user.userType;
+      formData.status = user.status || 'active';
+    }
+    
+    this.userForm.patchValue(formData);
     this.showForm.set(true);
   }
 
@@ -149,6 +196,12 @@ export class Users implements OnInit, OnDestroy {
 
   // Document Types Sidebar Methods
   openDocumentTypesSidebar() {
+    // Only admin users can access document types selection
+    if (!this.isCurrentUserAdmin()) {
+      console.warn('Access denied: Only admin users can manage document types');
+      return;
+    }
+    
     const currentForm = this.currentMode() === 'invite' ? this.inviteForm : this.userForm;
     const currentDocTypes: string[] = currentForm.get('interestedDocumentTypes')?.value || [];
     console.log('Opening sidebar with current document types:', currentDocTypes);
@@ -369,11 +422,43 @@ export class Users implements OnInit, OnDestroy {
   async updateUser(id: string, updates: Partial<Schema['User']['type']>) {
     try {
       const client = generateClient<Schema>();
-      await client.models.User.update({
+      
+      // Get the user being updated to check permissions
+      const users = this.users();
+      const userToUpdate = users.find(u => u.id === id);
+      
+      if (!userToUpdate) {
+        throw new Error('User not found');
+      }
+      
+      // Check if current user has permission to edit this user
+      if (!this.canEditUser(userToUpdate)) {
+        throw new Error('Access denied: Cannot edit this user');
+      }
+      
+      // If current user is not admin, exclude admin-only fields
+      const updateData: any = {
         id,
-        ...updates,
         updatedAt: new Date().toISOString()
-      });
+      };
+      
+      // Always allow these fields to be updated
+      if (updates.firstName !== undefined) updateData.firstName = updates.firstName;
+      if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
+      if (updates.email !== undefined) updateData.email = updates.email;
+      
+      // Only allow admin users to update document types
+      if (this.isCurrentUserAdmin() && updates.interestedDocumentTypes !== undefined) {
+        updateData.interestedDocumentTypes = updates.interestedDocumentTypes;
+      }
+      
+      // Only allow admin fields if current user is admin
+      if (this.isCurrentUserAdmin()) {
+        if (updates.userType !== undefined) updateData.userType = updates.userType;
+        if (updates.status !== undefined) updateData.status = updates.status;
+      }
+      
+      await client.models.User.update(updateData);
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;
@@ -400,21 +485,6 @@ export class Users implements OnInit, OnDestroy {
     }
   }
 
-  async deleteUser(user: Schema['User']['type']) {
-    if (!confirm(`Are you sure you want to permanently delete "${user.firstName} ${user.lastName}"?`)) return;
-
-    this.processing.set(true);
-    
-    try {
-      const client = generateClient<Schema>();
-      await client.models.User.delete({ id: user.id });
-      await this.loadUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
-    } finally {
-      this.processing.set(false);
-    }
-  }
 
   // Helper Methods
   getDocumentTypeName(docTypeId: string): string {
@@ -440,7 +510,6 @@ export class Users implements OnInit, OnDestroy {
   getUserStatusColor(status: string | null | undefined): string {
     switch (status) {
       case 'active': return 'status-active';
-      case 'invited': return 'status-invited';
       case 'inactive': return 'status-inactive';
       case 'archived': return 'status-archived';
       default: return 'status-unknown';
@@ -500,16 +569,4 @@ export class Users implements OnInit, OnDestroy {
     }
   }
 
-  getInviterInfo(invitedBy: string | null | undefined): string {
-    if (!invitedBy) return 'System';
-    
-    // Find the user who sent the invitation
-    const inviter = this.users().find(user => user.id === invitedBy);
-    if (inviter && inviter.firstName && inviter.lastName) {
-      return `${inviter.firstName} ${inviter.lastName}`;
-    }
-    
-    // If we can't find the inviter or they don't have names, show the ID
-    return `User ${invitedBy.substring(0, 8)}...`;
-  }
 }

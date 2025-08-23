@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
@@ -10,8 +10,10 @@ import { CommonModule } from '@angular/common';
   templateUrl: './domains.html',
   styleUrl: './domains.less'
 })
-export class Domains implements OnInit {
+export class Domains implements OnInit, OnDestroy {
   domains = signal<Array<Schema['Domain']['type']>>([]);
+  filteredDomains = signal<Array<Schema['Domain']['type']>>([]);
+  searchQuery = signal<string>('');
   loading = signal(true);
   showForm = signal(false);
   currentMode = signal<'create' | 'edit' | 'view'>('create');
@@ -19,6 +21,7 @@ export class Domains implements OnInit {
   processing = signal(false);
   
   private fb = inject(FormBuilder);
+  private searchTimeout: any = null;
   
   domainForm: FormGroup = this.fb.group({
     name: ['', [Validators.required]],
@@ -30,15 +33,50 @@ export class Domains implements OnInit {
     await this.loadDomains();
   }
 
+  // Search functionality methods
+  applySearch() {
+    const query = this.searchQuery();
+    if (!query) {
+      this.filteredDomains.set(this.domains());
+    } else {
+      const filtered = this.domains().filter(domain =>
+        domain.name?.toLowerCase().includes(query) ||
+        domain.description?.toLowerCase().includes(query)
+      );
+      this.filteredDomains.set(filtered);
+    }
+  }
+
+  onSearchInputChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const query = target.value.toLowerCase().trim();
+    this.searchQuery.set(query);
+    
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+
+    this.searchTimeout = setTimeout(() => {
+      this.applySearch();
+    }, 300);
+  }
+
+  clearSearch() {
+    this.searchQuery.set('');
+    this.filteredDomains.set(this.domains());
+  }
+
   async loadDomains() {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
       const { data } = await client.models.Domain.list();
       this.domains.set(data);
+      this.applySearch(); // Initialize filtered domains
     } catch (error) {
       console.error('Error loading domains:', error);
       this.domains.set([]);
+      this.filteredDomains.set([]);
     } finally {
       this.loading.set(false);
     }
@@ -147,6 +185,12 @@ export class Domains implements OnInit {
       console.error('Error deleting domain:', error);
     } finally {
       this.processing.set(false);
+    }
+  }
+
+  ngOnDestroy() {
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
     }
   }
 }

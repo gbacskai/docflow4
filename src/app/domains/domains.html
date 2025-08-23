@@ -1,9 +1,23 @@
 <div class="domains-page">
   <header class="page-header">
     <h1>Domains</h1>
-    <button class="add-button" (click)="openCreateForm()">
-      + New Domain
-    </button>
+    <div class="header-actions">
+      <div class="search-wrapper">
+        <input 
+          type="text"
+          class="search-input"
+          placeholder="Search domains..."
+          [value]="searchQuery()"
+          (input)="onSearchInputChange($event)"
+        />
+        @if (searchQuery()) {
+          <button class="clear-search-btn" (click)="clearSearch()">✕</button>
+        }
+      </div>
+      <button class="add-button" (click)="openCreateForm()">
+        + New Domain
+      </button>
+    </div>
   </header>
 
 
@@ -111,13 +125,18 @@
   }
 
   <div class="domains-list">
-    @if (domains().length === 0 && !loading()) {
+    @if (filteredDomains().length === 0 && !loading()) {
       <div class="empty-state">
-        <p>No domains found. Create your first domain to get started.</p>
+        @if (searchQuery()) {
+          <p>No domains found matching "{{ searchQuery() }}". Try a different search term.</p>
+          <button class="btn-clear-search" (click)="clearSearch()">Clear Search</button>
+        } @else {
+          <p>No domains found. Create your first domain to get started.</p>
+        }
       </div>
     }
 
-    @for (domain of domains(); track domain.id) {
+    @for (domain of filteredDomains(); track domain.id) {
       <div class="domain-card" [class.archived]="domain.status === 'archived'">
         <div class="domain-content">
           <h3>{{ domain.name }}</h3>
