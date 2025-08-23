@@ -19,7 +19,7 @@ frontend:
         - nvm use 24.5.0
         - npm run build
   artifacts:
-    baseDirectory: dist/docflow4
+    baseDirectory: dist/docflow4/browser
     files:
       - '**/*'
   cache:
