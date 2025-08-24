@@ -72,6 +72,7 @@ amplifytools.xcconfig
 .secret-*
 #amplify-do-not-edit-end
 
+amplify_outputs.json
 .amplify
 .claude
 .opencode
