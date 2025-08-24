@@ -4,13 +4,31 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 
 ## Development server
 
+Generate amplify_outputs.json
+```bash
+npm ampx generate outputs
+```
+
+or
+
+Generate Sandbox environment
+```bash
+npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003
+```
+
 To start a local development server, run:
 
 ```bash
-ng serve
+npm start
 ```
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+
+For Claude coding:
+
+```bash
+claude
+```
 
 ## Code scaffolding
 

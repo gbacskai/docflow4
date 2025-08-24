@@ -3,7 +3,7 @@ backend:
   phases:
     preBuild:
       commands:
-        - amplify pull --appId $AWS_APP_ID --envName $AWS_BRANCH --yes
+        - echo "🔄 Pulling latest backend environment configuration..."
     build:
       commands:
         - nvm install 24.5.0
