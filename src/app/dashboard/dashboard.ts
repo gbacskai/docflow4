@@ -1,6 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../../amplify/data/resource';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,9 +13,10 @@ import { AuthService } from '../services/auth.service';
 })
 export class Dashboard {
   private authService = inject(AuthService);
-  
+
   // Dashboard data signals
   loading = signal(false);
+  fullUserData = signal<Schema['User']['type'] | null>(null);
   
   // Mock data for demonstration
   mockProjects = signal([
@@ -75,8 +78,35 @@ export class Dashboard {
 
   currentUser = computed(() => this.authService.currentUser());
 
+  // Computed display name: FirstName LastName or email fallback
+  displayName = computed(() => {
+    const userData = this.fullUserData();
+    if (userData?.firstName || userData?.lastName) {
+      return `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+    }
+    return this.currentUser()?.email || this.currentUser()?.username || 'User';
+  });
+
   constructor() {
-    // Dashboard is ready with mock data
+    // Load full user data when component initializes
+    this.loadUserData();
+  }
+
+  private async loadUserData() {
+    try {
+      const cognitoUserId = this.authService.getUserId();
+      if (cognitoUserId) {
+        const client = generateClient<Schema>();
+        const { data: users } = await client.models.User.list();
+
+        const user = users.find(u => u.cognitoUserId === cognitoUserId);
+        if (user) {
+          this.fullUserData.set(user);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
   }
 
   getDomainName(domainId: string): string {

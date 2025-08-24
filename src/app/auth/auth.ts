@@ -126,19 +126,26 @@ export class Auth {
     this.clearMessages();
 
     const { email, password } = this.signupForm.value;
+    console.log('🔐 Starting signup process for:', email);
+
     const result = await this.authService.signUp({ email, password });
+    console.log('🔐 Signup result:', result);
 
     if (result.success) {
+      console.log('✅ Signup successful, confirmationRequired:', result.confirmationRequired);
       if (result.confirmationRequired) {
         this.pendingEmail.set(email);
         this.successMessage.set('Sign up successful! Please check your email for the confirmation code.');
+        console.log('🔄 Switching to confirm mode');
         this.switchToConfirm();
+        console.log('✅ Current mode after switch:', this.currentMode());
       } else {
         this.successMessage.set('Sign up successful! You can now log in.');
         this.switchToLogin();
       }
       this.signupForm.reset();
     } else {
+      console.log('❌ Signup failed:', result.error);
       // Check if it's an existing user error
       if (result.error?.includes('already exists')) {
         this.errorMessage.set(result.error + ' Would you like to sign in instead?');

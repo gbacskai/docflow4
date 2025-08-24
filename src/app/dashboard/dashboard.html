@@ -5,7 +5,7 @@
     <!-- Header Section -->
     <div class="dashboard-header">
       <div class="welcome-section">
-        <h1>{{ getGreeting() }}, {{ currentUser()?.username || 'User' }}!</h1>
+        <h1>{{ getGreeting() }}, {{ displayName() }}!</h1>
         <p>Here's an overview of your DocFlow system</p>
       </div>
       <div class="date-section">
@@ -158,7 +158,7 @@
           </div>
           <div class="info-item">
             <div class="info-label">Your Role</div>
-            <div class="info-value">{{ currentUser()?.username || 'User' }}</div>
+            <div class="info-value">{{ displayName() }}</div>
           </div>
           <div class="info-item">
             <div class="info-label">Last Login</div>
