@@ -350,7 +350,33 @@ async function runTests() {
 }
 
 // Change to the correct directory
-process.chdir('/home/gbacs/apps/docflow4');
+// Auto-detect project root by looking for package.json
+let currentDir = __dirname;
+let projectRoot = null;
+
+// Look for project root by finding package.json
+while (currentDir !== path.dirname(currentDir)) {
+  try {
+    const packagePath = path.join(currentDir, 'package.json');
+    if (require('fs').existsSync(packagePath)) {
+      const packageJson = JSON.parse(require('fs').readFileSync(packagePath, 'utf8'));
+      if (packageJson.name === 'docflow4') {
+        projectRoot = currentDir;
+        break;
+      }
+    }
+  } catch (e) {
+    // Continue searching
+  }
+  currentDir = path.dirname(currentDir);
+}
+
+if (projectRoot) {
+  console.log(`🔍 Found project root: ${projectRoot}`);
+  process.chdir(projectRoot);
+} else {
+  console.log('⚠️ Could not find project root, using current directory');
+}
 
 // Run the tests
 runTests().catch(error => {

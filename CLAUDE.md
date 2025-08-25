@@ -4,17 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
+### Core Development
 - **Start development server**: `npm start` or `ng serve` - serves at http://localhost:4200/
 - **Build for production**: `npm run build` or `ng build`
 - **Build with watch**: `npm run watch` - development build with file watching
+- **Generate components**: `ng generate component component-name`
+
+### AWS Amplify Setup
+- **Generate amplify outputs**: `npm ampx generate outputs` - creates amplify_outputs.json
+- **Create sandbox environment**: `npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003`
+
+### Testing Commands
 - **Run unit tests**: `npm test` or `ng test` - runs Karma/Jasmine tests
+- **Run single test file**: `ng test --include="src/path/to/test.spec.ts" --browsers=ChromeHeadless --watch=false`
 - **Run headless unit tests**: `npm run test:headless` - runs tests without browser UI
 - **Run CI tests**: `npm run test:ci-smart` - intelligent CI test runner with Chrome detection
+- **Run coverage**: `npm run test:coverage` - generates code coverage report
 - **Run E2E tests**: `npm run test:e2e` - full E2E test suite with Cypress and Node.js tests
 - **Run Cypress tests**: `npm run test:cypress` - Cypress browser tests only
+- **Run Node.js integration tests**: `npm run test:node-scripts` - custom test scripts
 - **Generate test report**: `npm run test:report` - generates comprehensive test report
-- **Generate components**: `ng generate component component-name`
+
+### CSS Management
 - **CSS optimization**: `npm run css:optimize` and `npm run css:restore` for CSS management
+- **Analyze CSS**: `npm run css:analyze` - analyze CSS bundle sizes
+- **Purge CSS**: `npm run purge:css` - remove unused CSS from production build
 
 ## Project Architecture
 
@@ -63,6 +77,15 @@ The app follows a feature-based architecture with guard-protected routes:
 - `UserDataService` - User profile data operations
 - `UserManagementService` - User CRUD operations
 
+### Key Component Patterns
+
+**DocumentTypes Domain Selection Workflow:**
+The DocumentTypes component uses a complex temporary domain selection system:
+1. `openDomainSidebar()` - Initializes `tempSelectedDomains` signal with current form values
+2. `toggleDomainInSidebar()` - Modifies temporary selection (adds/removes domains)
+3. `applyDomainSelection()` - Commits temporary selection to form via `patchValue()`
+4. Domain selection state flows: Form → Temp Selection → Form (via user confirmation)
+
 ### Routing and Guards
 
 Uses functional guards for route protection:
@@ -90,6 +113,42 @@ currentUser = this._currentUser.asReadonly();
 - `karma.conf.js` - Configured for multiple browser environments (Chrome, ChromeHeadless, ChromeCI)
 - `run-ci-tests.js` - Intelligent CI runner that detects Chrome availability
 - `generate-test-report.js` - Unified test report generation
+- `src/test-helpers.ts` - Centralized test utilities with AWS service mocking
+
+**AWS Amplify Testing Patterns:**
+Since AWS Amplify uses ES modules that cannot be easily mocked, use component method overriding:
+
+```typescript
+// In beforeEach(fakeAsync(() => {...})):
+const mockClient = {
+  models: {
+    Domain: {
+      list: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockData })),
+      create: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockData[0] })),
+      update: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockData[0] })),
+      delete: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockData[0] }))
+    }
+  }
+};
+
+// Override component methods to use mock client
+spyOn(component, 'loadDomains').and.callFake(async () => {
+  component.loading.set(true);
+  const { data } = await mockClient.models.Domain.list();
+  component.domains.set(data);
+  component.loading.set(false);
+});
+```
+
+**Test User Credentials:**
+- **Admin user**: gbacskai@gmail.com / jvw_zpd3JRF@qfn8byc (use for domain/document type tests)
+- **Normal user**: gergo@xshopper.com / jvw_zpd3JRF@qfn811byc
+
+**Critical Testing Requirements:**
+- Use `fakeAsync(() => {...})` for beforeEach and test functions
+- Always call `tick()` after async operations and form updates
+- Use TestHelpers.configureTestingModule() for consistent service mocking
+- For DocumentTypes tests: call `component.openDomainSidebar()` before domain toggles, then `component.applyDomainSelection()` to update forms
 
 ### Code Style and Configuration
 
@@ -104,3 +163,8 @@ currentUser = this._currentUser.asReadonly();
 - **Frontend**: Deployed via `amplify.yml` with comprehensive test pipeline
 - **Environment**: Node.js 24.5.0 with npm caching optimization
 - **Testing in CI**: Multi-stage testing including unit tests, E2E tests, and custom Node.js tests
+
+**AWS Build Environment Compatibility:**
+- Test scripts auto-detect project root to work in both local and AWS CodeBuild environments
+- AWS CodeBuild paths like `/codebuild/output/src*/src/dockflow4` are handled automatically
+- No hardcoded paths in test files for maximum portability
