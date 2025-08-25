@@ -408,7 +408,10 @@
               }
             </div>
           } @else {
-            <button class="action-btn" (click)="openEditForm(document); $event.stopPropagation()">Edit</button>
+            <div class="button-group">
+              <button class="action-btn" (click)="openEditForm(document); $event.stopPropagation()">Edit</button>
+              <button class="action-btn-small chat-btn" (click)="openDocumentChat(document); $event.stopPropagation()">💬 Chat</button>
+            </div>
           }
         </div>
       </div>

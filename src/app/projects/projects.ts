@@ -5,6 +5,8 @@ import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 import { UserDataService } from '../services/user-data.service';
+import { ChatService } from '../services/chat.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-projects',
@@ -48,6 +50,8 @@ export class Projects implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private userDataService = inject(UserDataService);
+  private chatService = inject(ChatService);
+  private router = inject(Router);
   private searchTimeout: any = null;
   private projectSearchTimeout: any = null;
   private ownerSearchTimeout: any = null;
@@ -821,6 +825,71 @@ export class Projects implements OnInit, OnDestroy {
       await this.loadProjects();
     } catch (error) {
       console.error('Error updating project:', error);
+    }
+  }
+
+  async openProjectChat(project: Schema['Project']['type']) {
+    try {
+      console.log('🗣️ Opening chat for project:', project.name);
+      console.log('🗣️ Project data:', project);
+      
+      // Get the current user's ID for chat (using database User ID, not Cognito ID)
+      const currentUserData = this.userDataService.getCurrentUserData();
+      const currentChatUserId = currentUserData?.id;
+      console.log('🗣️ Current user data for chat:', currentUserData);
+      console.log('🗣️ Current user ID for chat:', currentChatUserId);
+      
+      if (!currentChatUserId) {
+        console.error('❌ No current user ID found - cannot create chat room');
+        alert('Unable to create chat room - user not found. Please try logging in again.');
+        return;
+      }
+      
+      // Create project chat room with all admin users
+      const adminUsers = project.adminUsers?.filter(id => id !== null) as string[] || [];
+      const allParticipants = [project.ownerId, ...adminUsers, currentChatUserId]
+        .filter((id): id is string => id !== null && id !== undefined) // Type-safe filter
+        .filter((id, index, arr) => arr.indexOf(id) === index); // Remove duplicates
+      
+      console.log('🗣️ Participants for chat room:', allParticipants);
+      
+      // First check if a chat room already exists for this project
+      console.log('🔍 Checking for existing chat room...');
+      let chatRoom = await this.chatService.findExistingProjectChatRoom(project.id);
+      
+      if (chatRoom) {
+        console.log('✅ Using existing chat room:', chatRoom.title);
+        // Ensure current user is added as participant if not already included
+        chatRoom = await this.chatService.ensureUserInChatRoom(chatRoom, allParticipants);
+      } else {
+        console.log('🆕 Creating new chat room for project');
+        chatRoom = await this.chatService.createProjectChatRoom({
+          projectId: project.id,
+          projectName: project.name,
+          roomType: 'project',
+          title: `${project.name} Chat`,
+          description: `Project discussion for ${project.name}`,
+          adminUsers: allParticipants,
+          providerUsers: []
+        });
+        
+        console.log('✅ Chat room created successfully:', chatRoom);
+        console.log('✅ Chat room ID:', chatRoom.id);
+      }
+      
+      // Navigate to chat with the specific room
+      console.log('🧭 Navigating to chat with room ID:', chatRoom.id);
+      this.router.navigate(['/chat'], { 
+        queryParams: { 
+          room: chatRoom.id,
+          from: 'projects'
+        } 
+      });
+      
+    } catch (error) {
+      console.error('❌ Error creating project chat room:', error);
+      console.error('❌ Error details:', error);
+      alert(`Failed to create chat room: ${error}. Please try again.`);
     }
   }
 }

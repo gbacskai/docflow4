@@ -1,0 +1,262 @@
+<div class="chat-page">
+  <!-- Left Sidebar - Chat Rooms -->
+  <div class="chat-sidebar left-sidebar">
+    <div class="sidebar-header">
+      <h3>💬 Project Chats</h3>
+      <div class="connection-status">
+        @if (connecting()) {
+          <span class="status connecting">🔄 Connecting...</span>
+        } @else {
+          <span class="status connected">🟢 Connected</span>
+        }
+      </div>
+    </div>
+
+    <div class="chat-rooms-list">
+      @if (loading() && chatRooms().length === 0) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading chats...</p>
+        </div>
+      } @else if (chatRooms().length === 0) {
+        <div class="empty-state">
+          <div class="empty-icon">💬</div>
+          <h4>No Active Chats</h4>
+          <p>Chat rooms will appear here when projects have active discussions.</p>
+        </div>
+      } @else {
+        @for (room of chatRooms(); track room.id) {
+          <div 
+            class="chat-room-item"
+            [class.selected]="selectedRoom()?.id === room.id"
+            [class.unread]="room.unreadCount > 0"
+            (click)="selectRoom(room)"
+          >
+            <div class="room-info">
+              <div class="room-header">
+                <h4 class="project-name">{{ room.projectName }}</h4>
+                @if (room.unreadCount > 0) {
+                  <span class="unread-badge">{{ room.unreadCount }}</span>
+                }
+              </div>
+              
+              @if (room.lastMessage) {
+                <p class="last-message">{{ room.lastMessage }}</p>
+                <span class="last-time">{{ formatTime(room.lastMessageTime || '') }}</span>
+              } @else {
+                <p class="no-messages">No messages yet</p>
+              }
+            </div>
+            
+            <div class="room-status">
+              <span class="status-indicator" [class.active]="room.isActive"></span>
+            </div>
+          </div>
+        }
+      }
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">
+          {{ currentUser()?.username?.charAt(0)?.toUpperCase() || 'U' }}
+        </div>
+        <div class="user-details">
+          <span class="username">{{ currentUser()?.username }}</span>
+          <span class="user-role">{{ isAdmin() ? 'Project Admin' : 'Document Provider' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat Area -->
+  <div class="chat-main">
+    @if (selectedRoom()) {
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-info">
+          @if (showBackButton()) {
+            <button class="back-button" (click)="goBack()">
+              ← {{ backButtonText() }}
+            </button>
+          }
+          <h2>{{ selectedRoom()?.projectName }}</h2>
+          <span class="participants-count">
+            {{ selectedRoom()?.participants?.length || 0 }} participants
+          </span>
+        </div>
+        
+        <div class="chat-actions">
+          <button 
+            class="btn-secondary" 
+            (click)="toggleRightSidebar()"
+            [class.active]="showRightSidebar()"
+          >
+            👥 Participants
+          </button>
+        </div>
+      </div>
+
+      <!-- Messages Container -->
+      <div class="chat-messages" #chatMessages>
+        @if (loading()) {
+          <div class="loading-messages">
+            <div class="spinner"></div>
+            <p>Loading messages...</p>
+          </div>
+        } @else if (messages().length === 0) {
+          <div class="empty-messages">
+            <div class="welcome-message">
+              <h3>👋 Welcome to {{ selectedRoom()?.projectName }} Chat</h3>
+              <p>This is the beginning of your conversation. Send a message to get started!</p>
+            </div>
+          </div>
+        } @else {
+          @for (message of messages(); track message.id) {
+            <div 
+              class="message"
+              [class.my-message]="isMyMessage(message)"
+              [class.admin-message]="message.senderType === 'admin'"
+              [class.provider-message]="message.senderType === 'provider'"
+            >
+              @if (!isMyMessage(message)) {
+                <div class="message-avatar">
+                  {{ message.senderName.charAt(0).toUpperCase() || 'U' }}
+                </div>
+              }
+              
+              <div class="message-content">
+                @if (!isMyMessage(message)) {
+                  <div class="message-header">
+                    <span class="sender-name">{{ message.senderName }}</span>
+                    <span class="sender-role">{{ message.senderType === 'admin' ? 'Admin' : 'Provider' }}</span>
+                    <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+                  </div>
+                }
+                
+                <div class="message-text">{{ message.message }}</div>
+                
+                @if (isMyMessage(message)) {
+                  <div class="message-footer">
+                    <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+                    @if (message.isRead) {
+                      <span class="read-indicator">✓✓</span>
+                    } @else {
+                      <span class="sent-indicator">✓</span>
+                    }
+                  </div>
+                }
+              </div>
+              
+              @if (isMyMessage(message)) {
+                <div class="message-avatar my-avatar">
+                  {{ currentUser()?.username?.charAt(0)?.toUpperCase() || 'U' }}
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Message Input -->
+      <div class="chat-input">
+        <div class="input-container">
+          <textarea
+            [(ngModel)]="newMessage"
+            placeholder="Type your message..."
+            class="message-input"
+            rows="1"
+            (keydown)="onKeyDown($event)"
+          ></textarea>
+          
+          <button 
+            class="send-button"
+            (click)="sendMessage()"
+            [disabled]="!newMessage().trim()"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="input-hint">
+          Press Enter to send • Shift + Enter for new line
+        </div>
+      </div>
+    } @else {
+      <!-- No Chat Selected -->
+      <div class="no-chat-selected">
+        <div class="no-chat-content">
+          <div class="no-chat-icon">💬</div>
+          <h2>Select a Chat</h2>
+          <p>Choose a project from the sidebar to start chatting with team members.</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Right Sidebar - Participants & Info -->
+  @if (showRightSidebar() && selectedRoom()) {
+    <div class="chat-sidebar right-sidebar">
+      <div class="sidebar-header">
+        <h3>👥 Participants</h3>
+        <button class="close-sidebar" (click)="toggleRightSidebar()">×</button>
+      </div>
+
+      <div class="participants-list">
+        <div class="participant-group">
+          <h4>Project Admins</h4>
+          <div class="participant-item admin">
+            <div class="participant-avatar">A</div>
+            <div class="participant-info">
+              <span class="participant-name">Admin User</span>
+              <span class="participant-status online">Online</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="participant-group">
+          <h4>Document Providers</h4>
+          <div class="participant-item provider">
+            <div class="participant-avatar">P</div>
+            <div class="participant-info">
+              <span class="participant-name">Provider User</span>
+              <span class="participant-status offline">Last seen 2h ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-info-section">
+        <h4>📋 Project Info</h4>
+        <div class="project-details">
+          <div class="detail-item">
+            <strong>Project:</strong> {{ selectedRoom()?.projectName }}
+          </div>
+          <div class="detail-item">
+            <strong>Status:</strong> Active
+          </div>
+          <div class="detail-item">
+            <strong>Created:</strong> Today
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-actions-section">
+        <h4>⚙️ Actions</h4>
+        <div class="action-buttons">
+          <button class="action-btn">
+            📎 Share Files
+          </button>
+          <button class="action-btn">
+            🔔 Notifications
+          </button>
+          <button class="action-btn">
+            📊 View Project
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

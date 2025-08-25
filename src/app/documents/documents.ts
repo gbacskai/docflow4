@@ -1,10 +1,13 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { generateClient } from 'aws-amplify/data';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ChatService } from '../services/chat.service';
+import { UserDataService } from '../services/user-data.service';
 
 @Component({
   selector: 'app-documents',
@@ -33,6 +36,9 @@ export class Documents implements OnInit {
   
   private fb = inject(FormBuilder);
   private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
+  private chatService = inject(ChatService);
+  private userDataService = inject(UserDataService);
   
   documentForm: FormGroup = this.fb.group({
     projectId: ['', [Validators.required]],
@@ -537,5 +543,81 @@ export class Documents implements OnInit {
 
   onImageError(url: string | null) {
     console.error('Image failed to load:', url);
+  }
+
+  async openDocumentChat(document: Schema['Document']['type']) {
+    try {
+      console.log('🗣️ Opening chat for document:', document.documentType);
+      console.log('🗣️ Document data:', document);
+      
+      // Get the current user's ID for chat (using database User ID, not Cognito ID)
+      const currentUserData = this.userDataService.getCurrentUserData();
+      const currentChatUserId = currentUserData?.id;
+      console.log('🗣️ Current user data for chat:', currentUserData);
+      console.log('🗣️ Current user ID for chat:', currentChatUserId);
+      
+      if (!currentChatUserId) {
+        console.error('❌ No current user ID found - cannot create chat room');
+        alert('Unable to create chat room - user not found. Please try logging in again.');
+        return;
+      }
+      
+      // Get document type name for better chat room title
+      const documentTypeName = this.getDocumentTypeName(document.documentType);
+      const projectName = this.getProjectName(document.projectId);
+      
+      // Create document chat room with assigned providers
+      const assignedProviders = document.assignedProviders 
+        ? (Array.isArray(document.assignedProviders) 
+          ? document.assignedProviders 
+          : (document.assignedProviders as string).split(',').map((p: string) => p.trim()))
+        : [];
+      
+      const allParticipants = [document.acceptedProvider, ...assignedProviders, currentChatUserId]
+        .filter((id): id is string => id !== null && id !== undefined && id.trim() !== '') // Type-safe filter
+        .filter((id, index, arr) => arr.indexOf(id) === index); // Remove duplicates
+      
+      console.log('🗣️ Participants for chat room:', allParticipants);
+      
+      // First check if a chat room already exists for this document
+      console.log('🔍 Checking for existing chat room...');
+      let chatRoom = await this.chatService.findExistingDocumentChatRoom(document.id);
+      
+      if (chatRoom) {
+        console.log('✅ Using existing chat room:', chatRoom.title);
+        // Ensure current user is added as participant if not already included
+        chatRoom = await this.chatService.ensureUserInChatRoom(chatRoom, allParticipants);
+      } else {
+        console.log('🆕 Creating new chat room for document');
+        chatRoom = await this.chatService.createDocumentChatRoom({
+          projectId: document.projectId,
+          projectName: projectName,
+          documentId: document.id,
+          documentType: documentTypeName,
+          roomType: 'document',
+          title: `${documentTypeName} - ${projectName}`,
+          description: `Discussion for ${documentTypeName} document in ${projectName}`,
+          adminUsers: [], // Documents usually don't have admin users in chat
+          providerUsers: allParticipants
+        });
+        
+        console.log('✅ Chat room created successfully:', chatRoom);
+        console.log('✅ Chat room ID:', chatRoom.id);
+      }
+      
+      // Navigate to chat with the specific room
+      console.log('🧭 Navigating to chat with room ID:', chatRoom.id);
+      this.router.navigate(['/chat'], { 
+        queryParams: { 
+          room: chatRoom.id,
+          from: 'documents'
+        } 
+      });
+      
+    } catch (error) {
+      console.error('❌ Error creating document chat room:', error);
+      console.error('❌ Error details:', error);
+      alert(`Failed to create chat room: ${error}. Please try again.`);
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterOutlet, Router } from '@angular/router';
 import { Navigation } from './navigation/navigation';
 import { AuthService } from './services/auth.service';
 
@@ -11,6 +11,7 @@ import { AuthService } from './services/auth.service';
 })
 export class App {
   private authService = inject(AuthService);
+  private router = inject(Router);
   
   // Expose auth state to template
   isAuthenticated = this.authService.isAuthenticated;
@@ -26,4 +27,5 @@ export class App {
   closeSidebar() {
     this.sidebarOpen.set(false);
   }
+  
 }

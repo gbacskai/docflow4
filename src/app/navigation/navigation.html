@@ -4,6 +4,12 @@
   </div>
   
   <ul class="nav-menu">
+    <li>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="onNavigationClick()">
+        <i class="icon">🏠</i>
+        Home
+      </a>
+    </li>
     @if (isAuthenticated()) {
       <li>
         <a routerLink="/dashboard" routerLinkActive="active" (click)="onNavigationClick()">
@@ -44,16 +50,15 @@
         </a>
       </li>
       <li>
+        <a routerLink="/chat" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">💬</i>
+          Chat
+        </a>
+      </li>
+      <li>
         <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
           <i class="icon">👥</i>
           Users
-        </a>
-      </li>
-    } @else {
-      <li>
-        <a routerLink="/home" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">🏠</i>
-          Home
         </a>
       </li>
     }

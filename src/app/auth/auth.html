@@ -2,7 +2,7 @@
   <div class="auth-card">
     <!-- Login Form -->
     @if (currentMode() === 'login') {
-      <div class="auth-form">
+      <div class="auth-form" data-test="login-form">
         <h2>Welcome Back</h2>
         <p class="auth-subtitle">Sign in to your account</p>
 
@@ -53,18 +53,20 @@
         </form>
 
         <div class="auth-switch">
-          <p>Don't have an account? 
-            <button type="button" class="link-btn" (click)="switchToSignup()">Sign up</button>
+          <p>
+            <button type="button" class="link-btn" (click)="navigateToSignup()">Create account</button>
             <span> | </span>
-            <button type="button" class="link-btn" (click)="switchToConfirm()">Verify your email</button>
+            <button type="button" class="link-btn" (click)="navigateToVerify()">Verify email</button>
+            <span> | </span>
+            <button type="button" class="link-btn" (click)="navigateToResetPassword()">Reset password</button>
           </p>
         </div>
       </div>
     }
 
-    <!-- Signup Form -->
+    <!-- Sign Up Form -->
     @if (currentMode() === 'signup') {
-      <div class="auth-form">
+      <div class="auth-form" data-test="signup-form">
         <h2>Create Account</h2>
         <p class="auth-subtitle">Sign up for a new account</p>
 
@@ -117,15 +119,7 @@
           </div>
 
           @if (errorMessage()) {
-            <div class="alert alert-error">
-              {{ errorMessage() }}
-              @if (isExistingUserError()) {
-                <br><br>
-                <button type="button" class="link-btn" (click)="switchToLogin()">
-                  Switch to Sign In
-                </button>
-              }
-            </div>
+            <div class="alert alert-error">{{ errorMessage() }}</div>
           }
 
           @if (successMessage()) {
@@ -149,11 +143,11 @@
       </div>
     }
 
-    <!-- Confirmation Form -->
-    @if (currentMode() === 'confirm') {
-      <div class="auth-form">
-        <h2>Check Your Email</h2>
-        <p class="auth-subtitle">Enter your email and verification code to complete registration</p>
+    <!-- Verify Email Form -->
+    @if (currentMode() === 'verify') {
+      <div class="auth-form" data-test="verify-form">
+        <h2>Verify Your Email</h2>
+        <p class="auth-subtitle">Enter your email and verification code</p>
         
         <div class="email-verification-info">
           <div class="verification-icon">
@@ -165,29 +159,29 @@
           
           <div class="verification-instructions">
             <p>Enter your email address and the 6-digit verification code sent to your email.</p>
-            <p><strong>Can't find the email?</strong> Check your spam folder or request a new code below.</p>
           </div>
         </div>
 
-        <form [formGroup]="confirmationForm" (ngSubmit)="onConfirm()">
+        <form [formGroup]="verifyForm" (ngSubmit)="onVerify()">
           <div class="form-group">
-            <label for="confirmation-email">Email Address</label>
+            <label for="verify-email">Email Address</label>
             <input 
-              id="confirmation-email" 
+              id="verify-email" 
               type="email" 
               formControlName="email" 
               placeholder="Enter your email address"
-              [class.error]="confirmationForm.get('email')?.invalid && confirmationForm.get('email')?.touched"
+              [class.error]="verifyForm.get('email')?.invalid && verifyForm.get('email')?.touched"
             />
-            @if (confirmationForm.get('email')?.invalid && confirmationForm.get('email')?.touched) {
+            @if (verifyForm.get('email')?.invalid && verifyForm.get('email')?.touched) {
               <div class="error-message">Please enter a valid email address</div>
             }
             
             <button 
               type="button" 
               class="btn-secondary" 
-              (click)="resendCode()" 
+              (click)="resendVerificationCode()" 
               [disabled]="processing()"
+              data-test="resend-verification-code-btn"
               style="margin-top: 10px;"
             >
               {{ processing() ? 'Sending...' : 'Resend Code' }}
@@ -195,17 +189,17 @@
           </div>
 
           <div class="form-group">
-            <label for="confirmation-code">Verification Code</label>
+            <label for="verification-code">Verification Code</label>
             <input 
-              id="confirmation-code" 
+              id="verification-code" 
               type="text" 
               formControlName="confirmationCode" 
               placeholder="Enter 6-digit code"
               maxlength="6"
               class="verification-code-input"
-              [class.error]="confirmationForm.get('confirmationCode')?.invalid && confirmationForm.get('confirmationCode')?.touched"
+              [class.error]="verifyForm.get('confirmationCode')?.invalid && verifyForm.get('confirmationCode')?.touched"
             />
-            @if (confirmationForm.get('confirmationCode')?.invalid && confirmationForm.get('confirmationCode')?.touched) {
+            @if (verifyForm.get('confirmationCode')?.invalid && verifyForm.get('confirmationCode')?.touched) {
               <div class="error-message">Please enter a valid 6-digit code</div>
             }
           </div>
@@ -218,21 +212,135 @@
             <div class="alert alert-success">{{ successMessage() }}</div>
           }
 
-          @if (successMessage()) {
+          <button 
+            type="submit" 
+            class="btn-primary" 
+            [disabled]="!verifyForm.valid || processing()"
+          >
+            {{ processing() ? 'Verifying...' : 'Verify Email' }}
+          </button>
+        </form>
+
+        <div class="auth-switch">
+          <p>
+            <button type="button" class="link-btn" (click)="switchToLogin()">Back to Sign In</button>
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Reset Password Form -->
+    @if (currentMode() === 'reset') {
+      <div class="auth-form" data-test="reset-form">
+        <h2>Reset Password</h2>
+        <p class="auth-subtitle">Reset your account password</p>
+        
+        <div class="reset-password-info">
+          <div class="reset-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.5">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <circle cx="12" cy="16" r="1"></circle>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          
+          <div class="reset-instructions">
+            <p>Enter your email to receive a reset code, then create your new password.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="resetForm" (ngSubmit)="onResetFormSubmit()">
+          <div class="form-group">
+            <label for="reset-email">Email Address</label>
+            <input 
+              id="reset-email" 
+              type="email" 
+              formControlName="email" 
+              placeholder="Enter your email address"
+              [class.error]="resetForm.get('email')?.invalid && resetForm.get('email')?.touched"
+            />
+            @if (resetForm.get('email')?.invalid && resetForm.get('email')?.touched) {
+              <div class="error-message">Please enter a valid email address</div>
+            }
+            
             <button 
               type="button" 
-              class="btn-primary" 
-              (click)="switchToLogin()"
+              class="btn-secondary" 
+              (click)="onResetRequest()" 
+              [disabled]="processing()"
+              data-test="send-reset-code-btn"
+              style="margin-top: 10px;"
             >
-              Go to Login
+              {{ processing() ? 'Sending...' : (resetCodeSent() ? 'Resend Code' : 'Send Reset Code') }}
             </button>
-          } @else {
+          </div>
+
+          @if (resetCodeSent()) {
+            <div class="form-group">
+              <label for="reset-code">Reset Code</label>
+              <input 
+                id="reset-code" 
+                type="text" 
+                formControlName="confirmationCode" 
+                placeholder="Enter 6-digit reset code"
+                maxlength="6"
+                class="verification-code-input"
+                [class.error]="resetForm.get('confirmationCode')?.invalid && resetForm.get('confirmationCode')?.touched"
+              />
+              @if (resetForm.get('confirmationCode')?.invalid && resetForm.get('confirmationCode')?.touched) {
+                <div class="error-message">Please enter a valid 6-digit code</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="new-password">New Password</label>
+              <input 
+                id="new-password" 
+                type="password" 
+                formControlName="newPassword" 
+                placeholder="Enter new password"
+                [class.error]="resetForm.get('newPassword')?.invalid && resetForm.get('newPassword')?.touched"
+              />
+              @if (resetForm.get('newPassword')?.invalid && resetForm.get('newPassword')?.touched) {
+                <div class="error-message">Password must be at least 8 characters</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="confirm-new-password">Confirm New Password</label>
+              <input 
+                id="confirm-new-password" 
+                type="password" 
+                formControlName="confirmNewPassword" 
+                placeholder="Confirm new password"
+                [class.error]="resetForm.get('confirmNewPassword')?.invalid && resetForm.get('confirmNewPassword')?.touched"
+              />
+              @if (resetForm.get('confirmNewPassword')?.invalid && resetForm.get('confirmNewPassword')?.touched) {
+                @if (resetForm.get('confirmNewPassword')?.hasError('required')) {
+                  <div class="error-message">Please confirm your new password</div>
+                }
+                @if (resetForm.get('confirmNewPassword')?.hasError('passwordMismatch')) {
+                  <div class="error-message">Passwords do not match</div>
+                }
+              }
+            </div>
+          }
+
+          @if (errorMessage()) {
+            <div class="alert alert-error">{{ errorMessage() }}</div>
+          }
+
+          @if (successMessage()) {
+            <div class="alert alert-success">{{ successMessage() }}</div>
+          }
+
+          @if (resetCodeSent()) {
             <button 
               type="submit" 
               class="btn-primary" 
-              [disabled]="!confirmationForm.valid || processing()"
+              [disabled]="!resetForm.valid || processing()"
             >
-              {{ processing() ? 'Verifying...' : 'Verify Email' }}
+              {{ processing() ? 'Resetting password...' : 'Reset Password' }}
             </button>
           }
         </form>

@@ -16,6 +16,10 @@ export class Landing {
     this.router.navigate(['/auth']);
   }
 
+  navigateToSignup() {
+    this.router.navigate(['/signup']);
+  }
+
   features = [
     {
       icon: '📋',

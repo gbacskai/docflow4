@@ -17,8 +17,14 @@
   transition: @transition-base;
   
   .content {
-    padding: 30px 15px;
-    min-height: calc(100vh - 123px);
+    padding: 0;
+    min-height: 100vh;
+    
+    // Add padding for specific pages that need it
+    &.padded {
+      padding: 30px 15px;
+      min-height: calc(100vh - 123px);
+    }
   }
   
   .footer {
@@ -110,7 +116,11 @@
     margin-top: 60px;
     
     .content {
-      padding: 30px 15px;
+      padding: 0;
+      
+      &.padded {
+        padding: 30px 15px;
+      }
     }
   }
   
