@@ -35,9 +35,9 @@ export interface SignInData {
 })
 export class AuthService {
   private _currentUser = signal<AuthUser | null>(null);
-  private _isLoading = signal(false);
-  private _isAuthenticated = signal(false);
-  private _testMode = signal(false);
+  private _isLoading = signal<boolean>(false);
+  private _isAuthenticated = signal<boolean>(false);
+  private _testMode = signal<boolean>(false);
   private userManagementService = inject(UserManagementService);
 
   // Public readonly signals

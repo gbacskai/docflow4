@@ -6,7 +6,7 @@ backend:
         - echo "🔄 Pulling latest backend environment configuration..."
     build:
       commands:
-        - nvm install 24.5.0
+        - nvm install 24.5.0 --no-progress
         - nvm use 24.5.0
         - npm ci --cache .npm --prefer-offline
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
@@ -15,7 +15,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - nvm install 24.5.0
+        - nvm install 24.5.0 --no-progress
         - nvm use 24.5.0
         - npm ci --cache .npm --prefer-offline
     test:
@@ -60,7 +60,7 @@ frontend:
         - 'echo "✅ All tests completed successfully! (10 test suites executed)"'
     build:
       commands:
-        - nvm install 24.5.0
+        - nvm install 24.5.0 --no-progress
         - nvm use 24.5.0
         - npm run build
   artifacts:
