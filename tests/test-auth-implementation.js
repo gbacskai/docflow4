@@ -237,7 +237,6 @@ async function runTests() {
     
     const componentResult = testFileContains(appComponentPath, [
       'AuthService',
-      'Auth',
       'isAuthenticated = this.authService.isAuthenticated',
       'isLoading = this.authService.isLoading'
     ]);
@@ -246,7 +245,7 @@ async function runTests() {
       '@if (isLoading())',
       '@else if (isAuthenticated())',
       '@else',
-      '<app-auth></app-auth>',
+      '<router-outlet />',
       'loading-screen'
     ]);
     
