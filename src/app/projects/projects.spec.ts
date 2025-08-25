@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestHelpers } from '../../test-helpers';
 
 import { Projects } from './projects';
 
@@ -7,8 +8,11 @@ describe('Projects', () => {
   let fixture: ComponentFixture<Projects>;
 
   beforeEach(async () => {
+    const testConfig = TestHelpers.configureTestingModule();
+    
     await TestBed.configureTestingModule({
-      imports: [Projects]
+      imports: [Projects, ...testConfig.imports],
+      providers: testConfig.providers
     })
     .compileComponents();
 
