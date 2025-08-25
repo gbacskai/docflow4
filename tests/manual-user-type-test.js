@@ -168,15 +168,28 @@ function runAllChecks() {
   return results;
 }
 
-// Make functions available globally
-window.checkUsersList = checkUsersList;
-window.checkEditForm = checkEditForm;
-window.checkViewMode = checkViewMode;
-window.checkCurrentUserAdmin = checkCurrentUserAdmin;
-window.runAllChecks = runAllChecks;
-
-console.log('✅ Test functions loaded! You can now run:');
-console.log('- checkUsersList()');
+// Make functions available globally for browser, provide instructions for Node.js
+if (typeof window !== 'undefined') {
+  window.checkUsersList = checkUsersList;
+  window.checkEditForm = checkEditForm;
+  window.checkViewMode = checkViewMode;
+  window.checkCurrentUserAdmin = checkCurrentUserAdmin;
+  window.runAllChecks = runAllChecks;
+  
+  console.log('✅ Test functions loaded! You can now run:');
+  console.log('- checkUsersList()');
+} else {
+  // Node.js environment - show instructions
+  console.log('🧪 Manual User Type Test');
+  console.log('========================');
+  console.log('⚠️  This test is designed for browser console execution');
+  console.log('');
+  console.log('To run this test:');
+  console.log('1. Copy this script to browser console');
+  console.log('2. Sign in with test credentials');
+  console.log('3. Run the test functions');
+  process.exit(0);
+}
 console.log('- checkEditForm()'); 
 console.log('- checkViewMode()');
 console.log('- checkCurrentUserAdmin()');

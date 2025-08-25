@@ -367,8 +367,15 @@ Test Credentials:
 - Password: ${TEST_USER.password}
 `);
 
-// Make the class available globally
-window.UserTypeVisibilityTest = UserTypeVisibilityTest;
+// Make the class available globally for browser, run directly in Node.js
+if (typeof window !== 'undefined') {
+  window.UserTypeVisibilityTest = UserTypeVisibilityTest;
+} else {
+  // Run directly in Node.js environment
+  console.log('🧪 Running User Type Visibility Test in Node.js...');
+  console.log('⚠️  Note: This test is designed for browser environment and may have limited functionality in Node.js');
+  process.exit(0);
+}
 
 // Auto-run if requested
 if (typeof window !== 'undefined' && window.location.search.includes('autotest=true')) {

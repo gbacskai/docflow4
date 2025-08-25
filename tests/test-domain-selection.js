@@ -6,6 +6,16 @@
 async function testDomainSelection() {
   console.log('🧪 Starting Domain Selection Test...');
   
+  // Check if running in Node.js environment
+  if (typeof window === 'undefined') {
+    console.log('⚠️  This test requires a browser environment with DOM access');
+    console.log('🔧 To run this test:');
+    console.log('   1. Open your browser and navigate to the Document Types page');
+    console.log('   2. Open Developer Tools (F12) and go to Console');
+    console.log('   3. Paste this script and run testDomainSelection()');
+    return false;
+  }
+  
   try {
     // Step 1: Navigate to Document Types page if not already there
     if (!window.location.href.includes('document-types')) {
@@ -197,11 +207,20 @@ async function runDomainSelectionTest() {
   return result;
 }
 
-// Export the test function
-window.testDomainSelection = runDomainSelectionTest;
-
-// Auto-run if script is loaded directly
-console.log('🧪 Domain Selection Test Script Loaded');
+// Export the test function for browser environment
+if (typeof window !== 'undefined') {
+  window.testDomainSelection = runDomainSelectionTest;
+  console.log('🧪 Domain Selection Test Script Loaded');
+} else {
+  // Run directly in Node.js environment
+  console.log('🧪 Running Domain Selection Test in Node.js...');
+  runDomainSelectionTest().then(success => {
+    process.exit(success ? 0 : 1);
+  }).catch(error => {
+    console.error('Test execution failed:', error);
+    process.exit(1);
+  });
+}
 console.log('📋 Run test with: testDomainSelection()');
 console.log('');
 
