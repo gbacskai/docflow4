@@ -27,6 +27,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
   showDomainSidebar = signal(false);
   tempSelectedDomains = signal<string[]>([]);
   domainSearchQuery = signal<string>('');
+  expandedDescriptions = signal<Set<string>>(new Set());
   
   @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
   
@@ -559,6 +560,35 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
   isDomainSelected(domainId: string): boolean {
     return this.isDomainSelectedInSidebar(domainId);
+  }
+
+  // Description expansion methods
+  toggleDescriptionExpansion(docTypeId: string) {
+    const currentExpanded = this.expandedDescriptions();
+    const newExpanded = new Set(currentExpanded);
+    
+    if (newExpanded.has(docTypeId)) {
+      newExpanded.delete(docTypeId);
+    } else {
+      newExpanded.add(docTypeId);
+    }
+    
+    this.expandedDescriptions.set(newExpanded);
+  }
+
+  isDescriptionExpanded(docTypeId: string): boolean {
+    return this.expandedDescriptions().has(docTypeId);
+  }
+
+  getFirstLine(description: string): string {
+    if (!description) return '';
+    const firstLine = description.split('\n')[0];
+    return firstLine.trim();
+  }
+
+  hasMultipleLines(description: string): boolean {
+    if (!description) return false;
+    return description.includes('\n') && description.split('\n').length > 1;
   }
 
 }

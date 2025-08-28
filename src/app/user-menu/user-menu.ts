@@ -31,7 +31,7 @@ export class UserMenu {
   async logout() {
     this.closeMenu();
     await this.authService.signOut();
-    // Redirect to root path after logout
+    // Redirect to root path after logout (which will show landing page for unauthenticated users)
     this.router.navigate(['/']);
   }
 

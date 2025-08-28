@@ -19,6 +19,7 @@ import { adminGuard } from './admin-guard';
 
 export const routes: Routes = [
   { path: '', component: Landing, canActivate: [landingGuard] },
+  { path: 'home', component: Home, canActivate: [authGuard] },
   { path: 'auth', component: Auth },
   { path: 'signup', component: SignUp },
   { path: 'verify', component: Verify },

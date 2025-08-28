@@ -20,8 +20,22 @@ export const authGuard: CanActivateFn = async (route, state) => {
   return false;
 };
 
-// Guard to allow anyone to access landing/home page 
+// Guard for landing page - redirect authenticated users to dashboard
 export const landingGuard: CanActivateFn = async (route, state) => {
-  // Always allow access to landing/home page regardless of auth status
+  const authService = inject(AuthService);
+  const router = inject(Router);
+
+  // Wait for auth service to finish loading
+  while (authService.isLoading()) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  // If user is authenticated, redirect to home
+  if (authService.isAuthenticated()) {
+    router.navigate(['/home']);
+    return false;
+  }
+
+  // Allow access to landing page for non-authenticated users
   return true;
 };

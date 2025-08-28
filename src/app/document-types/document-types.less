@@ -1,5 +1,75 @@
 @import '../../styles.less';
 
+.preserve-whitespace {
+  white-space: pre-line;
+}
+
+.description-container {
+  .description-preview {
+    margin: 0.5rem 0 0 0;
+    color: @black-color;
+    line-height: 1.4;
+  }
+
+  .description-full {
+    margin: 0.5rem 0 0 0;
+    color: @black-color;
+    line-height: 1.4;
+  }
+
+  .expand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(@primary-color, 0.1);
+    border: 1px solid rgba(@primary-color, 0.2);
+    border-radius: 4px;
+    color: @primary-color;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0.4rem 0.8rem;
+    margin-top: 0.5rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(@primary-color, 0.15);
+      border-color: rgba(@primary-color, 0.3);
+      color: darken(@primary-color, 10%);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+      background: rgba(@primary-color, 0.2);
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(@primary-color, 0.2);
+    }
+
+    // Add subtle animation
+    &::after {
+      content: '';
+      display: inline-block;
+      width: 0;
+      height: 0;
+      margin-left: 0.25rem;
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
+      border-top: 4px solid currentColor;
+      transition: transform 0.2s ease;
+    }
+
+    // Rotate arrow when expanded
+    &.expanded::after {
+      transform: rotate(180deg);
+    }
+  }
+}
+
 .document-types-page {
   .page-container;
 

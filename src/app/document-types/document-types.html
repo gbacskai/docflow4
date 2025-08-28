@@ -35,7 +35,7 @@
           <div class="view-content">
             <div class="view-section">
               <div class="view-details">
-                <p class="description">{{ selectedDocumentType()?.description }}</p>
+                <p class="description preserve-whitespace">{{ selectedDocumentType()?.description }}</p>
                 @if (selectedDocumentType()?.identifier) {
                   <div class="identifier-info">
                     <span class="label">Identifier:</span>
@@ -203,7 +203,23 @@
       <div class="document-type-card" [class.inactive]="!docType.isActive">
         <div class="type-content">
           <h3>{{ docType.name }}</h3>
-          <p>{{ docType.description }}</p>
+          <div class="description-container">
+            @if (!isDescriptionExpanded(docType.id)) {
+              <p class="description-preview">{{ getFirstLine(docType.description) }}</p>
+            } @else {
+              <p class="description-full preserve-whitespace">{{ docType.description }}</p>
+            }
+            @if (hasMultipleLines(docType.description)) {
+              <button 
+                class="expand-btn" 
+                [class.expanded]="isDescriptionExpanded(docType.id)"
+                (click)="toggleDescriptionExpansion(docType.id)"
+                type="button"
+              >
+                {{ isDescriptionExpanded(docType.id) ? 'Show less' : 'Show more' }}
+              </button>
+            }
+          </div>
           <div class="type-meta">
             @if ((docType.usageCount || 0) > 0) {
               <span class="usage-count">{{ docType.usageCount }} documents</span>

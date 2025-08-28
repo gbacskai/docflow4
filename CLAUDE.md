@@ -76,6 +76,7 @@ The app follows a feature-based architecture with guard-protected routes:
 - `AdminService` - Administrative functions and user management
 - `UserDataService` - User profile data operations
 - `UserManagementService` - User CRUD operations
+- `ChatService` - Real-time chat functionality with DynamoDB tables
 
 ### Key Component Patterns
 

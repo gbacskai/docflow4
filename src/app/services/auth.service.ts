@@ -60,6 +60,13 @@ export class AuthService {
       if (user && session.tokens) {
         const email = user.signInDetails?.loginId;
         
+        // Validate session is still active and not expired
+        if (!session.tokens.accessToken || this.isTokenExpired(session.tokens.accessToken.toString())) {
+          console.log('🔐 Session expired, clearing authentication state');
+          await this.signOut();
+          return;
+        }
+        
         if (email) {
           // Ensure user entry exists in User table and handle invitation merging
           await this.userManagementService.ensureUserEntry(
@@ -91,6 +98,17 @@ export class AuthService {
       this._isAuthenticated.set(false);
     } finally {
       this._isLoading.set(false);
+    }
+  }
+
+  private isTokenExpired(tokenString: string): boolean {
+    try {
+      const tokenPayload = JSON.parse(atob(tokenString.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return tokenPayload.exp < currentTime;
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true; // Assume expired if we can't parse
     }
   }
 
@@ -222,6 +240,20 @@ export class AuthService {
     try {
       this._isLoading.set(true);
 
+      // Check if there's already an active session and sign out first
+      try {
+        const existingUser = await getCurrentUser();
+        if (existingUser) {
+          console.log('🔐 Existing session found, signing out first');
+          await signOut();
+          this._currentUser.set(null);
+          this._isAuthenticated.set(false);
+        }
+      } catch (error) {
+        // No existing user, proceed with sign in
+        console.log('🔐 No existing session found');
+      }
+
       const { isSignedIn, nextStep } = await signIn({
         username: userData.email,
         password: userData.password
@@ -238,6 +270,23 @@ export class AuthService {
       }
     } catch (error: any) {
       console.error('Sign in error:', error);
+      
+      // Handle specific "already signed in" error
+      if (error.message?.includes('already') && error.message?.includes('signed')) {
+        try {
+          console.log('🔐 Handling already signed in error, clearing session');
+          await signOut();
+          this._currentUser.set(null);
+          this._isAuthenticated.set(false);
+          return { 
+            success: false, 
+            error: 'Session conflict detected. Please try signing in again.' 
+          };
+        } catch (signOutError) {
+          console.error('Error during cleanup:', signOutError);
+        }
+      }
+      
       return { 
         success: false, 
         error: error.message || 'Sign in failed' 
@@ -247,14 +296,26 @@ export class AuthService {
     }
   }
 
-  async signOut(): Promise<void> {
+  async signOut(global: boolean = false): Promise<void> {
     try {
       this._isLoading.set(true);
-      await signOut();
+      
+      if (global) {
+        // Sign out from all devices/sessions
+        await signOut({ global: true });
+        console.log('🔐 Global sign out completed - all sessions terminated');
+      } else {
+        await signOut();
+        console.log('🔐 Local sign out completed');
+      }
+      
       this._currentUser.set(null);
       this._isAuthenticated.set(false);
     } catch (error) {
       console.error('Sign out error:', error);
+      // Even if signOut fails, clear local state
+      this._currentUser.set(null);
+      this._isAuthenticated.set(false);
     } finally {
       this._isLoading.set(false);
     }
@@ -262,6 +323,33 @@ export class AuthService {
 
   async refreshUser(): Promise<void> {
     await this.initializeAuth();
+  }
+
+  async forceGlobalSignOut(): Promise<{ success: boolean; error?: string }> {
+    try {
+      await this.signOut(true);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Force global sign out error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to sign out globally' 
+      };
+    }
+  }
+
+  async checkSessionValidity(): Promise<boolean> {
+    try {
+      const session = await fetchAuthSession();
+      if (!session.tokens?.accessToken) {
+        return false;
+      }
+      
+      return !this.isTokenExpired(session.tokens.accessToken.toString());
+    } catch (error) {
+      console.log('Session validation failed:', error);
+      return false;
+    }
   }
 
   // Utility methods

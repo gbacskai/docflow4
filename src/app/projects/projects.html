@@ -203,9 +203,7 @@
           <p>{{ project.description }}</p>
           <div class="type-meta">
             <span class="status" [class]="'status-' + project.status">{{ project.status }}</span>
-            <span class="owner">Owner: {{ getOwnerName(project.ownerId) }}</span>
             <span class="domain">{{ getDomainName(project.defaultDomain) }}</span>
-            <span class="admin-users">Admin Users: {{ getAdminUserNames(project.adminUsers) }}</span>
           </div>
         </div>
         <div class="type-actions">
