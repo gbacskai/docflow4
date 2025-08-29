@@ -11,8 +11,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Generate components**: `ng generate component component-name`
 
 ### AWS Amplify Setup
-- **Generate amplify outputs**: `npm ampx generate outputs` - creates amplify_outputs.json
+- **Setup environment**: `node scripts/setup-env.js` - configures environment variables for consistent table naming
+- **Generate amplify outputs**: `npx ampx generate outputs` - creates amplify_outputs.json
 - **Create sandbox environment**: `npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003`
+
+#### Table Naming Convention
+All AWS resources follow the pattern `docflow4-{ResourceType}-{Branch}`:
+- **Custom DynamoDB tables**: `docflow4-ChatRoom-dev001`, `docflow4-ChatMessage-dev001`
+- **GraphQL API tables**: Automatically named by Amplify with environment suffix
+- **Storage buckets**: `docflow4-dev001`
+
+The environment name is determined by: `ENV` > `AMPLIFY_BRANCH` > git branch > 'dev'
 
 ### Testing Commands
 - **Run unit tests**: `npm test` or `ng test` - runs Karma/Jasmine tests
