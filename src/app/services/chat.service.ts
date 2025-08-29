@@ -3,7 +3,7 @@ import { AuthService } from './auth.service';
 import { UserDataService } from './user-data.service';
 import { ChatMessage, ChatRoom } from '../chat/chat';
 import { generateClient } from 'aws-amplify/data';
-import { type Schema } from '../../../amplify/data/resource';
+import type { Schema } from '../../../amplify/data/resource';
 
 export interface SendMessageRequest {
   chatRoomId: string;

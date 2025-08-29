@@ -4,7 +4,6 @@ import { data } from './data/resource';
 import { storage } from './storage/resource';
 // TODO: Re-enable stream handler once CDK integration is resolved
 // import { chatStreamHandler } from './functions/chat-stream-handler/resource';
-import { createAllTables } from './custom-resources/all-tables';
 
 const backend = defineBackend({
   auth,
@@ -14,46 +13,32 @@ const backend = defineBackend({
   // chatStreamHandler
 });
 
-// Add custom DynamoDB tables for all models with proper naming
-// TODO: Re-enable stream handler once CDK integration is resolved
-const { 
-  projectTable, 
-  documentTable, 
-  userTable, 
-  documentTypeTable, 
-  domainTable, 
-  chatRoomTable, 
-  chatMessageTable 
-} = createAllTables(backend.stack);
+// Override GraphQL table names to use our naming convention
+const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev';
+const appName = 'docflow4';
 
-// Grant permissions to authenticated users for all tables
-const authenticatedUserRole = backend.auth.resources.authenticatedUserIamRole;
+console.log(`🔧 Overriding GraphQL table names with pattern: ${appName}-{TableName}-${envName}`);
 
-// Grant permissions to all tables
-projectTable.grantReadWriteData(authenticatedUserRole);
-documentTable.grantReadWriteData(authenticatedUserRole);
-userTable.grantReadWriteData(authenticatedUserRole);
-documentTypeTable.grantReadWriteData(authenticatedUserRole);
-domainTable.grantReadWriteData(authenticatedUserRole);
-chatRoomTable.grantReadWriteData(authenticatedUserRole);
-chatMessageTable.grantReadWriteData(authenticatedUserRole);
+// Access the GraphQL tables and override their names
+const graphqlTables = backend.data.resources.tables;
+Object.keys(graphqlTables).forEach(tableName => {
+  const table = graphqlTables[tableName];
+  const cfnTable = table.node.defaultChild as any;
+  const newTableName = `${appName}-${tableName}-${envName}`;
+  
+  if (cfnTable && cfnTable.addPropertyOverride) {
+    cfnTable.addPropertyOverride('TableName', newTableName);
+    console.log(`✅ GraphQL table renamed: ${tableName} -> ${newTableName}`);
+  }
+});
 
-// Export table names for use in the frontend
+// Export GraphQL table names for verification
 backend.addOutput({
   custom: {
-    projectTableName: projectTable.tableName,
-    projectTableArn: projectTable.tableArn,
-    documentTableName: documentTable.tableName,
-    documentTableArn: documentTable.tableArn,
-    userTableName: userTable.tableName,
-    userTableArn: userTable.tableArn,
-    documentTypeTableName: documentTypeTable.tableName,
-    documentTypeTableArn: documentTypeTable.tableArn,
-    domainTableName: domainTable.tableName,
-    domainTableArn: domainTable.tableArn,
-    chatRoomTableName: chatRoomTable.tableName,
-    chatMessageTableName: chatMessageTable.tableName,
-    chatRoomTableArn: chatRoomTable.tableArn,
-    chatMessageTableArn: chatMessageTable.tableArn
+    graphqlTableNames: Object.keys(backend.data.resources.tables).reduce((acc, tableName) => {
+      const finalName = `${appName}-${tableName}-${envName}`;
+      acc[`${tableName}TableName`] = finalName;
+      return acc;
+    }, {} as Record<string, string>)
   }
 });
