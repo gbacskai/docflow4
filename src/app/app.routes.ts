@@ -9,7 +9,7 @@ import { Admin } from './admin/admin';
 import { Home } from './home/home';
 import { Projects } from './projects/projects';
 import { DocumentTypes } from './document-types/document-types';
-import { Domains } from './domains/domains';
+import { Workflows } from './workflows/workflows';
 import { Documents } from './documents/documents';
 import { Chat } from './chat/chat';
 import { MyAccount } from './my-account/my-account';
@@ -26,7 +26,7 @@ export const routes: Routes = [
   { path: 'reset-password', component: ResetPassword },
   { path: 'dashboard', component: Dashboard, canActivate: [authGuard] },
   { path: 'admin', component: Admin, canActivate: [adminGuard] },
-  { path: 'domains', component: Domains, canActivate: [authGuard] },
+  { path: 'workflows', component: Workflows, canActivate: [authGuard] },
   { path: 'document-types', component: DocumentTypes, canActivate: [authGuard] },
   { path: 'documents', component: Documents, canActivate: [authGuard] },
   { path: 'projects', component: Projects, canActivate: [authGuard] },

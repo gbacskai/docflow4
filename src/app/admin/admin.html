@@ -6,19 +6,6 @@
     </div>
   </header>
 
-  <!-- Database Statistics -->
-  <div class="stats-section">
-    <h2>Database Overview</h2>
-    <div class="stats-grid">
-      @for (stat of exportStats() | keyvalue; track stat.key) {
-        <div class="stat-card">
-          <div class="stat-number">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.key }}</div>
-        </div>
-      }
-    </div>
-  </div>
-
   <!-- Serverless Database Export Section -->
   <div class="admin-section">
     <div class="section-header">

@@ -90,9 +90,9 @@ export class AdminService {
       const client = generateClient<Schema>();
       
       // Get counts of various entities
-      const [users, domains, documentTypes, projects] = await Promise.all([
+      const [users, workflows, documentTypes, projects] = await Promise.all([
         client.models.User.list(),
-        client.models.Domain.list(),
+        client.models.Workflow.list(),
         client.models.DocumentType.list(),
         client.models.Project.list()
       ]);
@@ -100,8 +100,8 @@ export class AdminService {
       const stats = {
         userCount: users.data.length,
         activeUsers: users.data.filter(u => u.status === 'active').length,
-        domainCount: domains.data.length,
-        activeDomains: domains.data.filter(d => d.status === 'active').length,
+        workflowCount: workflows.data.length,
+        activeWorkflows: workflows.data.filter(d => d.status === 'active').length,
         documentTypeCount: documentTypes.data.length,
         activeDocumentTypes: documentTypes.data.filter(dt => dt.isActive).length,
         projectCount: projects.data.length,

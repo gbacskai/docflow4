@@ -4,7 +4,7 @@ const schema = a.schema({
   Project: a.model({
       name: a.string().required(),
       description: a.string().required(),
-      defaultDomain: a.string().required(),
+      defaultWorkflow: a.string().required(),
       ownerId: a.string().required(),
       adminUsers: a.string().array(),
       status: a.enum(['active', 'completed', 'archived']),
@@ -48,7 +48,6 @@ const schema = a.schema({
       description: a.string().required(),
       category: a.string(),
       fields: a.string().array(),
-      domainIds: a.string().array(),
       isActive: a.boolean(),
       usageCount: a.integer(),
       templateCount: a.integer(),
@@ -56,7 +55,7 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .authorization(allow => [allow.publicApiKey()]),
-  Domain: a.model({
+  Workflow: a.model({
       name: a.string().required(),
       description: a.string().required(),
       status: a.enum(['active', 'archived']),
@@ -146,7 +145,31 @@ const schema = a.schema({
     .authorization(allow => [
       allow.publicApiKey(),
       allow.authenticated()
-    ])
+    ]),
+  chat: a.conversation({
+    aiModel: a.ai.model('Claude 3.5 Haiku'),
+    systemPrompt: 'You are a helpful assistant',
+  })
+  .authorization((allow) => allow.owner()),
+
+    
+    
+  generateRecipe: a.generation({
+    aiModel: a.ai.model('Mistral 7B Instruct'),
+    systemPrompt: 'You are a helpful assistant that generates recipes.',
+  })
+  .arguments({
+    description: a.string(),
+  })
+  .returns(
+    a.customType({
+      name: a.string(),
+      ingredients: a.string().array(),
+      instructions: a.string(),
+    })
+  )
+  .authorization((allow) => allow.authenticated()),
+    
 });
 
 export type Schema = ClientSchema<typeof schema>;

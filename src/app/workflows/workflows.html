@@ -1,12 +1,12 @@
-<div class="domains-page">
+<div class="workflows-page">
   <header class="page-header">
-    <h1>Domains</h1>
+    <h1>Workflows</h1>
     <div class="header-actions">
       <div class="search-wrapper">
         <input 
           type="text"
           class="search-input"
-          placeholder="Search domains..."
+          placeholder="Search workflows..."
           [value]="searchQuery()"
           (input)="onSearchInputChange($event)"
         />
@@ -15,7 +15,7 @@
         }
       </div>
       <button class="add-button" (click)="openCreateForm()">
-        + New Domain
+        + New Workflow
       </button>
     </div>
   </header>
@@ -23,25 +23,25 @@
 
   <!-- Create/Edit/View Form -->
   @if (showForm()) {
-    <div class="domain-form">
+    <div class="workflow-form">
       @if (currentMode() === 'view') {
         <!-- View Mode -->
         <div class="view-mode">
           <div class="form-header">
-            <h2>{{ selectedDomain()?.name }}</h2>
+            <h2>{{ selectedWorkflow()?.name }}</h2>
             <button class="close-btn" (click)="closeForm()">✕</button>
           </div>
           
           <div class="view-content">
             <div class="view-section">
               <div class="view-details">
-                <p class="description">{{ selectedDomain()?.description }}</p>
+                <p class="description">{{ selectedWorkflow()?.description }}</p>
                 <div class="view-meta">
-                  <span class="status" [class]="selectedDomain()?.status === 'active' ? 'active' : 'archived'">
-                    {{ selectedDomain()?.status === 'active' ? 'Active' : 'Archived' }}
+                  <span class="status" [class]="selectedWorkflow()?.status === 'active' ? 'active' : 'archived'">
+                    {{ selectedWorkflow()?.status === 'active' ? 'Active' : 'Archived' }}
                   </span>
                   <span class="created-date">
-                    Created: {{ selectedDomain()?.createdAt | date:'MMM dd, yyyy' }}
+                    Created: {{ selectedWorkflow()?.createdAt | date:'MMM dd, yyyy' }}
                   </span>
                 </div>
               </div>
@@ -49,30 +49,30 @@
           </div>
           
           <div class="view-actions">
-            <button class="btn-edit" (click)="openEditForm(selectedDomain()!)">Edit</button>
+            <button class="btn-edit" (click)="openEditForm(selectedWorkflow()!)">Edit</button>
             <button class="btn-close" (click)="closeForm()">Close</button>
           </div>
         </div>
       } @else {
         <!-- Create/Edit Form -->
         <div class="form-header">
-          <h2>{{ currentMode() === 'create' ? 'Create New Domain' : 'Edit Domain' }}</h2>
+          <h2>{{ currentMode() === 'create' ? 'Create New Workflow' : 'Edit Workflow' }}</h2>
           <button class="close-btn" (click)="closeForm()">✕</button>
         </div>
 
-        <form [formGroup]="domainForm" (ngSubmit)="onSubmitForm()">
+        <form [formGroup]="workflowForm" (ngSubmit)="onSubmitForm()">
           <div class="form-row">
             <div class="form-group">
-              <label for="name">Domain Name *</label>
+              <label for="name">Workflow Name *</label>
               <input 
                 id="name" 
                 type="text" 
                 formControlName="name" 
-                placeholder="domain configuration"
-                [class.error]="domainForm.get('name')?.invalid && domainForm.get('name')?.touched"
+                placeholder="workflow configuration"
+                [class.error]="workflowForm.get('name')?.invalid && workflowForm.get('name')?.touched"
               />
-              @if (domainForm.get('name')?.invalid && domainForm.get('name')?.touched) {
-                <div class="error-message">Domain name is required</div>
+              @if (workflowForm.get('name')?.invalid && workflowForm.get('name')?.touched) {
+                <div class="error-message">Workflow name is required</div>
               }
             </div>
             <div class="form-group">
@@ -89,11 +89,11 @@
             <textarea 
               id="description" 
               formControlName="description" 
-              placeholder="Enter domain description"
+              placeholder="Enter workflow description"
               rows="3"
-              [class.error]="domainForm.get('description')?.invalid && domainForm.get('description')?.touched"
+              [class.error]="workflowForm.get('description')?.invalid && workflowForm.get('description')?.touched"
             ></textarea>
-            @if (domainForm.get('description')?.invalid && domainForm.get('description')?.touched) {
+            @if (workflowForm.get('description')?.invalid && workflowForm.get('description')?.touched) {
               <div class="error-message">Description is required (min 10 characters)</div>
             }
           </div>
@@ -110,7 +110,7 @@
             <button 
               type="submit" 
               class="btn-submit" 
-              [disabled]="!domainForm.valid || processing()"
+              [disabled]="!workflowForm.valid || processing()"
             >
               {{ processing() ? 'Saving...' : (currentMode() === 'create' ? 'Create' : 'Update') }}
             </button>
@@ -121,34 +121,34 @@
   }
 
   @if (loading()) {
-    <div class="loading">Loading domains...</div>
+    <div class="loading">Loading workflows...</div>
   }
 
-  <div class="domains-list">
-    @if (filteredDomains().length === 0 && !loading()) {
+  <div class="workflows-list">
+    @if (filteredWorkflows().length === 0 && !loading()) {
       <div class="empty-state">
         @if (searchQuery()) {
-          <p>No domains found matching "{{ searchQuery() }}". Try a different search term.</p>
+          <p>No workflows found matching "{{ searchQuery() }}". Try a different search term.</p>
           <button class="btn-clear-search" (click)="clearSearch()">Clear Search</button>
         } @else {
-          <p>No domains found. Create your first domain to get started.</p>
+          <p>No workflows found. Create your first workflow to get started.</p>
         }
       </div>
     }
 
-    @for (domain of filteredDomains(); track domain.id) {
-      <div class="domain-card" [class.archived]="domain.status === 'archived'">
-        <div class="domain-content">
-          <h3>{{ domain.name }}</h3>
-          <p>{{ domain.description }}</p>
-          <div class="domain-meta">
-            <span class="status" [class]="'status-' + domain.status">{{ domain.status }}</span>
+    @for (workflow of filteredWorkflows(); track workflow.id) {
+      <div class="workflow-card" [class.archived]="workflow.status === 'archived'">
+        <div class="workflow-content">
+          <h3>{{ workflow.name }}</h3>
+          <p>{{ workflow.description }}</p>
+          <div class="workflow-meta">
+            <span class="status" [class]="'status-' + workflow.status">{{ workflow.status }}</span>
           </div>
         </div>
-        <div class="domain-actions">
-          <button class="action-btn" (click)="openViewMode(domain)">View</button>
-          <button class="action-btn" (click)="openEditForm(domain)">Edit</button>
-          <button class="action-btn danger" (click)="deleteDomain(domain)" [disabled]="processing()">
+        <div class="workflow-actions">
+          <button class="action-btn" (click)="openViewMode(workflow)">View</button>
+          <button class="action-btn" (click)="openEditForm(workflow)">Edit</button>
+          <button class="action-btn danger" (click)="deleteWorkflow(workflow)" [disabled]="processing()">
             {{ processing() ? '...' : 'Delete' }}
           </button>
         </div>

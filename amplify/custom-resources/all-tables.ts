@@ -119,8 +119,8 @@ export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
     }
   });
 
-  // Domain Table
-  const domainTable = createTableWithNaming('DomainTable', 'Domain', {
+  // Workflow Table
+  const workflowTable = createTableWithNaming('WorkflowTable', 'Workflow', {
     billingMode: BillingMode.PAY_PER_REQUEST,
     removalPolicy: RemovalPolicy.DESTROY,
     partitionKey: {
@@ -234,7 +234,7 @@ export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
     documentTable,
     userTable,
     documentTypeTable,
-    domainTable,
+    workflowTable,
     chatRoomTable,
     chatMessageTable
   };

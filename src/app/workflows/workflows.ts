@@ -5,45 +5,45 @@ import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-domains',
+  selector: 'app-workflows',
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './domains.html',
-  styleUrl: './domains.less'
+  templateUrl: './workflows.html',
+  styleUrl: './workflows.less'
 })
-export class Domains implements OnInit, OnDestroy {
-  domains = signal<Array<Schema['Domain']['type']>>([]);
-  filteredDomains = signal<Array<Schema['Domain']['type']>>([]);
+export class Workflows implements OnInit, OnDestroy {
+  workflows = signal<Array<Schema['Workflow']['type']>>([]);
+  filteredWorkflows = signal<Array<Schema['Workflow']['type']>>([]);
   searchQuery = signal<string>('');
   loading = signal(true);
   showForm = signal(false);
   currentMode = signal<'create' | 'edit' | 'view'>('create');
-  selectedDomain = signal<Schema['Domain']['type'] | null>(null);
+  selectedWorkflow = signal<Schema['Workflow']['type'] | null>(null);
   processing = signal(false);
   
   private fb = inject(FormBuilder);
   private searchTimeout: any = null;
   
-  domainForm: FormGroup = this.fb.group({
+  workflowForm: FormGroup = this.fb.group({
     name: ['', [Validators.required]],
     description: ['', [Validators.required, Validators.minLength(10)]],
     status: ['active', [Validators.required]]
   });
 
   async ngOnInit() {
-    await this.loadDomains();
+    await this.loadWorkflows();
   }
 
   // Search functionality methods
   applySearch() {
     const query = this.searchQuery();
     if (!query) {
-      this.filteredDomains.set(this.domains());
+      this.filteredWorkflows.set(this.workflows());
     } else {
-      const filtered = this.domains().filter(domain =>
-        domain.name?.toLowerCase().includes(query) ||
-        domain.description?.toLowerCase().includes(query)
+      const filtered = this.workflows().filter(workflow =>
+        workflow.name?.toLowerCase().includes(query) ||
+        workflow.description?.toLowerCase().includes(query)
       );
-      this.filteredDomains.set(filtered);
+      this.filteredWorkflows.set(filtered);
     }
   }
 
@@ -63,20 +63,20 @@ export class Domains implements OnInit, OnDestroy {
 
   clearSearch() {
     this.searchQuery.set('');
-    this.filteredDomains.set(this.domains());
+    this.filteredWorkflows.set(this.workflows());
   }
 
-  async loadDomains() {
+  async loadWorkflows() {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Domain.list();
-      this.domains.set(data);
-      this.applySearch(); // Initialize filtered domains
+      const { data } = await client.models.Workflow.list();
+      this.workflows.set(data);
+      this.applySearch(); // Initialize filtered workflows
     } catch (error) {
-      console.error('Error loading domains:', error);
-      this.domains.set([]);
-      this.filteredDomains.set([]);
+      console.error('Error loading workflows:', error);
+      this.workflows.set([]);
+      this.filteredWorkflows.set([]);
     } finally {
       this.loading.set(false);
     }
@@ -84,59 +84,59 @@ export class Domains implements OnInit, OnDestroy {
 
   openCreateForm() {
     this.currentMode.set('create');
-    this.selectedDomain.set(null);
-    this.domainForm.reset();
-    this.domainForm.patchValue({ status: 'active' });
+    this.selectedWorkflow.set(null);
+    this.workflowForm.reset();
+    this.workflowForm.patchValue({ status: 'active' });
     this.showForm.set(true);
   }
 
-  openEditForm(domain: Schema['Domain']['type']) {
+  openEditForm(workflow: Schema['Workflow']['type']) {
     this.currentMode.set('edit');
-    this.selectedDomain.set(domain);
+    this.selectedWorkflow.set(workflow);
     
-    this.domainForm.patchValue({
-      name: domain.name,
-      description: domain.description,
-      status: domain.status
+    this.workflowForm.patchValue({
+      name: workflow.name,
+      description: workflow.description,
+      status: workflow.status
     });
     this.showForm.set(true);
   }
 
-  openViewMode(domain: Schema['Domain']['type']) {
+  openViewMode(workflow: Schema['Workflow']['type']) {
     this.currentMode.set('view');
-    this.selectedDomain.set(domain);
+    this.selectedWorkflow.set(workflow);
     this.showForm.set(true);
   }
 
   closeForm() {
     this.showForm.set(false);
     this.currentMode.set('create');
-    this.selectedDomain.set(null);
-    this.domainForm.reset();
-    this.domainForm.patchValue({ status: 'active' });
+    this.selectedWorkflow.set(null);
+    this.workflowForm.reset();
+    this.workflowForm.patchValue({ status: 'active' });
   }
 
   async onSubmitForm() {
-    if (!this.domainForm.valid) return;
+    if (!this.workflowForm.valid) return;
 
     this.processing.set(true);
     
     try {
-      const formValue = this.domainForm.value;
-      const domainData = {
+      const formValue = this.workflowForm.value;
+      const workflowData = {
         name: formValue.name,
         description: formValue.description,
         status: formValue.status as 'active' | 'archived'
       };
 
       if (this.currentMode() === 'create') {
-        await this.createDomain(domainData);
-      } else if (this.currentMode() === 'edit' && this.selectedDomain()) {
-        await this.updateDomain(this.selectedDomain()!.id, domainData);
+        await this.createWorkflow(workflowData);
+      } else if (this.currentMode() === 'edit' && this.selectedWorkflow()) {
+        await this.updateWorkflow(this.selectedWorkflow()!.id, workflowData);
       }
 
       this.closeForm();
-      await this.loadDomains();
+      await this.loadWorkflows();
     } catch (error) {
       console.error('Error submitting form:', error);
     } finally {
@@ -144,45 +144,45 @@ export class Domains implements OnInit, OnDestroy {
     }
   }
 
-  async createDomain(domain: Omit<Schema['Domain']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
+  async createWorkflow(workflow: Omit<Schema['Workflow']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
     try {
       const client = generateClient<Schema>();
-      await client.models.Domain.create({
-        ...domain,
+      await client.models.Workflow.create({
+        ...workflow,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Error creating domain:', error);
+      console.error('Error creating workflow:', error);
       throw error;
     }
   }
 
-  async updateDomain(id: string, updates: Partial<Schema['Domain']['type']>) {
+  async updateWorkflow(id: string, updates: Partial<Schema['Workflow']['type']>) {
     try {
       const client = generateClient<Schema>();
-      await client.models.Domain.update({
+      await client.models.Workflow.update({
         id,
         ...updates,
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Error updating domain:', error);
+      console.error('Error updating workflow:', error);
       throw error;
     }
   }
 
-  async deleteDomain(domain: Schema['Domain']['type']) {
-    if (!confirm(`Are you sure you want to delete "${domain.name}"?`)) return;
+  async deleteWorkflow(workflow: Schema['Workflow']['type']) {
+    if (!confirm(`Are you sure you want to delete "${workflow.name}"?`)) return;
 
     this.processing.set(true);
     
     try {
       const client = generateClient<Schema>();
-      await client.models.Domain.delete({ id: domain.id });
-      await this.loadDomains();
+      await client.models.Workflow.delete({ id: workflow.id });
+      await this.loadWorkflows();
     } catch (error) {
-      console.error('Error deleting domain:', error);
+      console.error('Error deleting workflow:', error);
     } finally {
       this.processing.set(false);
     }

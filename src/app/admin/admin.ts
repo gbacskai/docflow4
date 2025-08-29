@@ -27,7 +27,6 @@ export class Admin implements OnInit {
   importLoading = signal(false);
   exportStatus = signal<string>('');
   importStatus = signal<string>('');
-  exportStats = signal<{[key: string]: number}>({});
   
   // Dialog states
   showExportDialog = false;
@@ -46,7 +45,6 @@ export class Admin implements OnInit {
   tableNames = signal<{[key: string]: string}>({});
   
   constructor() {
-    this.loadExportStats();
     this.loadTableNames();
   }
 
@@ -54,16 +52,6 @@ export class Admin implements OnInit {
     await this.loadExports();
   }
   
-  async loadExportStats() {
-    // Mock statistics for demonstration
-    this.exportStats.set({
-      Projects: 4,
-      Domains: 3,
-      DocumentTypes: 5,
-      Users: 4,
-      Documents: 12
-    });
-  }
 
   async loadExports() {
     this.isLoading.set(true);
@@ -196,10 +184,10 @@ export class Admin implements OnInit {
       // Mock export data
       const mockData = {
         Projects: [
-          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', defaultDomain: '1' },
-          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', defaultDomain: '2' },
+          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', defaultWorkflow: '1' },
+          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', defaultWorkflow: '2' },
         ],
-        Domains: [
+        Workflows: [
           { id: '1', name: 'Development' },
           { id: '2', name: 'Marketing' },
           { id: '3', name: 'Operations' }
@@ -226,11 +214,11 @@ export class Admin implements OnInit {
         tables: mockData,
         statistics: {
           Projects: mockData.Projects.length,
-          Domains: mockData.Domains.length,
+          Workflows: mockData.Workflows.length,
           DocumentTypes: mockData.DocumentTypes.length,
           Users: mockData.Users.length,
           Documents: mockData.Documents.length,
-          totalRecords: mockData.Projects.length + mockData.Domains.length + mockData.DocumentTypes.length + mockData.Users.length + mockData.Documents.length
+          totalRecords: mockData.Projects.length + mockData.Workflows.length + mockData.DocumentTypes.length + mockData.Users.length + mockData.Documents.length
         }
       };
       
@@ -304,10 +292,10 @@ export class Admin implements OnInit {
       const tables = importData.tables;
       
       // Simulate importing each table with delays
-      if (tables.Domains && Array.isArray(tables.Domains)) {
-        this.importStatus.set('Importing Domains...');
+      if (tables.Workflows && Array.isArray(tables.Workflows)) {
+        this.importStatus.set('Importing Workflows...');
         await new Promise(resolve => setTimeout(resolve, 500));
-        importedCount += tables.Domains.length;
+        importedCount += tables.Workflows.length;
       }
       
       if (tables.Users && Array.isArray(tables.Users)) {
@@ -345,8 +333,6 @@ export class Admin implements OnInit {
         this.importStatus.set(`✅ Import completed successfully! ${importedCount} records imported.`);
       }
       
-      // Refresh stats
-      await this.loadExportStats();
       
     } catch (error) {
       console.error('Import failed:', error);
@@ -384,7 +370,7 @@ export class Admin implements OnInit {
       'Document', 
       'User',
       'DocumentType',
-      'Domain',
+      'Workflow',
       'ChatRoom',
       'ChatMessage'
     ];
@@ -395,7 +381,7 @@ export class Admin implements OnInit {
       'Document',
       'User', 
       'DocumentType',
-      'Domain',
+      'Workflow',
       'ChatRoom',
       'ChatMessage'
     ];
