@@ -6,9 +6,13 @@ import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export function createChatTables(scope: Construct, streamHandlerFunction?: any) {
+  // Get the environment name consistently with GraphQL tables
+  const envName = process.env.ENV || process.env.AMPLIFY_BRANCH || scope.node.tryGetContext('amplify-backend-name') || 'dev';
+  const appName = 'docflow4';
+  
   // ChatRoom Table
   const chatRoomTable = new Table(scope, 'ChatRoomTable', {
-    tableName: 'ChatRoom',
+    tableName: `${appName}-ChatRoom-${envName}`,
     billingMode: BillingMode.PAY_PER_REQUEST,
     removalPolicy: RemovalPolicy.DESTROY, // For development
     stream: StreamViewType.NEW_AND_OLD_IMAGES,
@@ -46,7 +50,7 @@ export function createChatTables(scope: Construct, streamHandlerFunction?: any) 
 
   // ChatMessage Table
   const chatMessageTable = new Table(scope, 'ChatMessageTable', {
-    tableName: 'ChatMessage',
+    tableName: `${appName}-ChatMessage-${envName}`,
     billingMode: BillingMode.PAY_PER_REQUEST,
     removalPolicy: RemovalPolicy.DESTROY, // For development
     stream: StreamViewType.NEW_AND_OLD_IMAGES,

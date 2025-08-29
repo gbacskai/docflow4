@@ -155,5 +155,6 @@ export const data = defineData({
   authorizationModes: {
     defaultAuthorizationMode: 'apiKey',
     apiKeyAuthorizationMode: { expiresInDays: 30 }
-  }
+  },
+  name: `docflow4-${process.env.ENV || process.env.AMPLIFY_BRANCH || 'dev'}`
 });
