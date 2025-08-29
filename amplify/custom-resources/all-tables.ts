@@ -21,17 +21,28 @@ export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
   const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || scope.node.tryGetContext('amplify-backend-name') || 'dev';
   const appName = 'docflow4';
 
+  // Console log the table naming pattern for verification
+  console.log(`🏷️  Creating custom DynamoDB tables with naming pattern: ${appName}-{TableName}-${envName}`);
+  console.log(`📊 Environment variables: ENV=${process.env['ENV']}, AMPLIFY_BRANCH=${process.env['AMPLIFY_BRANCH']}`);
+  console.log(`🎯 Resolved environment name: ${envName}`);
+
   // Helper function to create table with proper naming
   const createTableWithNaming = (logicalId: string, tableName: string, config: any) => {
+    const finalTableName = `${appName}-${tableName}-${envName}`;
+    console.log(`📋 Creating table: ${finalTableName}`);
+    
     const table = new Table(scope, logicalId, {
       ...config,
-      tableName: `${appName}-${tableName}-${envName}`,
+      tableName: finalTableName,
     });
 
     // Override the table name at the CFN level to ensure it's respected
     const cfnTable = table.node.defaultChild as any;
     if (cfnTable && cfnTable.addPropertyOverride) {
-      cfnTable.addPropertyOverride('TableName', `${appName}-${tableName}-${envName}`);
+      cfnTable.addPropertyOverride('TableName', finalTableName);
+      console.log(`✅ Table configured: ${finalTableName}`);
+    } else {
+      console.log(`⚠️  CFN override not available for: ${finalTableName}`);
     }
 
     return table;

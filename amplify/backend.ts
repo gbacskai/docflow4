@@ -1,5 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
+import { data } from './data/resource';
 import { storage } from './storage/resource';
 // TODO: Re-enable stream handler once CDK integration is resolved
 // import { chatStreamHandler } from './functions/chat-stream-handler/resource';
@@ -7,10 +8,10 @@ import { createAllTables } from './custom-resources/all-tables';
 
 const backend = defineBackend({
   auth,
+  data,
   storage
   // TODO: Re-enable stream handler
   // chatStreamHandler
-  // NOTE: Removed 'data' resource to prevent Amplify from creating tables with random names
 });
 
 // Add custom DynamoDB tables for all models with proper naming
