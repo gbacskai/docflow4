@@ -18,17 +18,8 @@ const backend = defineBackend({
   // chatStreamHandler
 });
 
-// Force the environment name by setting CDK context
-const app = backend.stack.node.scope as any;
-if (app && app.node && app.node.setContext) {
-  app.node.setContext('amplify-environment-name', envName);
-  console.log(`📝 Set CDK context 'amplify-environment-name' to: ${envName}`);
-}
-
-// Also try setting the environment name directly on the stack
-backend.stack.node.setContext('amplify-environment-name', envName);
-backend.stack.node.setContext('amplify-backend-name', envName);
-console.log(`📝 Set stack context to environment: ${envName}`);
+// Context will be set automatically by Amplify based on the branch
+console.log(`📝 Environment context will be handled by Amplify pipeline: ${envName}`);
 
 // Export GraphQL table names for verification
 backend.addOutput({
