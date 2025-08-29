@@ -1,7 +1,7 @@
 import { defineStorage } from '@aws-amplify/backend';
 
 export const storage = defineStorage({
-  name: `docflow4-${process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev'}`,
+  name: `docflow4-${process.env['AMPLIFY_BRANCH'] || 'dev'}`,
   access: (allow) => ({
     'documents/*': [
       allow.authenticated.to(['read', 'write', 'delete'])

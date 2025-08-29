@@ -21,7 +21,7 @@ All AWS resources follow the pattern `docflow4-{ResourceType}-{Branch}`:
 - **GraphQL API tables**: Automatically named by Amplify with environment suffix
 - **Storage buckets**: `docflow4-dev001`
 
-The environment name is determined by: `ENV` > `AMPLIFY_BRANCH` > git branch > 'dev'
+The environment name is determined by: `AMPLIFY_BRANCH` > git branch > 'dev'
 
 ### Testing Commands
 - **Run unit tests**: `npm test` or `ng test` - runs Karma/Jasmine tests

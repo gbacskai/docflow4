@@ -23,7 +23,6 @@ function setupEnvironment() {
   // Create .env file with environment configuration
   const envContent = `# Amplify Environment Configuration
 # This ensures consistent table naming across all resources
-ENV=${currentBranch}
 AMPLIFY_BRANCH=${currentBranch}
 CDK_DEFAULT_ENV=${currentBranch}
 

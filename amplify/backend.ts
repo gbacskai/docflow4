@@ -14,8 +14,7 @@ const backend = defineBackend({
 });
 
 // Get environment name from various sources
-const envName = process.env['ENV'] || 
-                process.env['AMPLIFY_BRANCH'] || 
+const envName = process.env['AMPLIFY_BRANCH'] || 
                 process.env['AWS_BRANCH'] || 
                 backend.stack.node.tryGetContext('amplify-environment-name') ||
                 'dev';

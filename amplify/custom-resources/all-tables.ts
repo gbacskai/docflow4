@@ -6,7 +6,7 @@
  * across all branches and environments.
  * 
  * Table naming pattern: docflow4-{TableName}-{Environment}
- * - Environment determined by: ENV > AMPLIFY_BRANCH > 'dev'
+ * - Environment determined by: AMPLIFY_BRANCH > 'dev'
  */
 
 import { RemovalPolicy } from 'aws-cdk-lib';
@@ -18,12 +18,12 @@ import { Construct } from 'constructs';
 
 export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
   // Get the environment name consistently with GraphQL tables
-  const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || scope.node.tryGetContext('amplify-backend-name') || 'dev';
+  const envName = process.env['AMPLIFY_BRANCH'] || scope.node.tryGetContext('amplify-backend-name') || 'dev';
   const appName = 'docflow4';
 
   // Console log the table naming pattern for verification
   console.log(`🏷️  Creating custom DynamoDB tables with naming pattern: ${appName}-{TableName}-${envName}`);
-  console.log(`📊 Environment variables: ENV=${process.env['ENV']}, AMPLIFY_BRANCH=${process.env['AMPLIFY_BRANCH']}`);
+  console.log(`📊 Environment variables: AMPLIFY_BRANCH=${process.env['AMPLIFY_BRANCH']}`);
   console.log(`🎯 Resolved environment name: ${envName}`);
 
   // Helper function to create table with proper naming

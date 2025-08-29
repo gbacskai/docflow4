@@ -321,6 +321,25 @@
     </div>
   </div>
 
+  <!-- DynamoDB Table Names -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>🗄️ DynamoDB Table Names</h2>
+      <p>Physical names of DynamoDB tables in the current environment</p>
+    </div>
+    
+    <div class="table-names-panel">
+      <div class="table-names-grid">
+        @for (table of tableNames() | keyvalue; track table.key) {
+          <div class="table-name-card">
+            <div class="table-type">{{ table.key }}</div>
+            <div class="table-physical-name">{{ table.value }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
   <!-- Clear Messages Button -->
   <div class="admin-section">
     <button class="btn-secondary" (click)="clearMessages()">

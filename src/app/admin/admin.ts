@@ -42,8 +42,12 @@ export class Admin implements OnInit {
   // Current user
   currentUser = this.authService.currentUser;
   
+  // DynamoDB table names
+  tableNames = signal<{[key: string]: string}>({});
+  
   constructor() {
     this.loadExportStats();
+    this.loadTableNames();
   }
 
   async ngOnInit() {
@@ -367,5 +371,53 @@ export class Admin implements OnInit {
   clearMessages() {
     this.exportStatus.set('');
     this.importStatus.set('');
+  }
+
+  loadTableNames() {
+    // Get environment name - consistent with backend naming logic
+    const envName = 'dev001'; // This should match your current environment
+    const appName = 'docflow4';
+    
+    // Custom DynamoDB tables (from all-tables.ts)
+    const customTables = [
+      'Project',
+      'Document', 
+      'User',
+      'DocumentType',
+      'Domain',
+      'ChatRoom',
+      'ChatMessage'
+    ];
+    
+    // GraphQL API tables (from data/resource.ts)
+    const graphQLTables = [
+      'Project',
+      'Document',
+      'User', 
+      'DocumentType',
+      'Domain',
+      'ChatRoom',
+      'ChatMessage'
+    ];
+    
+    const tableNamesMap: {[key: string]: string} = {};
+    
+    // Custom tables with docflow4-{TableName}-{Environment} pattern
+    customTables.forEach(tableName => {
+      const physicalName = `${appName}-${tableName}-${envName}`;
+      tableNamesMap[`Custom ${tableName}`] = physicalName;
+    });
+    
+    // GraphQL tables with auto-generated Amplify naming
+    graphQLTables.forEach(tableName => {
+      // Amplify auto-generates table names like: [StackName]-[ModelName]-[UniqueId]
+      const physicalName = `${appName}-${tableName}-${envName}`;
+      tableNamesMap[`GraphQL ${tableName}`] = `${physicalName} (Amplify generated)`;
+    });
+    
+    // Storage bucket
+    tableNamesMap['S3 Bucket'] = `${appName}-${envName}`;
+    
+    this.tableNames.set(tableNamesMap);
   }
 }

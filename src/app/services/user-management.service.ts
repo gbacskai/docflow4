@@ -129,11 +129,15 @@ export class UserManagementService {
     username: string
   ): Promise<Schema['User']['type']> {
     
+    // Check if this is the first user - if so, make them an admin regardless of invitation userType
+    const isFirst = await this.isFirstUser(client);
+    const userType = isFirst ? 'admin' : (invitationRecord.userType || 'client');
+    
     const newUserData = {
       email: invitationRecord.email,
       firstName: invitationRecord.firstName || '',
       lastName: invitationRecord.lastName || '',
-      userType: invitationRecord.userType || 'client',
+      userType: userType,
       interestedDocumentTypes: invitationRecord.interestedDocumentTypes || [],
       status: 'active', // Change from 'invited' to 'active'
       cognitoUserId: cognitoUserId, // Link to Cognito user
@@ -145,6 +149,11 @@ export class UserManagementService {
     };
     
     const { data: newUser } = await client.models.User.create(newUserData);
+    
+    if (isFirst && userType === 'admin') {
+      console.log('🎉 First user registered from invitation - granted admin privileges:', newUser);
+    }
+    
     return newUser;
   }
   
@@ -171,11 +180,14 @@ export class UserManagementService {
     username: string
   ): Promise<Schema['User']['type']> {
     
+    // Check if this is the first user - if so, make them an admin
+    const userType = await this.isFirstUser(client) ? 'admin' : 'client';
+    
     const newUserData = {
       email: email,
       firstName: '',
       lastName: '',
-      userType: 'client' as const, // Default to client
+      userType: userType,
       interestedDocumentTypes: [],
       status: 'active' as const,
       cognitoUserId: cognitoUserId, // Link to Cognito user
@@ -187,9 +199,39 @@ export class UserManagementService {
     };
     
     const { data: newUser } = await client.models.User.create(newUserData);
+    
+    if (userType === 'admin') {
+      console.log('🎉 First user registered - granted admin privileges:', newUser);
+    }
+    
     return newUser;
   }
   
+  /**
+   * Check if this is the first user in the system
+   * Returns true if no active users exist
+   */
+  private async isFirstUser(client: any): Promise<boolean> {
+    try {
+      const { data: users } = await client.models.User.list();
+      
+      // Count users who have status 'active' and are linked to Cognito accounts
+      // This ensures we only count real registered users, not invitation records
+      const activeUsers = users.filter((user: Schema['User']['type']) => 
+        user.status === 'active' && user.cognitoUserId
+      );
+      
+      const isFirst = activeUsers.length === 0;
+      console.log(`🔍 First user check: ${isFirst ? 'YES' : 'NO'} (found ${activeUsers.length} active users)`);
+      
+      return isFirst;
+    } catch (error) {
+      console.error('Error checking if first user:', error);
+      // On error, assume not first user (safer default)
+      return false;
+    }
+  }
+
   /**
    * Update last login time for existing user
    */

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { post, get, del } from 'aws-amplify/api';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from './auth.service';
 
 export interface DatabaseExport {
@@ -26,204 +27,59 @@ export class AdminService {
   private authService = inject(AuthService);
 
   /**
-   * Trigger a database export
+   * Trigger a database export (placeholder - requires backend lambda functions)
    */
   async triggerExport(request: ExportRequest): Promise<{ success: boolean; export?: DatabaseExport; error?: string }> {
-    try {
-      const userId = this.authService.getUserId();
-      
-      if (!userId) {
-        return { success: false, error: 'User not authenticated' };
-      }
-
-      const response = await post({
-        apiName: 'api', // Replace with your API name
-        path: '/db-export',
-        options: {
-          body: JSON.stringify({
-            userId,
-            exportType: request.exportType,
-            projectId: request.projectId
-          })
-        }
-      });
-
-      const responseData = await response.response;
-      const result = await responseData.body.json() as any;
-      
-      if (result.success) {
-        return {
-          success: true,
-          export: result.export
-        };
-      } else {
-        return {
-          success: false,
-          error: result.error || 'Export failed'
-        };
-      }
-    } catch (error) {
-      console.error('Failed to trigger export:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
+    return {
+      success: false,
+      error: 'Database export functionality requires backend API setup. Please configure lambda functions for export operations.'
+    };
   }
 
   /**
-   * List all database exports
+   * List all database exports (placeholder - requires backend lambda functions)
    */
   async listExports(isAdmin: boolean = false): Promise<{ success: boolean; exports?: DatabaseExport[]; error?: string }> {
-    try {
-      const userId = this.authService.getUserId();
-      
-      if (!userId && !isAdmin) {
-        return { success: false, error: 'User not authenticated' };
-      }
-
-      const queryParams: any = {};
-      if (isAdmin) {
-        queryParams.isAdmin = 'true';
-      } else {
-        queryParams.userId = userId;
-      }
-
-      const response = await get({
-        apiName: 'api', // Replace with your API name
-        path: '/list-exports',
-        options: {
-          queryParams
-        }
-      });
-
-      const responseData = await response.response;
-      const result = await responseData.body.json() as any;
-      
-      if (result.success) {
-        return {
-          success: true,
-          exports: result.exports || []
-        };
-      } else {
-        return {
-          success: false,
-          error: result.error || 'Failed to list exports'
-        };
-      }
-    } catch (error) {
-      console.error('Failed to list exports:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
+    return {
+      success: true,
+      exports: [] // Return empty array since no backend implementation exists
+    };
   }
 
   /**
-   * Generate download URL for an export
+   * Generate download URL for an export (placeholder - requires backend lambda functions)
    */
   async getDownloadUrl(exportId: string, fileName: string): Promise<{ success: boolean; url?: string; error?: string }> {
-    try {
-      const userId = this.authService.getUserId();
-      
-      if (!userId) {
-        return { success: false, error: 'User not authenticated' };
-      }
-
-      // This would typically generate a presigned URL
-      // For now, we'll use the S3 object key structure
-      const s3Key = `exports/${userId}/${exportId}/${fileName}`;
-      
-      // In a real implementation, you'd call a Lambda function to generate a presigned URL
-      // For now, return the S3 key which can be used by the frontend
-      return {
-        success: true,
-        url: s3Key
-      };
-    } catch (error) {
-      console.error('Failed to generate download URL:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
+    return {
+      success: false,
+      error: 'Download URL generation requires backend API setup. Please configure lambda functions for export operations.'
+    };
   }
 
   /**
-   * Import database from uploaded file
+   * Import database from uploaded file (placeholder - requires backend lambda functions)
    */
   async importDatabase(file: File): Promise<{ success: boolean; imported?: any; error?: string }> {
-    try {
-      const userId = this.authService.getUserId();
-      
-      if (!userId) {
-        return { success: false, error: 'User not authenticated' };
-      }
-
-      // Read file content
-      const fileContent = await this.readFileAsText(file);
-      let importData: any;
-
-      try {
-        importData = JSON.parse(fileContent);
-      } catch (parseError) {
-        return { success: false, error: 'Invalid JSON file format' };
-      }
-
-      // Validate import data structure
-      if (!importData.metadata || !importData.data) {
-        return { success: false, error: 'Invalid export file format' };
-      }
-
-      // Call import API
-      const response = await post({
-        apiName: 'api', // Replace with your API name
-        path: '/db-import',
-        options: {
-          body: JSON.stringify({
-            userId,
-            importData
-          })
-        }
-      });
-
-      const responseData = await response.response;
-      const result = await responseData.body.json() as any;
-      
-      if (result.success) {
-        return {
-          success: true,
-          imported: result.imported
-        };
-      } else {
-        return {
-          success: false,
-          error: result.error || 'Import failed'
-        };
-      }
-    } catch (error) {
-      console.error('Failed to import database:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      };
-    }
-  }
-
-  private readFileAsText(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsText(file);
-    });
+    return {
+      success: false,
+      error: 'Database import functionality requires backend API setup. Please configure lambda functions for import operations.'
+    };
   }
 
   /**
-   * Delete an export
+   * Delete an export (placeholder - requires backend lambda functions)
    */
   async deleteExport(exportId: string, fileName: string): Promise<{ success: boolean; error?: string }> {
+    return {
+      success: false,
+      error: 'Delete export functionality requires backend API setup. Please configure lambda functions for export operations.'
+    };
+  }
+
+  /**
+   * Get system statistics for admin dashboard
+   */
+  async getSystemStats(): Promise<{ success: boolean; stats?: any; error?: string }> {
     try {
       const userId = this.authService.getUserId();
       
@@ -231,33 +87,36 @@ export class AdminService {
         return { success: false, error: 'User not authenticated' };
       }
 
-      const response = await del({
-        apiName: 'api', // Replace with your API name
-        path: `/db-export/${exportId}`,
-        options: {
-          queryParams: {
-            userId,
-            fileName
-          }
-        }
-      });
-
-      const responseData = await response.response;
-      const result = await responseData.body.json() as any;
+      const client = generateClient<Schema>();
       
-      if (result.success) {
-        return { success: true };
-      } else {
-        return {
-          success: false,
-          error: result.error || 'Failed to delete export'
-        };
-      }
+      // Get counts of various entities
+      const [users, domains, documentTypes, projects] = await Promise.all([
+        client.models.User.list(),
+        client.models.Domain.list(),
+        client.models.DocumentType.list(),
+        client.models.Project.list()
+      ]);
+
+      const stats = {
+        userCount: users.data.length,
+        activeUsers: users.data.filter(u => u.status === 'active').length,
+        domainCount: domains.data.length,
+        activeDomains: domains.data.filter(d => d.status === 'active').length,
+        documentTypeCount: documentTypes.data.length,
+        activeDocumentTypes: documentTypes.data.filter(dt => dt.isActive).length,
+        projectCount: projects.data.length,
+        activeProjects: projects.data.filter(p => p.status === 'active').length
+      };
+
+      return {
+        success: true,
+        stats
+      };
     } catch (error) {
-      console.error('Failed to delete export:', error);
+      console.error('Failed to get system stats:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: error instanceof Error ? error.message : 'Failed to load system statistics'
       };
     }
   }
