@@ -1,3 +1,14 @@
+/**
+ * Custom DynamoDB tables with environment-specific naming
+ * 
+ * This creates custom DynamoDB tables with proper naming: docflow4-{TableName}-{Environment}
+ * These tables run alongside the default Amplify GraphQL tables to ensure consistent naming
+ * across all branches and environments.
+ * 
+ * Table naming pattern: docflow4-{TableName}-{Environment}
+ * - Environment determined by: ENV > AMPLIFY_BRANCH > 'dev'
+ */
+
 import { RemovalPolicy } from 'aws-cdk-lib';
 import { AttributeType, BillingMode, StreamViewType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
@@ -5,16 +16,81 @@ import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
-export function createChatTables(scope: Construct, streamHandlerFunction?: any) {
+export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
   // Get the environment name consistently with GraphQL tables
   const envName = process.env.ENV || process.env.AMPLIFY_BRANCH || scope.node.tryGetContext('amplify-backend-name') || 'dev';
   const appName = 'docflow4';
+
+  // Helper function to create table with proper naming
+  const createTableWithNaming = (logicalId: string, tableName: string, config: any) => {
+    const table = new Table(scope, logicalId, {
+      ...config,
+      tableName: `${appName}-${tableName}-${envName}`,
+    });
+
+    // Override the table name at the CFN level to ensure it's respected
+    const cfnTable = table.node.defaultChild as any;
+    if (cfnTable && cfnTable.addPropertyOverride) {
+      cfnTable.addPropertyOverride('TableName', `${appName}-${tableName}-${envName}`);
+    }
+
+    return table;
+  };
+
+  // Project Table
+  const projectTable = createTableWithNaming('ProjectTable', 'Project', {
+    billingMode: BillingMode.PAY_PER_REQUEST,
+    removalPolicy: RemovalPolicy.DESTROY,
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    }
+  });
+
+  // Document Table
+  const documentTable = createTableWithNaming('DocumentTable', 'Document', {
+    billingMode: BillingMode.PAY_PER_REQUEST,
+    removalPolicy: RemovalPolicy.DESTROY,
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    }
+  });
+
+  // User Table
+  const userTable = createTableWithNaming('UserTable', 'User', {
+    billingMode: BillingMode.PAY_PER_REQUEST,
+    removalPolicy: RemovalPolicy.DESTROY,
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    }
+  });
+
+  // DocumentType Table
+  const documentTypeTable = createTableWithNaming('DocumentTypeTable', 'DocumentType', {
+    billingMode: BillingMode.PAY_PER_REQUEST,
+    removalPolicy: RemovalPolicy.DESTROY,
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    }
+  });
+
+  // Domain Table
+  const domainTable = createTableWithNaming('DomainTable', 'Domain', {
+    billingMode: BillingMode.PAY_PER_REQUEST,
+    removalPolicy: RemovalPolicy.DESTROY,
+    partitionKey: {
+      name: 'id',
+      type: AttributeType.STRING,
+    }
+  });
   
   // ChatRoom Table
-  const chatRoomTable = new Table(scope, 'ChatRoomTable', {
-    tableName: `${appName}-ChatRoom-${envName}`,
+  const chatRoomTable = createTableWithNaming('ChatRoomTable', 'ChatRoom', {
     billingMode: BillingMode.PAY_PER_REQUEST,
-    removalPolicy: RemovalPolicy.DESTROY, // For development
+    removalPolicy: RemovalPolicy.DESTROY,
     stream: StreamViewType.NEW_AND_OLD_IMAGES,
     partitionKey: {
       name: 'id',
@@ -49,10 +125,9 @@ export function createChatTables(scope: Construct, streamHandlerFunction?: any) 
   });
 
   // ChatMessage Table
-  const chatMessageTable = new Table(scope, 'ChatMessageTable', {
-    tableName: `${appName}-ChatMessage-${envName}`,
+  const chatMessageTable = createTableWithNaming('ChatMessageTable', 'ChatMessage', {
     billingMode: BillingMode.PAY_PER_REQUEST,
-    removalPolicy: RemovalPolicy.DESTROY, // For development
+    removalPolicy: RemovalPolicy.DESTROY,
     stream: StreamViewType.NEW_AND_OLD_IMAGES,
     partitionKey: {
       name: 'chatRoomId',
@@ -113,6 +188,11 @@ export function createChatTables(scope: Construct, streamHandlerFunction?: any) 
   }
 
   return {
+    projectTable,
+    documentTable,
+    userTable,
+    documentTypeTable,
+    domainTable,
     chatRoomTable,
     chatMessageTable
   };
