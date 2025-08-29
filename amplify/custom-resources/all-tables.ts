@@ -57,12 +57,43 @@ export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
     }
   });
 
+  // Add GSI for querying documents by projectId
+  documentTable.addGlobalSecondaryIndex({
+    indexName: 'ProjectIndex',
+    partitionKey: {
+      name: 'projectId',
+      type: AttributeType.STRING,
+    },
+    sortKey: {
+      name: 'createdAt',
+      type: AttributeType.STRING,
+    }
+  });
+
   // User Table
   const userTable = createTableWithNaming('UserTable', 'User', {
     billingMode: BillingMode.PAY_PER_REQUEST,
     removalPolicy: RemovalPolicy.DESTROY,
     partitionKey: {
       name: 'id',
+      type: AttributeType.STRING,
+    }
+  });
+
+  // Add GSI for querying users by email
+  userTable.addGlobalSecondaryIndex({
+    indexName: 'EmailIndex',
+    partitionKey: {
+      name: 'email',
+      type: AttributeType.STRING,
+    }
+  });
+
+  // Add GSI for querying users by cognitoUserId
+  userTable.addGlobalSecondaryIndex({
+    indexName: 'CognitoUserIndex',
+    partitionKey: {
+      name: 'cognitoUserId',
       type: AttributeType.STRING,
     }
   });
