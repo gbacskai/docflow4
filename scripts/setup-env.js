@@ -25,6 +25,11 @@ function setupEnvironment() {
 # This ensures consistent table naming across all resources
 ENV=${currentBranch}
 AMPLIFY_BRANCH=${currentBranch}
+CDK_DEFAULT_ENV=${currentBranch}
+
+# AWS Amplify specific environment variables
+AMPLIFY_ENVIRONMENT_NAME=${currentBranch}
+AMPLIFY_BACKEND_NAME=${currentBranch}
 
 # App configuration
 APP_NAME=docflow4

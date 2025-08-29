@@ -5,6 +5,11 @@ import { storage } from './storage/resource';
 // TODO: Re-enable stream handler once CDK integration is resolved
 // import { chatStreamHandler } from './functions/chat-stream-handler/resource';
 
+// Set environment context before defining backend
+const appName = 'docflow4';
+const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev';
+console.log(`🎯 Setting environment context to: ${envName}`);
+
 const backend = defineBackend({
   auth,
   data,
@@ -13,24 +18,17 @@ const backend = defineBackend({
   // chatStreamHandler
 });
 
-// Override GraphQL table names to use our naming convention
-const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev';
-const appName = 'docflow4';
+// Force the environment name by setting CDK context
+const app = backend.stack.node.scope as any;
+if (app && app.node && app.node.setContext) {
+  app.node.setContext('amplify-environment-name', envName);
+  console.log(`📝 Set CDK context 'amplify-environment-name' to: ${envName}`);
+}
 
-console.log(`🔧 Overriding GraphQL table names with pattern: ${appName}-{TableName}-${envName}`);
-
-// Access the GraphQL tables and override their names
-const graphqlTables = backend.data.resources.tables;
-Object.keys(graphqlTables).forEach(tableName => {
-  const table = graphqlTables[tableName];
-  const cfnTable = table.node.defaultChild as any;
-  const newTableName = `${appName}-${tableName}-${envName}`;
-  
-  if (cfnTable && cfnTable.addPropertyOverride) {
-    cfnTable.addPropertyOverride('TableName', newTableName);
-    console.log(`✅ GraphQL table renamed: ${tableName} -> ${newTableName}`);
-  }
-});
+// Also try setting the environment name directly on the stack
+backend.stack.node.setContext('amplify-environment-name', envName);
+backend.stack.node.setContext('amplify-backend-name', envName);
+console.log(`📝 Set stack context to environment: ${envName}`);
 
 // Export GraphQL table names for verification
 backend.addOutput({

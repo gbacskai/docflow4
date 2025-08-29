@@ -150,11 +150,14 @@ const schema = a.schema({
 });
 
 export type Schema = ClientSchema<typeof schema>;
+const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev';
+console.log(`📊 Data resource environment: ${envName}`);
+
 export const data = defineData({
   schema,
   authorizationModes: {
     defaultAuthorizationMode: 'apiKey',
     apiKeyAuthorizationMode: { expiresInDays: 30 }
   },
-  name: `docflow4-${process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev'}`
+  name: `docflow4-${envName}`
 });
