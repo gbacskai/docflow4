@@ -3,8 +3,8 @@ backend:
   phases:
     preBuild:
       commands:
-        - echo "🔄 Pulling latest backend environment configuration..."
-        - echo "🎯 Current AWS_BRANCH: $AWS_BRANCH"
+        - 'echo "🔄 Pulling latest backend environment configuration..."'
+        - 'echo "🎯 Current AWS_BRANCH: $AWS_BRANCH"'
         - export ENV=$AWS_BRANCH
         - export AMPLIFY_BRANCH=$AWS_BRANCH
         - export AMPLIFY_ENVIRONMENT_NAME=$AWS_BRANCH
@@ -16,7 +16,7 @@ backend:
         - export ENV=$AWS_BRANCH
         - export AMPLIFY_BRANCH=$AWS_BRANCH
         - export AMPLIFY_ENVIRONMENT_NAME=$AWS_BRANCH
-        - echo "🏗️ Building with ENV=$ENV, AMPLIFY_BRANCH=$AMPLIFY_BRANCH"
+        - 'echo "🏗️ Building with ENV=$ENV, AMPLIFY_BRANCH=$AMPLIFY_BRANCH"'
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
 frontend:
   phases:
@@ -40,7 +40,7 @@ frontend:
         - export ENV=$AWS_BRANCH
         - export AMPLIFY_BRANCH=$AWS_BRANCH
         - export AMPLIFY_ENVIRONMENT_NAME=$AWS_BRANCH
-        - echo "🔨 Frontend build with ENV=$ENV"
+        - 'echo "🔨 Frontend build with ENV=$ENV"'
         - npm run build
   artifacts:
     baseDirectory: dist/docflow4/browser
