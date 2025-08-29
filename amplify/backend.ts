@@ -5,11 +5,6 @@ import { storage } from './storage/resource';
 // TODO: Re-enable stream handler once CDK integration is resolved
 // import { chatStreamHandler } from './functions/chat-stream-handler/resource';
 
-// Set environment context before defining backend
-const appName = 'docflow4';
-const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || 'dev';
-console.log(`🎯 Setting environment context to: ${envName}`);
-
 const backend = defineBackend({
   auth,
   data,
@@ -18,16 +13,22 @@ const backend = defineBackend({
   // chatStreamHandler
 });
 
-// Context will be set automatically by Amplify based on the branch
-console.log(`📝 Environment context will be handled by Amplify pipeline: ${envName}`);
+// Get environment name from various sources
+const envName = process.env['ENV'] || 
+                process.env['AMPLIFY_BRANCH'] || 
+                process.env['AWS_BRANCH'] || 
+                backend.stack.node.tryGetContext('amplify-environment-name') ||
+                'dev';
+console.log(`🎯 Using environment name: ${envName}`);
 
 // Export GraphQL table names for verification
 backend.addOutput({
   custom: {
     graphqlTableNames: Object.keys(backend.data.resources.tables).reduce((acc, tableName) => {
-      const finalName = `${appName}-${tableName}-${envName}`;
+      const finalName = `docflow4-${tableName}-${envName}`;
       acc[`${tableName}TableName`] = finalName;
       return acc;
-    }, {} as Record<string, string>)
+    }, {} as Record<string, string>),
+    environmentName: envName
   }
 });
