@@ -18,7 +18,7 @@ import { Construct } from 'constructs';
 
 export function createAllTables(scope: Construct, streamHandlerFunction?: any) {
   // Get the environment name consistently with GraphQL tables
-  const envName = process.env.ENV || process.env.AMPLIFY_BRANCH || scope.node.tryGetContext('amplify-backend-name') || 'dev';
+  const envName = process.env['ENV'] || process.env['AMPLIFY_BRANCH'] || scope.node.tryGetContext('amplify-backend-name') || 'dev';
   const appName = 'docflow4';
 
   // Helper function to create table with proper naming
