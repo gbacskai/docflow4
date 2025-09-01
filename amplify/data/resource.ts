@@ -18,12 +18,8 @@ const schema = a.schema({
   Document: a.model({
       projectId: a.string().required(),
       documentType: a.string().required(),
-      assignedProviders: a.string().array(),
-      acceptedProvider: a.string(),
-      status: a.enum(['requested', 'accepted', 'rejected', 'provided', 'amended']),
-      dueDate: a.datetime(),
-      fileUrls: a.string().array(),
-      fileNames: a.string().array(),
+      formData: a.string(),
+      status: a.string(),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })

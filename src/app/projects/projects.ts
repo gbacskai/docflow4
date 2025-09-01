@@ -810,8 +810,6 @@ export class Projects implements OnInit, OnDestroy {
             return client.models.Document.create({
               projectId: createdProject.id,
               documentType: docType.id,
-              status: 'requested',
-              assignedProviders: [],
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             });

@@ -20,20 +20,15 @@ export class UserManagementService {
     try {
       const client = generateClient<Schema>();
       
-      console.log('🔍 Ensuring user entry for:', { cognitoUserId, email, username });
       
       // Step 1: Check if there's already a record with this Cognito user ID
       const existingUserByCognito = await this.findUserByCognitoId(client, cognitoUserId);
       
       if (existingUserByCognito) {
-        console.log('✅ Found existing user by Cognito ID:', existingUserByCognito);
         
         // Clean up any other non-Cognito records with this email
-        console.log('🔄 About to start cleanup process...');
         await new Promise(resolve => setTimeout(resolve, 500));
-        console.log('🔄 Starting cleanup after delay...');
         await this.cleanupNonCognitoRecords(client, email, cognitoUserId);
-        console.log('🔄 Cleanup process completed');
         
         return existingUserByCognito;
       }
@@ -42,7 +37,6 @@ export class UserManagementService {
       const invitationRecord = await this.findUserByEmail(client, email);
       
       if (invitationRecord) {
-        console.log('📧 Found invitation record for email:', invitationRecord);
         
         // Step 3: Create new user record with Cognito ID and merge invitation data
         const newUserRecord = await this.createUserFromInvitation(
@@ -60,13 +54,11 @@ export class UserManagementService {
         await new Promise(resolve => setTimeout(resolve, 500));
         await this.cleanupNonCognitoRecords(client, email, cognitoUserId);
         
-        console.log('✅ Created new user record and removed invitation:', newUserRecord);
         return newUserRecord;
       }
       
       // Step 3: No existing records - create a new user entry
       const newUser = await this.createNewUser(client, cognitoUserId, email, username);
-      console.log('✅ Created new user record:', newUser);
       
       // Step 4: Clean up any remaining non-Cognito records with this email
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -75,7 +67,6 @@ export class UserManagementService {
       return newUser;
       
     } catch (error) {
-      console.error('❌ Error ensuring user entry:', error);
       return null;
     }
   }
@@ -94,7 +85,6 @@ export class UserManagementService {
       
       return existingUser || null;
     } catch (error) {
-      console.error('Error finding user by Cognito ID:', error);
       return null;
     }
   }
@@ -114,7 +104,6 @@ export class UserManagementService {
       
       return existingUser || null;
     } catch (error) {
-      console.error('Error finding user by email:', error);
       return null;
     }
   }
@@ -151,7 +140,6 @@ export class UserManagementService {
     const { data: newUser } = await client.models.User.create(newUserData);
     
     if (isFirst && userType === 'admin') {
-      console.log('🎉 First user registered from invitation - granted admin privileges:', newUser);
     }
     
     return newUser;
@@ -163,9 +151,7 @@ export class UserManagementService {
   private async removeOldInvitationRecord(client: any, recordId: string): Promise<void> {
     try {
       await client.models.User.delete({ id: recordId });
-      console.log('🗑️  Removed old invitation record:', recordId);
     } catch (error) {
-      console.error('Error removing old invitation record:', error);
       // Don't throw - this is cleanup, main flow should continue
     }
   }
@@ -201,7 +187,6 @@ export class UserManagementService {
     const { data: newUser } = await client.models.User.create(newUserData);
     
     if (userType === 'admin') {
-      console.log('🎉 First user registered - granted admin privileges:', newUser);
     }
     
     return newUser;
@@ -222,11 +207,9 @@ export class UserManagementService {
       );
       
       const isFirst = activeUsers.length === 0;
-      console.log(`🔍 First user check: ${isFirst ? 'YES' : 'NO'} (found ${activeUsers.length} active users)`);
       
       return isFirst;
     } catch (error) {
-      console.error('Error checking if first user:', error);
       // On error, assume not first user (safer default)
       return false;
     }
@@ -248,10 +231,8 @@ export class UserManagementService {
           lastLoginAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
-        console.log('✅ Updated last login for user:', cognitoUserId);
       }
     } catch (error) {
-      console.error('❌ Error updating last login:', error);
       // Don't throw - this shouldn't break the auth flow
     }
   }
@@ -261,93 +242,31 @@ export class UserManagementService {
    * This ensures no duplicate or orphaned records remain after authentication
    */
   private async cleanupNonCognitoRecords(client: any, email: string, currentCognitoUserId: string): Promise<void> {
-    console.log('🚨 CLEANUP FUNCTION CALLED - email:', email, 'cognitoUserId:', currentCognitoUserId);
     try {
-      console.log('🧹 Starting cleanup for email:', email, 'currentCognitoUserId:', currentCognitoUserId);
       
       const { data: users } = await client.models.User.list();
-      console.log(`📋 Total users found: ${users.length}`);
-      
-      // Log all users with the same email for debugging
-      const sameEmailUsers = users.filter((user: Schema['User']['type']) => 
-        user.email && user.email.toLowerCase() === email.toLowerCase()
-      );
-      console.log(`📧 Found ${sameEmailUsers.length} users with email ${email}:`);
-      sameEmailUsers.forEach((u: Schema['User']['type'], index: number) => {
-        console.log(`   User ${index + 1}:`, {
-          id: u.id,
-          email: u.email,
-          cognitoUserId: u.cognitoUserId,
-          status: u.status,
-          firstName: u.firstName,
-          lastName: u.lastName,
-          createdAt: u.createdAt,
-          invitedAt: u.invitedAt
-        });
-      });
       
       // Find records to delete: same email BUT wrong cognitoUserId (including null/undefined)
-      console.log('🔍 STARTING FILTER PROCESS - will check each user...');
       const recordsToDelete = users.filter((user: Schema['User']['type']) => {
         const sameEmail = user.email && user.email.toLowerCase() === email.toLowerCase();
         const hasCorrectCognitoUserId = user.cognitoUserId === currentCognitoUserId;
         
-        console.log(`🔍 Checking user ${user.id}:`, {
-          email: user.email,
-          sameEmail,
-          recordId: user.id,
-          cognitoUserId: user.cognitoUserId,
-          currentCognitoUserId,
-          hasCorrectCognitoUserId,
-          shouldDelete: sameEmail && !hasCorrectCognitoUserId
-        });
-        
         // Delete if: same email AND does NOT have the correct cognitoUserId
         const shouldDelete = sameEmail && !hasCorrectCognitoUserId;
-        
-        if (shouldDelete) {
-          console.log(`✅ MARKING FOR DELETION: ${user.id} (wrong/missing cognitoUserId)`);
-        } else {
-          console.log(`❌ KEEPING: ${user.id} (${hasCorrectCognitoUserId ? 'correct cognitoUserId' : 'different email'})`);
-        }
         
         return shouldDelete;
       });
       
-      console.log(`🔍 FILTER COMPLETE - ${recordsToDelete.length} records marked for deletion out of ${users.length} total users`);
-      
-      console.log(`🔍 Found ${recordsToDelete.length} records to cleanup for email: ${email}`);
-      
       // Delete each record
       for (const record of recordsToDelete) {
         try {
-          console.log(`🗑️  Attempting to delete record: ID=${record.id}, email=${record.email}, cognitoUserId=${record.cognitoUserId}`);
           const deleteResult = await client.models.User.delete({ id: record.id });
-          console.log(`✅ Successfully deleted record: ${record.id}`, deleteResult);
         } catch (deleteError: any) {
-          console.error(`❌ Failed to delete record ${record.id}:`, deleteError);
-          console.error('Delete error details:', {
-            errorName: deleteError?.name || 'Unknown',
-            errorMessage: deleteError?.message || 'Unknown error',
-            recordToDelete: {
-              id: record.id,
-              email: record.email,
-              cognitoUserId: record.cognitoUserId
-            }
-          });
           // Continue with other deletions even if one fails
         }
       }
       
-      if (recordsToDelete.length > 0) {
-        console.log(`✅ Cleanup completed: processed ${recordsToDelete.length} records for ${email}`);
-      } else {
-        console.log(`ℹ️  No cleanup needed for ${email}`);
-      }
-      
     } catch (error) {
-      console.error('❌ Error during cleanup of non-Cognito records:', error);
-      console.error('Cleanup error details:', error);
       // Don't throw - cleanup failure shouldn't break the main authentication flow
     }
   }
@@ -379,9 +298,7 @@ export class UserManagementService {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-      console.log('🧪 Created test duplicate user:', duplicateUser);
     } catch (error) {
-      console.error('❌ Failed to create test duplicate:', error);
     }
   }
 
@@ -397,23 +314,8 @@ export class UserManagementService {
         user.email && user.email.toLowerCase() === email.toLowerCase()
       );
       
-      console.log(`🔍 DEBUG: Found ${matchingUsers.length} users with email ${email}:`);
-      matchingUsers.forEach((user: Schema['User']['type'], index: number) => {
-        console.log(`User ${index + 1}:`, {
-          id: user.id,
-          email: user.email,
-          cognitoUserId: user.cognitoUserId,
-          status: user.status,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          createdAt: user.createdAt,
-          invitedAt: user.invitedAt
-        });
-      });
-      
       return matchingUsers;
     } catch (error) {
-      console.error('Error debugging users by email:', error);
       return [];
     }
   }

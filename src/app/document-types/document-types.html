@@ -195,17 +195,17 @@
               placeholder="Example:&#10;validation: clients.count() > 1 action: status = filled&#10;validation: status = waiting action: submitButton = disabled"
               rows="4"
               class="validation-rules-input"
-              [class.validation-error]="validationHasErrors()"
+              [class.validation-error]="dynamicFormService.validationHasErrors()"
             ></textarea>
             <div class="validation-help">
               <small>Format: <code>validation: condition action: field = value</code></small>
               <small>Conditions: <code>allRequired() == true</code>, <code>fieldName.count() > 1</code>, <code>fieldName == value</code></small>
             </div>
             
-            @if (validationResults().length > 0) {
+            @if (dynamicFormService.validationResults().length > 0) {
               <div class="validation-results">
                 <h5>Rule Evaluation Results:</h5>
-                @for (result of validationResults(); track result.message) {
+                @for (result of dynamicFormService.validationResults(); track result.message) {
                   <div class="validation-result-item" [class]="'result-' + result.type">
                     {{ result.message }}
                   </div>
@@ -215,7 +215,7 @@
           </div>
 
           <!-- Dynamic Form Preview -->
-          @if (dynamicFormGroup() && dynamicFormFields().length > 0) {
+          @if (dynamicFormService.dynamicFormGroup() && dynamicFormService.dynamicFormFields().length > 0) {
             <div class="dynamic-form-preview">
               <div class="preview-header">
                 <h4>Generated Form Preview</h4>
@@ -223,205 +223,19 @@
                   {{ isTestMode() ? '🔒 Lock Form' : '🔓 Test Form' }}
                 </button>
               </div>
-              <div class="form-preview-container">
-                <form [formGroup]="dynamicFormGroup()!" class="preview-form" [class.test-mode]="isTestMode()">
-                  @for (field of dynamicFormFields(); track field.key) {
-                    @if (!field.hidden) {
-                      <div class="form-group">
-                      <label [for]="field.key">
-                        {{ field.label }}
-                        @if (field.required) { <span class="required">*</span> }
-                      </label>
-                      
-                      @switch (field.type) {
-                        @case ('textarea') {
-                          <textarea 
-                            [id]="field.key"
-                            [formControlName]="field.key" 
-                            [placeholder]="field.placeholder"
-                            [rows]="field.rows || 3"
-                            [class.field-disabled]="field.disabled">
-                          </textarea>
-                        }
-                        @case ('select') {
-                          <select [id]="field.key" [formControlName]="field.key" [class.field-disabled]="field.disabled">
-                            <option value="">Select {{ field.label }}</option>
-                            @if (field.options) {
-                              @for (option of field.options; track $index) {
-                                <option [value]="option.value">{{ option.label }}</option>
-                              }
-                            }
-                          </select>
-                        }
-                        @case ('checkbox') {
-                          <div class="checkbox-wrapper">
-                            <input 
-                              type="checkbox"
-                              [id]="field.key"
-                              [formControlName]="field.key">
-                            <label [for]="field.key" class="checkbox-label">{{ field.placeholder || field.label }}</label>
-                          </div>
-                        }
-                        @case ('array') {
-                          <div class="array-field-wrapper">
-                            <div class="array-header">
-                              <span class="array-info-text">📋 {{ field.description || 'Multiple entries allowed' }}</span>
-                              @if (isTestMode()) {
-                                <button 
-                                  type="button" 
-                                  class="btn-add-array-item"
-                                  (click)="addArrayItem(field.key, field)"
-                                >
-                                  + Add Item
-                                </button>
-                              }
-                            </div>
-                            
-                            @if (!isTestMode()) {
-                              <div class="array-schema-preview">
-                                <strong>Each item contains:</strong>
-                                @for (subField of getArraySubFields(field); track subField.key) {
-                                  <span class="sub-field-tag">{{ subField.label }}</span>
-                                }
-                              </div>
-                            }
-                            
-                            @if (isTestMode()) {
-                              <div class="array-items-container">
-                                @if (getArrayItems(field.key).length === 0) {
-                                  <div class="array-empty-state">
-                                    <span>No items added yet. Click "Add Item" to get started.</span>
-                                  </div>
-                                } @else {
-                                  @for (item of getArrayItems(field.key); track $index; let itemIndex = $index) {
-                                    <div class="array-item">
-                                      <div class="array-item-header">
-                                        <span class="item-number">Item {{ itemIndex + 1 }}</span>
-                                        <button 
-                                          type="button" 
-                                          class="btn-remove-array-item"
-                                          (click)="removeArrayItem(field.key, itemIndex)"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                      <div class="array-item-fields">
-                                        @for (subField of getArraySubFields(field); track subField.key) {
-                                          <div class="array-sub-field">
-                                            <label>
-                                              {{ subField.label }}
-                                              @if (subField.required) { <span class="required">*</span> }
-                                            </label>
-                                            @switch (subField.type) {
-                                              @case ('textarea') {
-                                                <textarea 
-                                                  [value]="item[subField.key] || ''"
-                                                  (input)="updateArrayItem(field.key, itemIndex, subField.key, $any($event.target).value)"
-                                                  [placeholder]="subField.placeholder"
-                                                  rows="2">
-                                                </textarea>
-                                              }
-                                              @case ('select') {
-                                                <select 
-                                                  [value]="item[subField.key] || ''"
-                                                  (change)="updateArrayItem(field.key, itemIndex, subField.key, $any($event.target).value)"
-                                                >
-                                                  <option value="">Select {{ subField.label }}</option>
-                                                  @if (subField.options) {
-                                                    @for (option of subField.options; track $index) {
-                                                      <option [value]="option.value">{{ option.label }}</option>
-                                                    }
-                                                  }
-                                                </select>
-                                              }
-                                              @default {
-                                                <input 
-                                                  [type]="subField.type"
-                                                  [value]="item[subField.key] || ''"
-                                                  (input)="updateArrayItem(field.key, itemIndex, subField.key, $any($event.target).value)"
-                                                  [placeholder]="subField.placeholder"
-                                                  [readonly]="subField.readonly"
-                                                />
-                                              }
-                                            }
-                                          </div>
-                                        }
-                                      </div>
-                                    </div>
-                                  }
-                                }
-                              </div>
-                            } @else {
-                              <div class="array-placeholder">
-                                <span>🔄 Dynamic array interface - enable test mode to interact</span>
-                                <small>This would allow adding/removing multiple {{ field.label.toLowerCase() }}</small>
-                              </div>
-                            }
-                          </div>
-                        }
-                        @case ('file') {
-                          <div class="file-input-wrapper">
-                            <input 
-                              type="file"
-                              [id]="field.key"
-                              [accept]="field.accept || '*'"
-                              [multiple]="field.multiple || false"
-                              (change)="onFileChange(field.key, $event)"
-                              class="file-input"
-                              #fileInput>
-                            <div class="file-input-display" (click)="isTestMode() && fileInput.click()">
-                              @if (getFileNames(field.key).length > 0) {
-                                <div class="file-names-container">
-                                  @if (field.multiple) {
-                                    <div class="multiple-files-summary">
-                                      📎 {{ getFileNames(field.key).length }} file(s) selected
-                                    </div>
-                                    <div class="file-list">
-                                      @for (fileName of getFileNames(field.key); track fileName) {
-                                        <div class="file-item">
-                                          <span class="file-name">{{ fileName }}</span>
-                                          @if (isTestMode()) {
-                                            <button type="button" class="remove-single-file-btn" (click)="$event.stopPropagation(); removeSingleFile(field.key, fileName)">✕</button>
-                                          }
-                                        </div>
-                                      }
-                                    </div>
-                                  } @else {
-                                    <span class="file-name">📎 {{ getFileNames(field.key)[0] }}</span>
-                                  }
-                                  @if (isTestMode()) {
-                                    <button type="button" class="remove-file-btn" (click)="$event.stopPropagation(); removeFile(field.key)">✕</button>
-                                  }
-                                </div>
-                              } @else {
-                                <span class="file-placeholder">
-                                  📁 {{ field.placeholder || (field.multiple ? 'Choose files to upload' : 'Choose file to upload') }}
-                                </span>
-                              }
-                            </div>
-                            @if (field.accept) {
-                              <small class="file-accept-info">Accepted: {{ field.accept }}</small>
-                            }
-                          </div>
-                        }
-                        @default {
-                          <input 
-                            [type]="field.type"
-                            [id]="field.key"
-                            [formControlName]="field.key" 
-                            [placeholder]="field.placeholder"
-                            [class.field-disabled]="field.disabled">
-                        }
-                      }
-                      
-                      @if (field.description) {
-                        <small class="field-description">{{ field.description }}</small>
-                      }
-                      </div>
-                    }
-                  }
-                </form>
-              </div>
+              
+              <app-dynamic-form
+                title=""
+                [showTitle]="false"
+                [isTestMode]="isTestMode()"
+                [allowArrayEditing]="isTestMode()"
+                [allowFileUpload]="isTestMode()"
+                [showValidationResults]="false"
+                [onFileChange]="dynamicFormService.onFileChange"
+                [getFileNames]="dynamicFormService.getFileNames"
+                [removeSingleFile]="dynamicFormService.removeSingleFile"
+              />
+              
               <div class="preview-info">
                 @if (isTestMode()) {
                   <small>🔓 Test mode enabled - Try filling out the form to test validation and functionality!</small>
