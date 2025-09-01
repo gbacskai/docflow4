@@ -23,6 +23,7 @@ export class DynamicFormService {
   // File upload and array data signals
   uploadedFiles = signal<{[key: string]: string[]}>({});
   fileObjects = signal<{[key: string]: File[]}>({});
+  existingFileUrls = signal<{[key: string]: string[]}>({});
   arrayFieldData = signal<{[key: string]: any[]}>({});
 
   generateDynamicFormSchema(definition: string) {
@@ -446,6 +447,7 @@ export class DynamicFormService {
     this.validationResults.set([]);
     this.validationHasErrors.set(false);
     this.uploadedFiles.set({});
+    this.existingFileUrls.set({});
     this.arrayFieldData.set({});
   }
 
@@ -473,12 +475,15 @@ export class DynamicFormService {
     if (formGroup && data) {
       const fields = this.dynamicFormFields();
       const fileData: {[key: string]: string[]} = {};
+      const existingFileUrlData: {[key: string]: string[]} = {};
       
       // Handle file fields separately
       fields.forEach(field => {
         if (field.type === 'file' && data[field.key]) {
           const fileUrls = data[field.key];
           if (Array.isArray(fileUrls)) {
+            // Store existing file URLs for opening later
+            existingFileUrlData[field.key] = fileUrls;
             // Extract file names from URLs
             const fileNames = fileUrls.map((url: string) => {
               const parts = url.split('/');
@@ -489,6 +494,7 @@ export class DynamicFormService {
             formGroup.get(field.key)?.setValue(fileNames.join(', '));
           } else if (typeof fileUrls === 'string') {
             // Single file URL
+            existingFileUrlData[field.key] = [fileUrls];
             const fileName = fileUrls.split('/').pop() || fileUrls;
             fileData[field.key] = [fileName];
             formGroup.get(field.key)?.setValue(fileName);
@@ -503,6 +509,8 @@ export class DynamicFormService {
       
       // Update uploaded files signal to show file names in UI
       this.uploadedFiles.set(fileData);
+      // Store existing file URLs for opening
+      this.existingFileUrls.set(existingFileUrlData);
       
       // Restore disabled states based on field definitions
       fields.forEach(field => {
@@ -690,6 +698,32 @@ export class DynamicFormService {
     
     // Trigger validation rules evaluation since file changes don't trigger form valueChanges
     setTimeout(() => this.evaluateValidationRules(), 300);
+  }
+
+  // Check if a file is an existing file (has URL) vs a new file
+  isExistingFile = (fieldKey: string, fileName: string): boolean => {
+    const existingFiles = this.existingFileUrls()[fieldKey] || [];
+    return existingFiles.some(url => url.endsWith(fileName));
+  }
+
+  // Open/download an existing file
+  openExistingFile = async (fieldKey: string, fileName: string) => {
+    const existingFiles = this.existingFileUrls()[fieldKey] || [];
+    const fileUrl = existingFiles.find(url => url.endsWith(fileName));
+    
+    if (fileUrl) {
+      try {
+        // Import AWS S3 storage for getting file URL
+        const { getUrl } = await import('aws-amplify/storage');
+        const result = await getUrl({ key: fileUrl });
+        
+        // Open the file in a new tab
+        window.open(result.url.toString(), '_blank');
+      } catch (error) {
+        console.error('Failed to open file:', error);
+        alert('Failed to open file. Please try again.');
+      }
+    }
   }
 
   async uploadFilesForDocument(documentId: string): Promise<{[fieldKey: string]: string[]}> {

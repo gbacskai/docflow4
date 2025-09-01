@@ -239,11 +239,15 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                           class="file-input"
                           #fileInput
                         />
-                        <div class="file-input-display" [class.field-disabled]="field.disabled" (click)="field.disabled ? null : fileInput.click()">
+                        <div class="file-input-display" [class.field-disabled]="field.disabled">
                           @if (getFileNames && getFileNames(field.key).length > 0) {
                             <div class="file-names-container">
                               @if (getFileNames(field.key).length === 1) {
-                                <span class="file-name">
+                                <span 
+                                  class="file-name" 
+                                  [class.clickable]="isExistingFile && isExistingFile(field.key, getFileNames(field.key)[0])"
+                                  (click)="$event.stopPropagation(); isExistingFile && isExistingFile(field.key, getFileNames(field.key)[0]) && openExistingFile ? openExistingFile(field.key, getFileNames(field.key)[0]) : null"
+                                >
                                   📄 {{ getFileNames(field.key)[0] }}
                                 </span>
                               } @else {
@@ -253,12 +257,12 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                               }
                             </div>
                           } @else {
-                            <span class="file-placeholder">
+                            <span class="file-placeholder" (click)="field.disabled ? null : fileInput.click()">
                               📎 {{ field.multiple ? 'Choose files...' : 'Choose file...' }}
                             </span>
                           }
                           @if (!field.disabled) {
-                            <span class="browse-text">Browse</span>
+                            <span class="browse-text" (click)="fileInput.click()">Browse</span>
                           }
                         </div>
                         @if (field.accept) {
@@ -272,7 +276,13 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                             <div class="file-item">
                               <div class="file-info">
                                 <span class="file-icon">📄</span>
-                                <span class="file-name">{{ fileName }}</span>
+                                <span 
+                                  class="file-name" 
+                                  [class.clickable]="isExistingFile && isExistingFile(field.key, fileName)"
+                                  (click)="isExistingFile && isExistingFile(field.key, fileName) && openExistingFile ? openExistingFile(field.key, fileName) : null"
+                                >
+                                  {{ fileName }}
+                                </span>
                               </div>
                               @if (allowFileUpload && removeSingleFile) {
                                 <button type="button" class="remove-file-btn" (click)="removeSingleFile(field.key, fileName)">×</button>
@@ -353,6 +363,8 @@ export class DynamicFormComponent {
   @Input() onFileChange?: (fieldKey: string, event: any) => void;
   @Input() getFileNames?: (fieldKey: string) => string[];
   @Input() removeSingleFile?: (fieldKey: string, fileName: string) => void;
+  @Input() isExistingFile?: (fieldKey: string, fileName: string) => boolean;
+  @Input() openExistingFile?: (fieldKey: string, fileName: string) => void;
   
   dynamicFormService = inject(DynamicFormService);
   

@@ -457,6 +457,16 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        
+        &.clickable {
+          cursor: pointer;
+          text-decoration: underline;
+          
+          &:hover {
+            color: #0056b3;
+            text-decoration: underline;
+          }
+        }
       }
       
       .multiple-files-summary {
@@ -524,6 +534,16 @@
       .file-name {
         font-size: 0.85rem;
         color: #495057;
+        
+        &.clickable {
+          cursor: pointer;
+          color: #007bff;
+          text-decoration: underline;
+          
+          &:hover {
+            color: #0056b3;
+          }
+        }
       }
     }
 
