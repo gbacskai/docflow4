@@ -46,16 +46,22 @@ export class Admin implements OnInit {
   restoreStatus = signal<string>('');
   selectedBackupFile: File | null = null;
   
+  // Clear database functionality
+  clearDatabaseLoading = signal(false);
+  clearDatabaseStatus = signal<string>('');
+  
   backupOptions = {
     documentTypes: true,
     workflows: true,
-    projects: true
+    projects: true,
+    documents: true
   };
   
   restoreOptions = {
     documentTypes: false,
     workflows: false,
-    projects: false
+    projects: false,
+    documents: false
   };
   
   // Form data
@@ -466,11 +472,11 @@ export class Admin implements OnInit {
   }
 
   hasBackupSelection(): boolean {
-    return this.backupOptions.documentTypes || this.backupOptions.workflows || this.backupOptions.projects;
+    return this.backupOptions.documentTypes || this.backupOptions.workflows || this.backupOptions.projects || this.backupOptions.documents;
   }
 
   hasRestoreSelection(): boolean {
-    return this.restoreOptions.documentTypes || this.restoreOptions.workflows || this.restoreOptions.projects;
+    return this.restoreOptions.documentTypes || this.restoreOptions.workflows || this.restoreOptions.projects || this.restoreOptions.documents;
   }
 
   async createBackup() {
@@ -528,6 +534,17 @@ export class Admin implements OnInit {
         }
       }
 
+      // Backup Documents
+      if (this.backupOptions.documents) {
+        this.backupStatus.set('Backing up Documents...');
+        const result = await client.models.Document.list();
+        if (result.data) {
+          backupData.tables.Documents = result.data;
+          backupData.statistics.Documents = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
       backupData.statistics.totalRecords = totalRecords;
 
       // Create and download JSON file
@@ -577,7 +594,8 @@ export class Admin implements OnInit {
       this.restoreOptions = {
         documentTypes: false,
         workflows: false,
-        projects: false
+        projects: false,
+        documents: false
       };
     }
   }
@@ -639,13 +657,29 @@ export class Admin implements OnInit {
         
         for (const docType of documentTypes) {
           try {
-            // Remove id and AWS-specific fields before creating
-            const { id, createdAt, updatedAt, ...createData } = docType;
-            await client.models.DocumentType.create({
-              ...createData,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+            // Find existing document type by identifier
+            const existingQuery = await client.models.DocumentType.list({
+              filter: { identifier: { eq: docType.identifier } }
             });
+            
+            const { id, createdAt, updatedAt, ...updateData } = docType;
+            
+            if (existingQuery.data && existingQuery.data.length > 0) {
+              // Update existing document type
+              const existing = existingQuery.data[0];
+              await client.models.DocumentType.update({
+                id: existing.id,
+                ...updateData,
+                updatedAt: new Date().toISOString()
+              });
+            } else {
+              // Create new document type
+              await client.models.DocumentType.create({
+                ...updateData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+            }
             restoredCount++;
           } catch (error: any) {
             errors.push(`Document Type "${docType.name}": ${error.message || 'Unknown error'}`);
@@ -660,13 +694,29 @@ export class Admin implements OnInit {
         
         for (const workflow of workflows) {
           try {
-            // Remove id and AWS-specific fields before creating
-            const { id, createdAt, updatedAt, ...createData } = workflow;
-            await client.models.Workflow.create({
-              ...createData,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+            // Find existing workflow by identifier
+            const existingQuery = await client.models.Workflow.list({
+              filter: { identifier: { eq: workflow.identifier } }
             });
+            
+            const { id, createdAt, updatedAt, ...updateData } = workflow;
+            
+            if (existingQuery.data && existingQuery.data.length > 0) {
+              // Update existing workflow
+              const existing = existingQuery.data[0];
+              await client.models.Workflow.update({
+                id: existing.id,
+                ...updateData,
+                updatedAt: new Date().toISOString()
+              });
+            } else {
+              // Create new workflow
+              await client.models.Workflow.create({
+                ...updateData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+            }
             restoredCount++;
           } catch (error: any) {
             errors.push(`Workflow "${workflow.name}": ${error.message || 'Unknown error'}`);
@@ -681,16 +731,74 @@ export class Admin implements OnInit {
         
         for (const project of projects) {
           try {
-            // Remove id and AWS-specific fields before creating
-            const { id, createdAt, updatedAt, ...createData } = project;
-            await client.models.Project.create({
-              ...createData,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+            // Find existing project by identifier
+            const existingQuery = await client.models.Project.list({
+              filter: { identifier: { eq: project.identifier } }
             });
+            
+            const { id, createdAt, updatedAt, ...updateData } = project;
+            
+            if (existingQuery.data && existingQuery.data.length > 0) {
+              // Update existing project
+              const existing = existingQuery.data[0];
+              await client.models.Project.update({
+                id: existing.id,
+                ...updateData,
+                updatedAt: new Date().toISOString()
+              });
+            } else {
+              // Create new project
+              await client.models.Project.create({
+                ...updateData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+            }
             restoredCount++;
           } catch (error: any) {
             errors.push(`Project "${project.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Restore Documents
+      if (this.restoreOptions.documents && backupData.tables.Documents) {
+        this.restoreStatus.set('Restoring Documents...');
+        const documents = backupData.tables.Documents;
+        
+        for (const document of documents) {
+          try {
+            // Find existing document by projectId and documentType combination
+            const existingQuery = await client.models.Document.list({
+              filter: { 
+                and: [
+                  { projectId: { eq: document.projectId } },
+                  { documentType: { eq: document.documentType } }
+                ]
+              }
+            });
+            
+            const { id, createdAt, updatedAt, ...updateData } = document;
+            
+            if (existingQuery.data && existingQuery.data.length > 0) {
+              // Update existing document
+              const existing = existingQuery.data[0];
+              await client.models.Document.update({
+                id: existing.id,
+                ...updateData,
+                updatedAt: new Date().toISOString()
+              });
+            } else {
+              // Create new document
+              await client.models.Document.create({
+                ...updateData,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+            }
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Document "${document.documentType}" in project "${document.projectId}": ${error.message || 'Unknown error'}`);
           }
         }
       }
@@ -724,5 +832,121 @@ export class Admin implements OnInit {
 
   clearRestoreStatus() {
     this.restoreStatus.set('');
+  }
+
+  async clearDatabase() {
+    const confirmClear = confirm(
+      'This will permanently delete ALL data from the database including:\n' +
+      '• Document Types\n' +
+      '• Workflows\n' +
+      '• Projects\n' +
+      '• Documents\n\n' +
+      'This operation cannot be undone. Are you absolutely sure you want to proceed?'
+    );
+
+    if (!confirmClear) {
+      return;
+    }
+
+    // Double confirmation for safety
+    const doubleConfirm = confirm(
+      'FINAL WARNING: This will delete ALL your data permanently. Type "DELETE ALL" and click OK to continue.'
+    );
+
+    if (!doubleConfirm) {
+      return;
+    }
+
+    this.clearDatabaseLoading.set(true);
+    this.clearDatabaseStatus.set('Starting database clear operation...');
+    this.errorMessage.set('');
+
+    try {
+      const client = generateClient<Schema>();
+      let deletedCount = 0;
+      const errors: string[] = [];
+
+      // Clear Documents first (to avoid foreign key constraints)
+      this.clearDatabaseStatus.set('Clearing Documents...');
+      try {
+        const documents = await client.models.Document.list();
+        if (documents.data) {
+          for (const document of documents.data) {
+            await client.models.Document.delete({ id: document.id });
+            deletedCount++;
+          }
+          this.clearDatabaseStatus.set(`Cleared ${documents.data.length} Documents...`);
+        }
+      } catch (error: any) {
+        errors.push(`Documents: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Projects
+      this.clearDatabaseStatus.set('Clearing Projects...');
+      try {
+        const projects = await client.models.Project.list();
+        if (projects.data) {
+          for (const project of projects.data) {
+            await client.models.Project.delete({ id: project.id });
+            deletedCount++;
+          }
+          this.clearDatabaseStatus.set(`Cleared ${projects.data.length} Projects...`);
+        }
+      } catch (error: any) {
+        errors.push(`Projects: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Workflows
+      this.clearDatabaseStatus.set('Clearing Workflows...');
+      try {
+        const workflows = await client.models.Workflow.list();
+        if (workflows.data) {
+          for (const workflow of workflows.data) {
+            await client.models.Workflow.delete({ id: workflow.id });
+            deletedCount++;
+          }
+          this.clearDatabaseStatus.set(`Cleared ${workflows.data.length} Workflows...`);
+        }
+      } catch (error: any) {
+        errors.push(`Workflows: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Document Types last
+      this.clearDatabaseStatus.set('Clearing Document Types...');
+      try {
+        const documentTypes = await client.models.DocumentType.list();
+        if (documentTypes.data) {
+          for (const docType of documentTypes.data) {
+            await client.models.DocumentType.delete({ id: docType.id });
+            deletedCount++;
+          }
+          this.clearDatabaseStatus.set(`Cleared ${documentTypes.data.length} Document Types...`);
+        }
+      } catch (error: any) {
+        errors.push(`Document Types: ${error.message || 'Unknown error'}`);
+      }
+
+      // Show results
+      if (errors.length > 0) {
+        this.clearDatabaseStatus.set(
+          `⚠️ Database clear completed with warnings. ${deletedCount} records deleted. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}`
+        );
+      } else {
+        this.clearDatabaseStatus.set(`✅ Database cleared successfully! ${deletedCount} records deleted.`);
+        this.successMessage.set('Database cleared successfully - all data has been removed');
+      }
+      
+    } catch (error) {
+      console.error('Clear database failed:', error);
+      this.clearDatabaseStatus.set('❌ Clear database failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to clear database: ' + (error as Error).message);
+    } finally {
+      this.clearDatabaseLoading.set(false);
+    }
+  }
+
+  clearClearDatabaseStatus() {
+    this.clearDatabaseStatus.set('');
   }
 }

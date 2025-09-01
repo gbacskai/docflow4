@@ -406,6 +406,28 @@ export class Workflows implements OnInit, OnDestroy {
     return workflow.rules ? workflow.rules.length : 0;
   }
 
+  getDocumentTypeCount(workflow: Schema['Workflow']['type']): number {
+    if (!workflow.rules) return 0;
+    
+    const docTypeNames = new Set<string>();
+    
+    workflow.rules.forEach((ruleString: any) => {
+      try {
+        const rule = typeof ruleString === 'string' ? JSON.parse(ruleString) : ruleString;
+        const validation = rule.validation || '';
+        const action = rule.action || '';
+        
+        // Extract document types from validation and action
+        this.extractDocTypeNamesFromText(validation, docTypeNames);
+        this.extractDocTypeNamesFromText(action, docTypeNames);
+      } catch (error) {
+        console.error('Error parsing rule for document type count:', ruleString);
+      }
+    });
+    
+    return docTypeNames.size;
+  }
+
   getWorkflowRules(workflow: Schema['Workflow']['type']): WorkflowRule[] {
     if (!workflow.rules) return [];
     return (workflow.rules as any[]).map((ruleString: any) => {

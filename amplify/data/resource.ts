@@ -3,9 +3,11 @@ import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 const schema = a.schema({
   Project: a.model({
       name: a.string().required(),
+      identifier: a.string(),
       description: a.string().required(),
       ownerId: a.string().required(),
       adminUsers: a.string().array(),
+      workflowId: a.string(),
       status: a.enum(['active', 'completed', 'archived']),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
@@ -57,6 +59,7 @@ const schema = a.schema({
     .authorization(allow => [allow.publicApiKey()]),
   Workflow: a.model({
       name: a.string().required(),
+      identifier: a.string(),
       description: a.string(),
       rules: a.json().array(),
       actors: a.string().array(),

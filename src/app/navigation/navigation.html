@@ -11,12 +11,6 @@
       </a>
     </li>
     @if (isAuthenticated()) {
-      <li>
-        <a routerLink="/dashboard" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">📊</i>
-          Dashboard
-        </a>
-      </li>
       @if (isCurrentUserAdmin()) {
         <li>
           <a routerLink="/admin" routerLinkActive="active" (click)="onNavigationClick()">

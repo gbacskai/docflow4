@@ -148,6 +148,15 @@
               <span class="checkmark"></span>
               Projects
             </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.documents"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Documents
+            </label>
           </div>
         </div>
         
@@ -230,6 +239,15 @@
                 <span class="checkmark"></span>
                 Restore Projects
               </label>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.documents"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Documents
+              </label>
             </div>
             
             <button 
@@ -254,6 +272,60 @@
               (click)="clearRestoreStatus()"
               title="Clear status">✕</button>
             <pre>{{ restoreStatus() }}</pre>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Database Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>🗑️ Clear Database</h2>
+      <p>Permanently delete all data from the database (Document Types, Workflows, Projects, Documents)</p>
+    </div>
+    
+    <div class="action-panel">
+      <div class="export-info">
+        <div class="info-item">
+          <strong>⚠️ Warning:</strong>
+          <p style="color: #e74c3c; font-weight: 600; margin: 0.5rem 0;">
+            This operation will permanently delete ALL data from the database. This includes:
+          </p>
+          <ul style="color: #e74c3c;">
+            <li>All Document Types</li>
+            <li>All Workflows</li>
+            <li>All Projects</li>
+            <li>All Documents</li>
+          </ul>
+        </div>
+        <div class="info-item">
+          <strong>Note:</strong> This operation cannot be undone. Make sure to create a backup first if needed.
+        </div>
+      </div>
+      
+      <div class="action-controls">
+        <button 
+          class="btn-secondary" 
+          style="background: #e74c3c; border-color: #e74c3c;"
+          (click)="clearDatabase()" 
+          [disabled]="clearDatabaseLoading()"
+        >
+          @if (clearDatabaseLoading()) {
+            <span class="loading-spinner"></span>
+            Clearing Database...
+          } @else {
+            🗑️ Clear All Data
+          }
+        </button>
+
+        @if (clearDatabaseStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearClearDatabaseStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ clearDatabaseStatus() }}</pre>
           </div>
         }
       </div>

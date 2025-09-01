@@ -22,6 +22,7 @@ export class Projects implements OnInit, OnDestroy {
   projectSearchQuery = signal<string>('');
   showAllProjects = signal<boolean>(false); // false = show only active, true = show all
   users = signal<Array<Schema['User']['type']>>([]);
+  workflows = signal<Array<Schema['Workflow']['type']>>([]);
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   filteredUsers = signal<Array<Schema['User']['type']>>([]);
   loading = signal(true);
@@ -59,11 +60,12 @@ export class Projects implements OnInit, OnDestroy {
     description: ['', [Validators.required, Validators.minLength(10)]],
     ownerId: ['', [Validators.required]],
     adminUsers: [[]],
+    workflowId: ['', [Validators.required]],
     status: ['active', [Validators.required]]
   });
 
   async ngOnInit() {
-    await Promise.all([this.loadProjects(), this.loadUsers(), this.loadDocumentTypes()]);
+    await Promise.all([this.loadProjects(), this.loadUsers(), this.loadDocumentTypes(), this.loadWorkflows()]);
     
     // Wait for user data to be loaded and then reapply filtering
     const checkUserDataAndFilter = () => {
@@ -235,6 +237,17 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
+  async loadWorkflows() {
+    try {
+      const client = generateClient<Schema>();
+      const { data } = await client.models.Workflow.list();
+      this.workflows.set(data.filter(workflow => workflow.isActive));
+    } catch (error) {
+      console.error('Error loading workflows:', error);
+      this.workflows.set([]);
+    }
+  }
+
   getOwnerName(ownerId: string): string {
     const user = this.users().find(u => u.id === ownerId);
     if (!user) return 'Unknown User';
@@ -246,6 +259,12 @@ export class Projects implements OnInit, OnDestroy {
   getOwnerEmail(ownerId: string): string {
     const user = this.users().find(u => u.id === ownerId);
     return user ? user.email : '';
+  }
+
+  getWorkflowName(workflowId: string | null | undefined): string {
+    if (!workflowId) return 'No workflow assigned';
+    const workflow = this.workflows().find(w => w.id === workflowId);
+    return workflow ? workflow.name : 'Unknown workflow';
   }
 
 
@@ -611,6 +630,7 @@ export class Projects implements OnInit, OnDestroy {
       description: project.description,
             ownerId: project.ownerId,
       adminUsers: project.adminUsers || [],
+      workflowId: project.workflowId || '',
       status: project.status
     });
   }
@@ -626,11 +646,14 @@ export class Projects implements OnInit, OnDestroy {
       description: project.description,
             ownerId: project.ownerId,
       adminUsers: project.adminUsers || [],
+      workflowId: project.workflowId || '',
       status: project.status
     });
     
     // Disable form in view mode
-    this.newProjectForm.disable();
+    if (this.currentMode() === 'view') {
+      this.newProjectForm.disable();
+    }
   }
 
   closeForm() {
@@ -656,7 +679,7 @@ export class Projects implements OnInit, OnDestroy {
       if (currentUserId) {
         this.newProjectForm.patchValue({ 
           ownerId: currentUserId,
-          status: 'active' 
+          status: 'active'
         });
       }
     }
@@ -694,6 +717,19 @@ export class Projects implements OnInit, OnDestroy {
   }
 
   async onSubmitProject() {
+    console.log('Form submission attempted');
+    console.log('Form valid:', this.newProjectForm.valid);
+    console.log('Form value:', this.newProjectForm.value);
+    console.log('Form errors:', this.newProjectForm.errors);
+    
+    // Check individual field errors
+    Object.keys(this.newProjectForm.controls).forEach(key => {
+      const control = this.newProjectForm.get(key);
+      if (control?.errors) {
+        console.log(`Field ${key} errors:`, control.errors);
+      }
+    });
+    
     if (this.newProjectForm.valid) {
       if (this.currentMode() === 'create') {
         this.creatingProject.set(true);
@@ -708,26 +744,42 @@ export class Projects implements OnInit, OnDestroy {
 
       const projectData = {
         name: formValue.name,
+        identifier: formValue.name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'),
         description: formValue.description,
                 ownerId: formValue.ownerId,
         adminUsers: adminUsersArray,
+        workflowId: formValue.workflowId,
         status: formValue.status as 'active' | 'completed' | 'archived'
       };
 
-      if (this.currentMode() === 'create') {
-        await this.createProject(projectData);
-      } else if (this.currentMode() === 'edit' && this.selectedProject()) {
-        await this.updateProject(this.selectedProject()!.id, projectData);
+      console.log('Project data to create:', projectData);
+
+      try {
+        if (this.currentMode() === 'create') {
+          await this.createProject(projectData);
+        } else if (this.currentMode() === 'edit' && this.selectedProject()) {
+          await this.updateProject(this.selectedProject()!.id, projectData);
+        }
+      } catch (error) {
+        console.error('Error during project operation:', error);
+        alert('Failed to save project: ' + (error as Error).message);
       }
       
       this.creatingProject.set(false);
       this.updatingProject.set(false);
       this.closeForm();
+    } else {
+      console.log('Form is invalid, cannot submit');
+      // Mark all fields as touched to show validation errors
+      Object.keys(this.newProjectForm.controls).forEach(key => {
+        this.newProjectForm.get(key)?.markAsTouched();
+      });
     }
   }
 
   async createProject(project: Omit<Schema['Project']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
     try {
+      console.log('Creating project with data:', project);
       const client = generateClient<Schema>();
       
       // Create the project
@@ -736,6 +788,8 @@ export class Projects implements OnInit, OnDestroy {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
+      
+      console.log('Project creation result:', createdProject);
 
       if (createdProject) {
         console.log('Project created:', createdProject);

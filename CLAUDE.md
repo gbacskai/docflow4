@@ -73,19 +73,40 @@ The app follows a feature-based architecture with guard-protected routes:
 - `Admin` - Administrative interface (admin users only)
 
 **Feature Components:**
-- `Domains` - Domain management (CRUD operations)
-- `DocumentTypes` - Document type configuration
+- `DocumentTypes` - Document type configuration with domain selection workflow
+- `Workflows` - Workflow management with visual flowchart, rule validation, and actor permissions
 - `Documents` - Document management and file operations
-- `Projects` - Project organization
+- `Projects` - Project organization with workflow assignment
 - `Users` - User management (admin feature)
 - `MyAccount` - User profile management
+- `Chat` - Real-time messaging system with project/document context
 
 **Services:**
 - `AuthService` - Authentication state and operations
-- `AdminService` - Administrative functions and user management
+- `AdminService` - Administrative functions, user management, and database operations (backup/restore/clear)
 - `UserDataService` - User profile data operations
 - `UserManagementService` - User CRUD operations
 - `ChatService` - Real-time chat functionality with DynamoDB tables
+
+### Data Model Architecture
+
+**Core Entities and Relationships:**
+- `Project` - Main container with workflow assignment and ownership (`ownerId`, `workflowId`)
+- `Document` - Linked to projects via `projectId`, typed with `documentType` from DocumentType definitions
+- `DocumentType` - Form definitions with JSON schema in `definition` field, identifier-based references
+- `Workflow` - Rule-based automation with JSON rules array, actor permissions, and visual flowchart
+- `User` - Cognito-linked users with role-based access (`admin`, `client`, `provider`)
+- `ChatRoom`/`ChatMessage` - Real-time messaging with project/document context and participant management
+
+**Workflow Rule Engine:**
+Workflows use a JSON-based rule system stored in the `rules` array field:
+```typescript
+{
+  "id": "rule_1",
+  "validation": "document.BuildingPermit.status in (\"completed\",\"notrequired\")",
+  "action": "process.EnvironmentalAssessment"
+}
+```
 
 ### Key Component Patterns
 
@@ -95,6 +116,20 @@ The DocumentTypes component uses a complex temporary domain selection system:
 2. `toggleDomainInSidebar()` - Modifies temporary selection (adds/removes domains)
 3. `applyDomainSelection()` - Commits temporary selection to form via `patchValue()`
 4. Domain selection state flows: Form → Temp Selection → Form (via user confirmation)
+
+**Workflows Visual Builder:**
+The Workflows component includes a sophisticated visual flowchart system:
+- `generateFlowchart()` - Parses rules and creates node/connection graph with topological sorting
+- Drag-and-drop from DocumentType sidebar to rule validation/action fields
+- Real-time flowchart updates when rules change
+- Actor permission matrix for document type access control
+
+**Admin Database Management:**
+The Admin component provides comprehensive data management capabilities:
+- **Backup/Restore** - JSON-based export/import of DocumentTypes, Workflows, Projects, and Documents
+- **Clear Database** - Complete data deletion with double confirmation (Documents → Projects → Workflows → DocumentTypes)
+- **Sample Data Init** - Creates test DocumentTypes for development/testing
+- **Table Names Display** - Shows physical DynamoDB table names for debugging
 
 ### Routing and Guards
 
@@ -159,6 +194,7 @@ spyOn(component, 'loadDomains').and.callFake(async () => {
 - Always call `tick()` after async operations and form updates
 - Use TestHelpers.configureTestingModule() for consistent service mocking
 - For DocumentTypes tests: call `component.openDomainSidebar()` before domain toggles, then `component.applyDomainSelection()` to update forms
+- For Workflows tests: mock `extractDocumentTypesFromRules()` and `generateFlowchart()` methods due to complex rule parsing logic
 
 ### Code Style and Configuration
 
