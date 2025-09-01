@@ -20,6 +20,8 @@ const envName = process.env['AMPLIFY_BRANCH'] ||
                 'dev';
 console.log(`🎯 Using environment name: ${envName}`);
 
+// Sample data initialization will be handled via direct GraphQL mutations
+
 // Export GraphQL table names for verification
 backend.addOutput({
   custom: {

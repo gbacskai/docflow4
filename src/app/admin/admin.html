@@ -6,278 +6,58 @@
     </div>
   </header>
 
-  <!-- Serverless Database Export Section -->
+
+  <!-- Sample Data Initialization Section -->
   <div class="admin-section">
     <div class="section-header">
-      <h2>☁️ Serverless Database Export</h2>
-      <p>Trigger serverless DynamoDB backup to S3 bucket</p>
+      <h2>🌟 Initialize Sample Data</h2>
+      <p>Create sample document types for testing and development</p>
     </div>
     
     <div class="action-panel">
       <div class="export-info">
         <div class="info-item">
-          <strong>Export Options:</strong>
+          <strong>Sample Document Types:</strong>
           <ul>
-            <li><strong>User Data:</strong> Export only your data</li>
-            <li><strong>Full Database:</strong> Export entire database (Admin only)</li>
-            <li><strong>Project Data:</strong> Export specific project data</li>
+            <li>Building Permit Application</li>
+            <li>Environmental Impact Assessment</li>
+            <li>Business License Application</li>
+            <li>Health Department Permit</li>
           </ul>
         </div>
         <div class="info-item">
-          <strong>Storage:</strong> Exports saved to S3 bucket with versioning
-        </div>
-      </div>
-      
-      <div class="action-controls">
-        <div class="export-form">
-          <div class="form-group">
-            <label for="exportType">Export Type:</label>
-            <select id="exportType" [(ngModel)]="exportForm.exportType" name="exportType">
-              <option value="user">My Data Only</option>
-              <option value="full">Full Database (Admin)</option>
-              <option value="project">Specific Project</option>
-            </select>
-          </div>
-
-          @if (exportForm.exportType === 'project') {
-            <div class="form-group">
-              <label for="projectId">Project ID:</label>
-              <input 
-                type="text" 
-                id="projectId"
-                [(ngModel)]="exportForm.projectId" 
-                name="projectId"
-                placeholder="Enter project ID">
-            </div>
-          }
-
-          <button 
-            class="btn-primary large" 
-            (click)="triggerServerlessExport()" 
-            [disabled]="exportLoading()"
-          >
-            @if (exportLoading()) {
-              <span class="loading-spinner"></span>
-              Creating Export...
-            } @else {
-              ☁️ Create Serverless Export
-            }
-          </button>
-        </div>
-        
-        @if (exportStatus()) {
-          <div class="status-message" [class.success]="exportStatus().includes('✅')" [class.error]="exportStatus().includes('❌')">
-            {{ exportStatus() }}
-          </div>
-        }
-      </div>
-    </div>
-  </div>
-
-  <!-- Database Export Section -->
-  <div class="admin-section">
-    <div class="section-header">
-      <h2>📤 Local Database Export</h2>
-      <p>Export database tables to a local JSON file (mock data)</p>
-    </div>
-    
-    <div class="action-panel">
-      <div class="export-info">
-        <div class="info-item">
-          <strong>What gets exported:</strong>
-          <ul>
-            <li>All Projects data</li>
-            <li>All Domains data</li>
-            <li>All Document Types data</li>
-            <li>All Users data</li>
-            <li>All Documents metadata (file URLs excluded)</li>
-          </ul>
-        </div>
-        <div class="info-item">
-          <strong>Export format:</strong> JSON file with timestamp
+          <strong>Note:</strong> Existing records will not be duplicated
         </div>
       </div>
       
       <div class="action-controls">
         <button 
-          class="btn-secondary large" 
-          (click)="exportDatabase()" 
-          [disabled]="exportLoading()"
+          class="btn-primary large" 
+          (click)="initializeSampleData()" 
+          [disabled]="initSampleDataLoading()"
         >
-          @if (exportLoading()) {
+          @if (initSampleDataLoading()) {
             <span class="loading-spinner"></span>
-            Exporting...
+            Initializing...
           } @else {
-            📤 Export Local Database
+            🌟 Initialize Sample Data
           }
         </button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Exports List Section -->
-  <div class="admin-section">
-    <div class="section-header">
-      <div class="header-with-actions">
-        <div>
-          <h2>📋 Database Exports</h2>
-          <p>View and manage all database exports</p>
-        </div>
-        <button 
-          class="btn-default"
-          (click)="refreshExports()"
-          [disabled]="isLoading()">
-          🔄 Refresh
-        </button>
-      </div>
-    </div>
-    
-    <!-- Loading State -->
-    @if (isLoading()) {
-      <div class="loading-state">
-        <span class="loading-spinner"></span>
-        <p>{{ loadingMessage() }}</p>
-      </div>
-    }
-
-    <!-- Error Message -->
-    @if (errorMessage()) {
-      <div class="error-banner">
-        <span class="icon">⚠️</span>
-        {{ errorMessage() }}
-        <button class="close-btn" (click)="errorMessage.set('')">×</button>
-      </div>
-    }
-
-    <!-- Success Message -->
-    @if (successMessage()) {
-      <div class="success-banner">
-        <span class="icon">✅</span>
-        {{ successMessage() }}
-        <button class="close-btn" (click)="successMessage.set('')">×</button>
-      </div>
-    }
-    
-    @if (exports().length === 0 && !isLoading()) {
-      <div class="empty-state">
-        <p>No database exports found.</p>
-        <p>Create your first serverless export to get started.</p>
-      </div>
-    } @else {
-      <div class="exports-list">
-        @for (export of exports(); track export.id) {
-          <div class="export-card">
-            <div class="export-info">
-              <div class="export-header">
-                <h3>{{ export.fileName }}</h3>
-                <div class="export-badges">
-                  <span class="badge" [class]="'badge-' + export.exportType">
-                    {{ export.exportType | titlecase }}
-                  </span>
-                  @if (export.status) {
-                    <span class="badge" [class]="'badge-status-' + export.status">
-                      {{ export.status | titlecase }}
-                    </span>
-                  }
-                </div>
-              </div>
-              
-              <div class="export-details">
-                <div class="detail">
-                  <strong>Size:</strong> {{ formatFileSize(export.size) }}
-                </div>
-                <div class="detail">
-                  <strong>Created:</strong> {{ formatDate(export.lastModified) }}
-                </div>
-                @if (export.recordCount !== undefined) {
-                  <div class="detail">
-                    <strong>Records:</strong> {{ export.recordCount | number }}
-                  </div>
-                }
-                <div class="detail">
-                  <strong>User:</strong> {{ export.userId }}
-                </div>
-              </div>
-
-              @if (export.error) {
-                <div class="export-error">
-                  <strong>Error:</strong> {{ export.error }}
-                </div>
-              }
-            </div>
-
-            <div class="export-actions">
-              <button 
-                class="action-btn primary"
-                (click)="downloadExport(export)"
-                [disabled]="export.status === 'pending' || export.status === 'failed'"
-                title="Download Export">
-                ⬇️ Download
-              </button>
-              <button 
-                class="action-btn danger"
-                (click)="deleteExport(export)"
-                [disabled]="isLoading()"
-                title="Delete Export">
-                🗑️ Delete
-              </button>
-            </div>
-          </div>
-        }
-      </div>
-    }
-  </div>
-
-  <!-- Database Import Section -->
-  <div class="admin-section">
-    <div class="section-header">
-      <h2>📥 Database Import</h2>
-      <p>Import database from a previously exported JSON file</p>
-    </div>
-    
-    <div class="action-panel">
-      <div class="import-info">
-        <div class="info-item">
-          <strong>⚠️ Important warnings:</strong>
-          <ul>
-            <li>This will <strong>add</strong> records to existing data</li>
-            <li>Duplicate records may cause import errors</li>
-            <li>This operation cannot be undone</li>
-            <li>Always backup your data before importing</li>
-          </ul>
-        </div>
-        <div class="info-item">
-          <strong>Supported format:</strong> JSON files exported from this system
-        </div>
-      </div>
-      
-      <div class="action-controls">
-        <div class="file-input-wrapper">
-          <input 
-            type="file" 
-            accept=".json" 
-            (change)="onFileSelected($event)"
-            [disabled]="importLoading()"
-            id="import-file"
-          />
-          <label for="import-file" class="btn-secondary large">
-            @if (importLoading()) {
-              <span class="loading-spinner"></span>
-              Importing...
-            } @else {
-              📥 Select Import File
-            }
-          </label>
-        </div>
-        
-        @if (importStatus()) {
-          <div class="status-message" [class.success]="importStatus().includes('✅')" [class.error]="importStatus().includes('❌')" [class.warning]="importStatus().includes('⚠️')">
-            {{ importStatus() }}
+        @if (initSampleDataStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearInitSampleDataStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ initSampleDataStatus() }}</pre>
           </div>
         }
       </div>
     </div>
   </div>
+
+
 
   <!-- System Information -->
   <div class="admin-section">

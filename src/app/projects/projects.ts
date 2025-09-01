@@ -22,12 +22,10 @@ export class Projects implements OnInit, OnDestroy {
   projectSearchQuery = signal<string>('');
   showAllProjects = signal<boolean>(false); // false = show only active, true = show all
   users = signal<Array<Schema['User']['type']>>([]);
-  workflows = signal<Array<Schema['Workflow']['type']>>([]);
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   filteredUsers = signal<Array<Schema['User']['type']>>([]);
   loading = signal(true);
   loadingUsers = signal(false);
-  loadingWorkflows = signal(false);
   searchingUsers = signal(false);
   showNewProjectForm = signal(false);
   creatingProject = signal(false);
@@ -59,14 +57,13 @@ export class Projects implements OnInit, OnDestroy {
   newProjectForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
     description: ['', [Validators.required, Validators.minLength(10)]],
-    defaultWorkflow: ['', [Validators.required]],
     ownerId: ['', [Validators.required]],
     adminUsers: [[]],
     status: ['active', [Validators.required]]
   });
 
   async ngOnInit() {
-    await Promise.all([this.loadProjects(), this.loadUsers(), this.loadWorkflows(), this.loadDocumentTypes()]);
+    await Promise.all([this.loadProjects(), this.loadUsers(), this.loadDocumentTypes()]);
     
     // Wait for user data to be loaded and then reapply filtering
     const checkUserDataAndFilter = () => {
@@ -226,20 +223,6 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async loadWorkflows() {
-    try {
-      this.loadingWorkflows.set(true);
-      const client = generateClient<Schema>();
-      const { data } = await client.models.Workflow.list();
-      // Only show active workflows for selection
-      this.workflows.set(data.filter(workflow => workflow.status === 'active'));
-    } catch (error) {
-      console.error('Error loading workflows:', error);
-      this.workflows.set([]);
-    } finally {
-      this.loadingWorkflows.set(false);
-    }
-  }
 
   async loadDocumentTypes() {
     try {
@@ -265,10 +248,6 @@ export class Projects implements OnInit, OnDestroy {
     return user ? user.email : '';
   }
 
-  getWorkflowName(workflowId: string): string {
-    const workflow = this.workflows().find(d => d.id === workflowId);
-    return workflow ? workflow.name : 'Unknown Workflow';
-  }
 
   getAdminUserNames(adminUserIds: (string | null)[] | null | undefined): string {
     if (!adminUserIds || adminUserIds.length === 0) return 'No admin users assigned';
@@ -286,22 +265,15 @@ export class Projects implements OnInit, OnDestroy {
     return names.join(', ');
   }
 
-  // Debug method to check document types and their workflow associations
+  // Debug method to check document types
   debugDocumentTypes() {
-    console.log('=== DEBUG: Document Types and Workflow Associations ===');
+    console.log('=== DEBUG: Document Types ===');
     console.log('Total document types:', this.documentTypes().length);
-    console.log('Total workflows:', this.workflows().length);
     
     this.documentTypes().forEach(docType => {
       console.log(`Document Type: ${docType.name}`);
       console.log(`  - ID: ${docType.id}`);
       console.log(`  - Active: `, docType.isActive);
-    });
-    
-    this.workflows().forEach(workflow => {
-      console.log(`Workflow: ${workflow.name} (${workflow.id})`);
-      const associatedTypes: any[] = []; // No longer filtering by workflows
-      console.log(`  - Associated document types: `, associatedTypes.map(dt => dt.name));
     });
   }
 
@@ -637,8 +609,7 @@ export class Projects implements OnInit, OnDestroy {
     this.newProjectForm.patchValue({
       name: project.name,
       description: project.description,
-      defaultWorkflow: project.defaultWorkflow,
-      ownerId: project.ownerId,
+            ownerId: project.ownerId,
       adminUsers: project.adminUsers || [],
       status: project.status
     });
@@ -653,8 +624,7 @@ export class Projects implements OnInit, OnDestroy {
     this.newProjectForm.patchValue({
       name: project.name,
       description: project.description,
-      defaultWorkflow: project.defaultWorkflow,
-      ownerId: project.ownerId,
+            ownerId: project.ownerId,
       adminUsers: project.adminUsers || [],
       status: project.status
     });
@@ -739,8 +709,7 @@ export class Projects implements OnInit, OnDestroy {
       const projectData = {
         name: formValue.name,
         description: formValue.description,
-        defaultWorkflow: formValue.defaultWorkflow,
-        ownerId: formValue.ownerId,
+                ownerId: formValue.ownerId,
         adminUsers: adminUsersArray,
         status: formValue.status as 'active' | 'completed' | 'archived'
       };
@@ -770,10 +739,9 @@ export class Projects implements OnInit, OnDestroy {
 
       if (createdProject) {
         console.log('Project created:', createdProject);
-        console.log('Selected workflow ID:', project.defaultWorkflow);
         console.log('Available document types:', this.documentTypes());
         
-        // Get all active document types (no longer filtering by workflow)
+        // Get all active document types
         const associatedDocumentTypes = this.documentTypes().filter(docType => {
           console.log(`Checking docType: ${docType.name}`);
           return docType.isActive;
@@ -800,7 +768,7 @@ export class Projects implements OnInit, OnDestroy {
           
           console.log(`Successfully created ${associatedDocumentTypes.length} documents for project: ${createdProject.name}`);
         } else {
-          console.log('No document types associated with workflow:', project.defaultWorkflow);
+          console.log('No document types found.');
         }
       }
 

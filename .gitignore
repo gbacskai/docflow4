@@ -76,3 +76,4 @@ amplify_outputs.json
 .amplify
 .claude
 .opencode
+*.png

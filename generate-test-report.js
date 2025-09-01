@@ -160,16 +160,12 @@ function generateNodeTestSummary() {
       executedTests: [
         'test-auth-redirect.js',
         'tests/test-auth-implementation.js',
-        'tests/test-domain-lifecycle.js', 
         'tests/test-default-status-and-counts.js',
         'tests/test-confirmation-form.js',
         'tests/test-search-focus.js',
-        'tests/test-user-type-visibility.js',
-        'tests/test-domain-change.js',
-        'tests/test-domain-selection.js',
-        'tests/test-optional-domains.js'
+        'tests/test-user-type-visibility.js'
       ],
-      totalTestSuites: 10,
+      totalTestSuites: 6,
       status: 'EXECUTED_VIA_NODE_JS',
       notes: [
         'Tests executed successfully via Node.js runtime',

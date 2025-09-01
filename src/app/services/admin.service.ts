@@ -77,6 +77,88 @@ export class AdminService {
   }
 
   /**
+   * Initialize sample data using direct GraphQL mutation
+   */
+  async initializeSampleData(): Promise<{ success: boolean; results?: any; message?: string; error?: string }> {
+    try {
+      const client = generateClient<Schema>();
+      
+      // Create sample document types directly
+      const documentTypes = [
+        {
+          name: 'Building Permit Application',
+          identifier: 'BuildingPermit',
+          definition: 'Application for building permits including architectural plans, engineering reports, and zoning compliance documentation',
+          category: 'Construction',
+          fields: ['property_address', 'project_description', 'architect_details', 'contractor_license', 'estimated_cost'],
+          isActive: true,
+          usageCount: 0,
+        },
+        {
+          name: 'Environmental Impact Assessment',
+          identifier: 'environmental_assessment',
+          definition: 'Comprehensive environmental impact evaluation for development projects',
+          category: 'Environment',
+          fields: ['project_location', 'environmental_factors', 'mitigation_measures', 'compliance_certificates'],
+          isActive: true,
+          usageCount: 0,
+        },
+        {
+          name: 'Business License Application',
+          identifier: 'business_license',
+          definition: 'Application for new business license including registration documents and compliance certificates',
+          category: 'Business',
+          fields: ['business_name', 'business_type', 'owner_details', 'location_address', 'tax_id'],
+          isActive: true,
+          usageCount: 0,
+        },
+        {
+          name: 'Health Department Permit',
+          identifier: 'health_permit',
+          definition: 'Health department permits for food service establishments and healthcare facilities',
+          category: 'Health',
+          fields: ['facility_type', 'health_inspection', 'staff_certifications', 'equipment_list'],
+          isActive: true,
+          usageCount: 0,
+        }
+      ];
+
+      const results = {
+        documentTypes: { created: 0, skipped: 0, errors: [] as string[] }
+      };
+
+      // Create document types
+      for (const docType of documentTypes) {
+        try {
+          await client.models.DocumentType.create({
+            ...docType,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          results.documentTypes.created++;
+        } catch (error: any) {
+          results.documentTypes.errors.push(`${docType.name}: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+
+      return {
+        success: true,
+        results,
+        message: 'Sample data initialization completed'
+      };
+
+    } catch (error: any) {
+      console.error('Sample data initialization error:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error occurred',
+        message: 'Failed to initialize sample data'
+      };
+    }
+  }
+
+  /**
    * Get system statistics for admin dashboard
    */
   async getSystemStats(): Promise<{ success: boolean; stats?: any; error?: string }> {
@@ -90,9 +172,8 @@ export class AdminService {
       const client = generateClient<Schema>();
       
       // Get counts of various entities
-      const [users, workflows, documentTypes, projects] = await Promise.all([
+      const [users, documentTypes, projects] = await Promise.all([
         client.models.User.list(),
-        client.models.Workflow.list(),
         client.models.DocumentType.list(),
         client.models.Project.list()
       ]);
@@ -100,8 +181,6 @@ export class AdminService {
       const stats = {
         userCount: users.data.length,
         activeUsers: users.data.filter(u => u.status === 'active').length,
-        workflowCount: workflows.data.length,
-        activeWorkflows: workflows.data.filter(d => d.status === 'active').length,
         documentTypeCount: documentTypes.data.length,
         activeDocumentTypes: documentTypes.data.filter(dt => dt.isActive).length,
         projectCount: projects.data.length,

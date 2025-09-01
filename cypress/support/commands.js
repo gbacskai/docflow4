@@ -60,18 +60,18 @@ Cypress.Commands.add('waitForUrl', (expectedUrl, timeout = 10000) => {
   cy.url({ timeout }).should('include', expectedUrl);
 });
 
-// Domain Management Commands
-Cypress.Commands.add('selectDomain', (domainName) => {
-  cy.get('[data-cy="domain-selector"], .domain-select, select[name="domain"]')
+// Workflow Management Commands
+Cypress.Commands.add('selectWorkflow', (workflowName) => {
+  cy.get('[data-cy="workflow-selector"], .workflow-select, select[name="workflow"]')
     .should('be.visible')
-    .select(domainName);
+    .select(workflowName);
 });
 
-Cypress.Commands.add('createDomain', (domainData) => {
-  cy.get('[data-cy="create-domain"], .create-domain-btn, .btn-create')
+Cypress.Commands.add('createWorkflow', (workflowData) => {
+  cy.get('[data-cy="create-workflow"], .create-workflow-btn, .btn-create')
     .should('be.visible')
     .click();
-  cy.fillForm(domainData);
+  cy.fillForm(workflowData);
   cy.get('[data-cy="submit"], button[type="submit"], .btn-submit')
     .should('be.visible')
     .click();

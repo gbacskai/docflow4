@@ -28,6 +28,10 @@ export class Admin implements OnInit {
   exportStatus = signal<string>('');
   importStatus = signal<string>('');
   
+  // Sample data initialization
+  initSampleDataLoading = signal(false);
+  initSampleDataStatus = signal<string>('');
+  
   // Dialog states
   showExportDialog = false;
   showImportDialog = false;
@@ -184,13 +188,8 @@ export class Admin implements OnInit {
       // Mock export data
       const mockData = {
         Projects: [
-          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', defaultWorkflow: '1' },
-          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', defaultWorkflow: '2' },
-        ],
-        Workflows: [
-          { id: '1', name: 'Development' },
-          { id: '2', name: 'Marketing' },
-          { id: '3', name: 'Operations' }
+          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15' },
+          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10' },
         ],
         DocumentTypes: [
           { id: '1', name: 'Requirements' },
@@ -214,11 +213,10 @@ export class Admin implements OnInit {
         tables: mockData,
         statistics: {
           Projects: mockData.Projects.length,
-          Workflows: mockData.Workflows.length,
           DocumentTypes: mockData.DocumentTypes.length,
           Users: mockData.Users.length,
           Documents: mockData.Documents.length,
-          totalRecords: mockData.Projects.length + mockData.Workflows.length + mockData.DocumentTypes.length + mockData.Users.length + mockData.Documents.length
+          totalRecords: mockData.Projects.length + mockData.DocumentTypes.length + mockData.Users.length + mockData.Documents.length
         }
       };
       
@@ -291,12 +289,6 @@ export class Admin implements OnInit {
       // Simulate import process
       const tables = importData.tables;
       
-      // Simulate importing each table with delays
-      if (tables.Workflows && Array.isArray(tables.Workflows)) {
-        this.importStatus.set('Importing Workflows...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        importedCount += tables.Workflows.length;
-      }
       
       if (tables.Users && Array.isArray(tables.Users)) {
         this.importStatus.set('Importing Users...');
@@ -370,7 +362,6 @@ export class Admin implements OnInit {
       'Document', 
       'User',
       'DocumentType',
-      'Workflow',
       'ChatRoom',
       'ChatMessage'
     ];
@@ -381,7 +372,6 @@ export class Admin implements OnInit {
       'Document',
       'User', 
       'DocumentType',
-      'Workflow',
       'ChatRoom',
       'ChatMessage'
     ];
@@ -405,5 +395,52 @@ export class Admin implements OnInit {
     tableNamesMap['S3 Bucket'] = `${appName}-${envName}`;
     
     this.tableNames.set(tableNamesMap);
+  }
+
+  async initializeSampleData() {
+    if (!confirm('This will create sample document types. Existing records will not be duplicated. Do you want to proceed?')) {
+      return;
+    }
+
+    this.initSampleDataLoading.set(true);
+    this.initSampleDataStatus.set('Initializing sample data...');
+    this.errorMessage.set('');
+
+    try {
+      const result = await this.adminService.initializeSampleData();
+      
+      if (result.success) {
+        const results = result.results;
+        let statusMessage = '✅ Sample data initialization completed!\n\n';
+        
+        if (results?.documentTypes) {
+          statusMessage += `Document Types: ${results.documentTypes.created} created, ${results.documentTypes.skipped} skipped\n`;
+        }
+
+        if (results?.documentTypes?.errors?.length > 0) {
+          statusMessage += '\nErrors occurred:\n';
+          results.documentTypes.errors?.forEach((error: string) => {
+            statusMessage += `• ${error}\n`;
+          });
+        }
+        
+        this.initSampleDataStatus.set(statusMessage);
+        this.successMessage.set('Sample data initialization completed successfully');
+      } else {
+        const errorMsg = result.message || result.error || 'Unknown error occurred';
+        this.initSampleDataStatus.set(`❌ Initialization failed: ${errorMsg}`);
+        this.errorMessage.set(`Failed to initialize sample data: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('Sample data initialization error:', error);
+      this.initSampleDataStatus.set('❌ An error occurred during sample data initialization');
+      this.errorMessage.set('An unexpected error occurred while initializing sample data');
+    } finally {
+      this.initSampleDataLoading.set(false);
+    }
+  }
+
+  clearInitSampleDataStatus() {
+    this.initSampleDataStatus.set('');
   }
 }

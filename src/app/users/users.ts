@@ -327,7 +327,7 @@ export class Users implements OnInit, OnDestroy {
       
       const filteredData = allDocTypes.filter(docType => {
         const nameMatch = docType.name.toLowerCase().includes(queryLower);
-        const descriptionMatch = docType.description.toLowerCase().includes(queryLower);
+        const descriptionMatch = docType.definition.toLowerCase().includes(queryLower);
         const categoryMatch = docType.category && docType.category.toLowerCase().includes(queryLower);
         
         return nameMatch || descriptionMatch || categoryMatch;
@@ -494,7 +494,7 @@ export class Users implements OnInit, OnDestroy {
 
   getDocumentTypeDescription(docTypeId: string): string {
     const docType = this.documentTypes().find(dt => dt.id === docTypeId);
-    return docType ? docType.description : 'No description available';
+    return docType ? docType.definition : 'No definition available';
   }
 
   getDocumentTypeNames(docTypeIds: (string | null)[] | null | undefined): string {

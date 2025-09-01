@@ -4,7 +4,6 @@ const schema = a.schema({
   Project: a.model({
       name: a.string().required(),
       description: a.string().required(),
-      defaultWorkflow: a.string().required(),
       ownerId: a.string().required(),
       adminUsers: a.string().array(),
       status: a.enum(['active', 'completed', 'archived']),
@@ -45,7 +44,8 @@ const schema = a.schema({
   DocumentType: a.model({
       name: a.string().required(),
       identifier: a.string(),
-      description: a.string().required(),
+      definition: a.string().required(),
+      validationRules: a.string(),
       category: a.string(),
       fields: a.string().array(),
       isActive: a.boolean(),
@@ -57,8 +57,10 @@ const schema = a.schema({
     .authorization(allow => [allow.publicApiKey()]),
   Workflow: a.model({
       name: a.string().required(),
-      description: a.string().required(),
-      status: a.enum(['active', 'archived']),
+      description: a.string(),
+      rules: a.json().array(),
+      actors: a.string().array(),
+      isActive: a.boolean().default(true),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
@@ -146,29 +148,22 @@ const schema = a.schema({
       allow.publicApiKey(),
       allow.authenticated()
     ]),
-  chat: a.conversation({
-    aiModel: a.ai.model('Claude 3.5 Haiku'),
-    systemPrompt: 'You are a helpful assistant',
-  })
-  .authorization((allow) => allow.owner()),
-
-    
-    
-  generateRecipe: a.generation({
-    aiModel: a.ai.model('Claude 3 Haiku'),
-    systemPrompt: 'You are a helpful assistant that generates recipes.',
+  // AI-powered workflow validation
+  validateWorkflow: a.generation({
+    aiModel: a.ai.model('Claude 3 Sonnet'),
+    systemPrompt: 'You are a workflow creator. You create workflows based on user requirements. You only return the workflow in valid json',
   })
   .arguments({
-    description: a.string(),
+    definition: a.string(),
   })
   .returns(
     a.customType({
-      name: a.string(),
-      ingredients: a.string().array(),
-      instructions: a.string(),
+      workflow: a.string(),
     })
   )
-  .authorization((allow) => allow.authenticated()),
+  .authorization((allow) => allow.publicApiKey()),
+    
+  // Custom query to initialize sample data will be added via backend.ts
     
 });
 
