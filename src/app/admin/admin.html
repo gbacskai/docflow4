@@ -107,6 +107,159 @@
     </div>
   </div>
 
+  <!-- Backup/Restore Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>💾 Backup & Restore</h2>
+      <p>Export and import Document Types, Workflows, and Projects</p>
+    </div>
+    
+    <div class="backup-restore-panel">
+      <div class="backup-section">
+        <h3>📤 Create Backup</h3>
+        <p>Export selected data types to a JSON file</p>
+        
+        <div class="backup-options">
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.documentTypes"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Document Types
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.workflows"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Workflows
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.projects"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Projects
+            </label>
+          </div>
+        </div>
+        
+        <button 
+          class="btn-primary" 
+          (click)="createBackup()" 
+          [disabled]="backupLoading() || !hasBackupSelection()"
+        >
+          @if (backupLoading()) {
+            <span class="loading-spinner"></span>
+            Creating Backup...
+          } @else {
+            💾 Create Backup
+          }
+        </button>
+        
+        @if (backupStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearBackupStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ backupStatus() }}</pre>
+          </div>
+        }
+      </div>
+
+      <div class="restore-section">
+        <h3>📥 Restore from Backup</h3>
+        <p>Import data from a previously created backup file</p>
+        
+        <div class="file-upload-area">
+          <input 
+            type="file" 
+            #fileInput
+            accept=".json"
+            (change)="onBackupFileSelected($event)"
+            class="file-input"
+            id="backup-file-input"
+          >
+          <label for="backup-file-input" class="file-upload-label">
+            📁 Choose Backup File
+          </label>
+          
+          @if (selectedBackupFile) {
+            <div class="selected-file">
+              <span class="file-name">{{ selectedBackupFile.name }}</span>
+              <button class="clear-file-btn" (click)="clearSelectedFile()">✕</button>
+            </div>
+          }
+        </div>
+        
+        @if (selectedBackupFile) {
+          <div class="restore-options">
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.documentTypes"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Document Types
+              </label>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.workflows"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Workflows
+              </label>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.projects"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Projects
+              </label>
+            </div>
+            
+            <button 
+              class="btn-secondary" 
+              (click)="restoreFromBackup()" 
+              [disabled]="restoreLoading() || !hasRestoreSelection()"
+            >
+              @if (restoreLoading()) {
+                <span class="loading-spinner"></span>
+                Restoring...
+              } @else {
+                📥 Restore Data
+              }
+            </button>
+          </div>
+        }
+        
+        @if (restoreStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearRestoreStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ restoreStatus() }}</pre>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
   <!-- Clear Messages Button -->
   <div class="admin-section">
     <button class="btn-secondary" (click)="clearMessages()">

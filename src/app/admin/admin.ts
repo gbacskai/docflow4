@@ -1,6 +1,8 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from '../services/auth.service';
 import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.service';
 
@@ -36,6 +38,25 @@ export class Admin implements OnInit {
   showExportDialog = false;
   showImportDialog = false;
   selectedFile: File | null = null;
+  
+  // Backup/Restore functionality
+  backupLoading = signal(false);
+  restoreLoading = signal(false);
+  backupStatus = signal<string>('');
+  restoreStatus = signal<string>('');
+  selectedBackupFile: File | null = null;
+  
+  backupOptions = {
+    documentTypes: true,
+    workflows: true,
+    projects: true
+  };
+  
+  restoreOptions = {
+    documentTypes: false,
+    workflows: false,
+    projects: false
+  };
   
   // Form data
   exportForm: ExportRequest = {
@@ -442,5 +463,266 @@ export class Admin implements OnInit {
 
   clearInitSampleDataStatus() {
     this.initSampleDataStatus.set('');
+  }
+
+  hasBackupSelection(): boolean {
+    return this.backupOptions.documentTypes || this.backupOptions.workflows || this.backupOptions.projects;
+  }
+
+  hasRestoreSelection(): boolean {
+    return this.restoreOptions.documentTypes || this.restoreOptions.workflows || this.restoreOptions.projects;
+  }
+
+  async createBackup() {
+    if (!this.hasBackupSelection()) {
+      alert('Please select at least one data type to backup.');
+      return;
+    }
+
+    this.backupLoading.set(true);
+    this.backupStatus.set('Creating backup...');
+    this.errorMessage.set('');
+
+    try {
+      const client = generateClient<Schema>();
+      const backupData: any = {
+        exportDate: new Date().toISOString(),
+        exportedBy: this.currentUser()?.username || 'Unknown',
+        version: '1.0',
+        tables: {},
+        statistics: {}
+      };
+
+      let totalRecords = 0;
+
+      // Backup Document Types
+      if (this.backupOptions.documentTypes) {
+        this.backupStatus.set('Backing up Document Types...');
+        const result = await client.models.DocumentType.list();
+        if (result.data) {
+          backupData.tables.DocumentTypes = result.data;
+          backupData.statistics.DocumentTypes = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      // Backup Workflows
+      if (this.backupOptions.workflows) {
+        this.backupStatus.set('Backing up Workflows...');
+        const result = await client.models.Workflow.list();
+        if (result.data) {
+          backupData.tables.Workflows = result.data;
+          backupData.statistics.Workflows = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      // Backup Projects
+      if (this.backupOptions.projects) {
+        this.backupStatus.set('Backing up Projects...');
+        const result = await client.models.Project.list();
+        if (result.data) {
+          backupData.tables.Projects = result.data;
+          backupData.statistics.Projects = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      backupData.statistics.totalRecords = totalRecords;
+
+      // Create and download JSON file
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      
+      const selectedTypes = Object.entries(this.backupOptions)
+        .filter(([key, value]) => value)
+        .map(([key]) => key)
+        .join('-');
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `docflow4-backup-${selectedTypes}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      this.backupStatus.set(`✅ Backup completed successfully! ${totalRecords} records exported.`);
+      this.successMessage.set('Backup created and downloaded successfully');
+      
+    } catch (error) {
+      console.error('Backup failed:', error);
+      this.backupStatus.set('❌ Backup failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to create backup: ' + (error as Error).message);
+    } finally {
+      this.backupLoading.set(false);
+    }
+  }
+
+  onBackupFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    
+    if (file) {
+      if (!file.name.endsWith('.json')) {
+        alert('Please select a valid JSON backup file.');
+        return;
+      }
+      
+      this.selectedBackupFile = file;
+      this.restoreStatus.set('');
+      
+      // Reset restore options
+      this.restoreOptions = {
+        documentTypes: false,
+        workflows: false,
+        projects: false
+      };
+    }
+  }
+
+  clearSelectedFile() {
+    this.selectedBackupFile = null;
+    this.restoreStatus.set('');
+    
+    // Clear the file input
+    const input = document.getElementById('backup-file-input') as HTMLInputElement;
+    if (input) input.value = '';
+  }
+
+  async restoreFromBackup() {
+    if (!this.selectedBackupFile) {
+      alert('Please select a backup file first.');
+      return;
+    }
+
+    if (!this.hasRestoreSelection()) {
+      alert('Please select at least one data type to restore.');
+      return;
+    }
+
+    const confirmRestore = confirm(
+      'This will restore the selected data types from the backup file. ' +
+      'Existing records may be overwritten. This operation cannot be undone. ' +
+      'Are you sure you want to proceed?'
+    );
+
+    if (!confirmRestore) {
+      return;
+    }
+
+    this.restoreLoading.set(true);
+    this.restoreStatus.set('Reading backup file...');
+    this.errorMessage.set('');
+
+    try {
+      // Read and parse the backup file
+      const fileContent = await this.readFileAsText(this.selectedBackupFile);
+      const backupData = JSON.parse(fileContent);
+
+      // Validate backup data structure
+      if (!backupData.tables || !backupData.version) {
+        throw new Error('Invalid backup file format');
+      }
+
+      this.restoreStatus.set('Validating backup data...');
+
+      const client = generateClient<Schema>();
+      let restoredCount = 0;
+      const errors: string[] = [];
+
+      // Restore Document Types
+      if (this.restoreOptions.documentTypes && backupData.tables.DocumentTypes) {
+        this.restoreStatus.set('Restoring Document Types...');
+        const documentTypes = backupData.tables.DocumentTypes;
+        
+        for (const docType of documentTypes) {
+          try {
+            // Remove id and AWS-specific fields before creating
+            const { id, createdAt, updatedAt, ...createData } = docType;
+            await client.models.DocumentType.create({
+              ...createData,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Document Type "${docType.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Restore Workflows
+      if (this.restoreOptions.workflows && backupData.tables.Workflows) {
+        this.restoreStatus.set('Restoring Workflows...');
+        const workflows = backupData.tables.Workflows;
+        
+        for (const workflow of workflows) {
+          try {
+            // Remove id and AWS-specific fields before creating
+            const { id, createdAt, updatedAt, ...createData } = workflow;
+            await client.models.Workflow.create({
+              ...createData,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Workflow "${workflow.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Restore Projects
+      if (this.restoreOptions.projects && backupData.tables.Projects) {
+        this.restoreStatus.set('Restoring Projects...');
+        const projects = backupData.tables.Projects;
+        
+        for (const project of projects) {
+          try {
+            // Remove id and AWS-specific fields before creating
+            const { id, createdAt, updatedAt, ...createData } = project;
+            await client.models.Project.create({
+              ...createData,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Project "${project.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Show results
+      if (errors.length > 0) {
+        this.restoreStatus.set(
+          `⚠️ Restore completed with warnings. ${restoredCount} records restored successfully. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}`
+        );
+      } else {
+        this.restoreStatus.set(`✅ Restore completed successfully! ${restoredCount} records restored.`);
+        this.successMessage.set('Data restored successfully from backup');
+      }
+
+      // Clear the selected file
+      this.clearSelectedFile();
+      
+    } catch (error) {
+      console.error('Restore failed:', error);
+      this.restoreStatus.set('❌ Restore failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to restore from backup: ' + (error as Error).message);
+    } finally {
+      this.restoreLoading.set(false);
+    }
+  }
+
+  clearBackupStatus() {
+    this.backupStatus.set('');
+  }
+
+  clearRestoreStatus() {
+    this.restoreStatus.set('');
   }
 }
