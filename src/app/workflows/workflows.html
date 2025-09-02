@@ -93,6 +93,7 @@
                   </span>
                   <span class="rule-count">{{ getRuleCount(selectedWorkflow()!) }} rules</span>
                   <span class="doc-type-count">{{ getDocumentTypeCount(selectedWorkflow()!) }} document types</span>
+                  <span class="project-count">{{ getProjectCount(selectedWorkflow()!) }} projects</span>
                 </div>
               </div>
             </div>
@@ -509,6 +510,7 @@
           <div class="workflow-meta">
             <span class="rule-count">{{ getRuleCount(workflow) }} rules</span>
             <span class="doc-type-count">{{ getDocumentTypeCount(workflow) }} document types</span>
+            <span class="project-count">{{ getProjectCount(workflow) }} projects</span>
             @if (!workflow.isActive) {
               <span class="inactive-badge">Inactive</span>
             }

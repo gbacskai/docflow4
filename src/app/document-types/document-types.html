@@ -326,6 +326,7 @@
             @if ((docType.usageCount || 0) > 0) {
               <span class="usage-count">{{ docType.usageCount }} documents</span>
             }
+            <span class="workflow-count">{{ getWorkflowCount(docType) }} workflows</span>
             @if (!docType.isActive) {
               <span class="inactive-badge">Inactive</span>
             }

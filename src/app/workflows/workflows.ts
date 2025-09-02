@@ -28,6 +28,7 @@ export class Workflows implements OnInit, OnDestroy {
   processing = signal(false);
   
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
+  projects = signal<Array<Schema['Project']['type']>>([]);
   showDocumentTypeSidebar = signal(false);
   documentTypeSearchQuery = signal<string>('');
   filteredDocumentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
@@ -67,8 +68,11 @@ export class Workflows implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
-    await this.loadWorkflows();
-    await this.loadDocumentTypes();
+    await Promise.all([
+      this.loadWorkflows(),
+      this.loadDocumentTypes(),
+      this.loadProjects()
+    ]);
     this.addRule(); // Start with one empty rule
     
     // Subscribe to form changes to regenerate flowchart
@@ -471,6 +475,23 @@ export class Workflows implements OnInit, OnDestroy {
       this.documentTypes.set([]);
       this.filteredDocumentTypes.set([]);
     }
+  }
+
+  async loadProjects() {
+    try {
+      const client = generateClient<Schema>();
+      const { data } = await client.models.Project.list();
+      this.projects.set(data || []);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      this.projects.set([]);
+    }
+  }
+
+  getProjectCount(workflow: Schema['Workflow']['type']): number {
+    if (!workflow.id) return 0;
+    
+    return this.projects().filter(project => project.workflowId === workflow.id).length;
   }
   
   initializePermissionsMatrix() {

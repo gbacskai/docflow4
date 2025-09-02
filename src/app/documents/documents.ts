@@ -17,6 +17,8 @@ import { DynamicFormComponent } from '../shared/dynamic-form.component';
 })
 export class Documents implements OnInit {
   documents = signal<Array<Schema['Document']['type']>>([]);
+  filteredDocuments = signal<Array<Schema['Document']['type']>>([]);
+  documentSearchQuery = signal<string>('');
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   projects = signal<Array<Schema['Project']['type']>>([]);
   workflows = signal<Array<Schema['Workflow']['type']>>([]);
@@ -27,6 +29,8 @@ export class Documents implements OnInit {
   currentMode = signal<'create' | 'edit'>('create');
   selectedDocument = signal<Schema['Document']['type'] | null>(null);
   processing = signal(false);
+  
+  private documentSearchTimeout: any = null;
   
   private fb = inject(FormBuilder);
   private router = inject(Router);
@@ -70,11 +74,51 @@ export class Documents implements OnInit {
       const client = generateClient<Schema>();
       const { data } = await client.models.Document.list();
       this.documents.set(data);
+      this.applyDocumentSearch(); // Initialize filtered documents
     } catch (error) {
       this.documents.set([]);
+      this.filteredDocuments.set([]);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  onDocumentSearchInputChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.documentSearchQuery.set(input.value);
+    
+    // Clear existing timeout
+    if (this.documentSearchTimeout) {
+      clearTimeout(this.documentSearchTimeout);
+    }
+    
+    // Debounce search for better performance
+    this.documentSearchTimeout = setTimeout(() => {
+      this.applyDocumentSearch();
+    }, 300);
+  }
+
+  clearDocumentSearch(): void {
+    this.documentSearchQuery.set('');
+    this.applyDocumentSearch();
+  }
+
+  applyDocumentSearch(): void {
+    const query = this.documentSearchQuery().toLowerCase().trim();
+    
+    if (!query) {
+      this.filteredDocuments.set(this.documents());
+      return;
+    }
+
+    const filtered = this.documents().filter(document => {
+      const projectName = this.getProjectName(document.projectId).toLowerCase();
+      const documentTypeName = this.getDocumentTypeName(document.documentType).toLowerCase();
+      
+      return projectName.includes(query) || documentTypeName.includes(query);
+    });
+
+    this.filteredDocuments.set(filtered);
   }
 
   async loadDocumentTypes() {

@@ -14,6 +14,7 @@ import { Chat } from './chat/chat';
 import { MyAccount } from './my-account/my-account';
 import { Users } from './users/users';
 import { Workflows } from './workflows/workflows';
+import { Reporting } from './reporting/reporting';
 import { authGuard, landingGuard } from './auth-guard';
 import { adminGuard } from './admin-guard';
 
@@ -32,6 +33,7 @@ export const routes: Routes = [
   { path: 'chat', component: Chat, canActivate: [authGuard] },
   { path: 'users', component: Users, canActivate: [authGuard] },
   { path: 'workflows', component: Workflows, canActivate: [authGuard] },
+  { path: 'reporting', component: Reporting, canActivate: [authGuard] },
   { path: 'my-account', component: MyAccount, canActivate: [authGuard] },
   { path: '**', redirectTo: '' }
 ];

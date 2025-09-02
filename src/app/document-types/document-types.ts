@@ -16,6 +16,7 @@ import { DynamicFormComponent } from '../shared/dynamic-form.component';
 })
 export class DocumentTypes implements OnInit, OnDestroy {
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
+  workflows = signal<Array<Schema['Workflow']['type']>>([]);
   filteredDocumentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   docTypeSearchQuery = signal<string>('');
   showAllItems = signal<boolean>(false); // Default to show only active items
@@ -197,7 +198,10 @@ export class DocumentTypes implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
-    await this.loadDocumentTypes();
+    await Promise.all([
+      this.loadDocumentTypes(),
+      this.loadWorkflows()
+    ]);
     
     // Auto-generate identifier from name field
     this.documentTypeForm.get('name')?.valueChanges.subscribe(name => {
@@ -297,6 +301,52 @@ export class DocumentTypes implements OnInit, OnDestroy {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  async loadWorkflows() {
+    try {
+      const client = generateClient<Schema>();
+      const { data } = await client.models.Workflow.list();
+      this.workflows.set(data || []);
+    } catch (error) {
+      console.error('Error loading workflows:', error);
+      this.workflows.set([]);
+    }
+  }
+
+  getWorkflowCount(documentType: Schema['DocumentType']['type']): number {
+    if (!documentType.identifier) return 0;
+    
+    let count = 0;
+    
+    this.workflows().forEach(workflow => {
+      if (!workflow.rules) return;
+      
+      let workflowUsesDocType = false;
+      
+      workflow.rules.forEach((ruleString: any) => {
+        try {
+          const rule = typeof ruleString === 'string' ? JSON.parse(ruleString) : ruleString;
+          const validation = rule.validation || '';
+          const action = rule.action || '';
+          
+          // Check if this document type identifier appears in validation or action
+          const searchText = `${validation} ${action}`.toLowerCase();
+          if (searchText.includes(documentType.identifier!.toLowerCase())) {
+            workflowUsesDocType = true;
+          }
+        } catch (error) {
+          // Skip invalid rule JSON
+        }
+      });
+      
+      // Only count the workflow once, even if it uses the document type in multiple rules
+      if (workflowUsesDocType) {
+        count++;
+      }
+    });
+    
+    return count;
   }
 
 

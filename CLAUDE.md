@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Setup environment**: `node scripts/setup-env.js` - configures environment variables for consistent table naming
 - **Generate amplify outputs**: `npx ampx generate outputs` - creates amplify_outputs.json
 - **Create sandbox environment**: `npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003`
+- **Environment variables**: Set via `AMPLIFY_BRANCH`, `AMPLIFY_ENVIRONMENT_NAME`, and git branch detection
 
 #### Table Naming Convention
 All AWS resources follow the pattern `docflow4-{ResourceType}-{Branch}`:
@@ -92,11 +93,14 @@ The app follows a feature-based architecture with guard-protected routes:
 
 **Core Entities and Relationships:**
 - `Project` - Main container with workflow assignment and ownership (`ownerId`, `workflowId`)
-- `Document` - Linked to projects via `projectId`, typed with `documentType` from DocumentType definitions
+- `Document` - Linked to projects via `projectId`, typed with `documentType`, stores form data in `formData` field
 - `DocumentType` - Form definitions with JSON schema in `definition` field, identifier-based references
 - `Workflow` - Rule-based automation with JSON rules array, actor permissions, and visual flowchart
 - `User` - Cognito-linked users with role-based access (`admin`, `client`, `provider`)
 - `ChatRoom`/`ChatMessage` - Real-time messaging with project/document context and participant management
+
+**Form Data Storage Pattern:**
+Documents store dynamic form data as JSON strings in the `formData` field, structured according to the DocumentType's `definition` schema. This enables flexible document types without schema migrations.
 
 **Workflow Rule Engine:**
 Workflows use a JSON-based rule system stored in the `rules` array field:
