@@ -2,13 +2,15 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
+import { createTestUsersFunction } from './functions/create-test-users/resource';
 // TODO: Re-enable stream handler once CDK integration is resolved
 // import { chatStreamHandler } from './functions/chat-stream-handler/resource';
 
 const backend = defineBackend({
   auth,
   data,
-  storage
+  storage,
+  createTestUsersFunction
   // TODO: Re-enable stream handler
   // chatStreamHandler
 });

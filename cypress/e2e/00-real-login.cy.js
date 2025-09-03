@@ -1,7 +1,7 @@
 describe('Real Login Tests', () => {
   const credentials = {
-    email: 'gbacskai@gmail.com',
-    password: 'xeh5NDY@nmh_jkb.znz'
+    email: 'test_admin@docflow4.com',
+    password: 'TestPass123!'
   };
 
   beforeEach(() => {

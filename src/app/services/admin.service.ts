@@ -57,13 +57,150 @@ export class AdminService {
   }
 
   /**
-   * Import database from uploaded file (placeholder - requires backend lambda functions)
+   * Import database from uploaded file - direct GraphQL implementation
    */
   async importDatabase(file: File): Promise<{ success: boolean; imported?: any; error?: string }> {
-    return {
-      success: false,
-      error: 'Database import functionality requires backend API setup. Please configure lambda functions for import operations.'
-    };
+    try {
+      // Read the file
+      const fileContent = await this.readFileAsText(file);
+      const importData = JSON.parse(fileContent);
+      
+      // Validate import data structure
+      if (!importData.tables || !importData.version) {
+        throw new Error('Invalid import file format');
+      }
+      
+      const client = generateClient<Schema>();
+      const results = {
+        documentTypes: { created: 0, skipped: 0, errors: [] as string[] },
+        workflows: { created: 0, skipped: 0, errors: [] as string[] },
+        projects: { created: 0, skipped: 0, errors: [] as string[] },
+        documents: { created: 0, skipped: 0, errors: [] as string[] }
+      };
+
+      // Import DocumentTypes
+      if (importData.tables.DocumentTypes) {
+        for (const docType of importData.tables.DocumentTypes) {
+          try {
+            await client.models.DocumentType.create({
+              id: docType.id,
+              name: docType.name,
+              identifier: docType.identifier,
+              definition: docType.definition,
+              validationRules: docType.validationRules,
+              category: docType.category,
+              fields: docType.fields || [],
+              isActive: docType.isActive,
+              usageCount: docType.usageCount || 0,
+              templateCount: docType.templateCount,
+              createdAt: docType.createdAt,
+              updatedAt: docType.updatedAt
+            });
+            results.documentTypes.created++;
+          } catch (error: any) {
+            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
+              results.documentTypes.skipped++;
+            } else {
+              results.documentTypes.errors.push(`${docType.name}: ${error.message}`);
+            }
+          }
+        }
+      }
+
+      // Import Workflows
+      if (importData.tables.Workflows) {
+        for (const workflow of importData.tables.Workflows) {
+          try {
+            await client.models.Workflow.create({
+              id: workflow.id,
+              name: workflow.name,
+              description: workflow.description,
+              rules: workflow.rules || [],
+              isActive: workflow.isActive,
+              createdAt: workflow.createdAt,
+              updatedAt: workflow.updatedAt
+            });
+            results.workflows.created++;
+          } catch (error: any) {
+            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
+              results.workflows.skipped++;
+            } else {
+              results.workflows.errors.push(`${workflow.name}: ${error.message}`);
+            }
+          }
+        }
+      }
+
+      // Import Projects
+      if (importData.tables.Projects) {
+        for (const project of importData.tables.Projects) {
+          try {
+            await client.models.Project.create({
+              id: project.id,
+              name: project.name,
+              description: project.description,
+              status: project.status,
+              ownerId: project.ownerId,
+              workflowId: project.workflowId,
+              createdAt: project.createdAt,
+              updatedAt: project.updatedAt
+            });
+            results.projects.created++;
+          } catch (error: any) {
+            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
+              results.projects.skipped++;
+            } else {
+              results.projects.errors.push(`${project.name}: ${error.message}`);
+            }
+          }
+        }
+      }
+
+      // Import Documents
+      if (importData.tables.Documents) {
+        for (const document of importData.tables.Documents) {
+          try {
+            await client.models.Document.create({
+              id: document.id,
+              status: document.status,
+              projectId: document.projectId,
+              documentType: document.documentType,
+              formData: document.formData,
+              createdAt: document.createdAt,
+              updatedAt: document.updatedAt
+            });
+            results.documents.created++;
+          } catch (error: any) {
+            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
+              results.documents.skipped++;
+            } else {
+              results.documents.errors.push(`${document.name}: ${error.message}`);
+            }
+          }
+        }
+      }
+
+      return {
+        success: true,
+        imported: results
+      };
+
+    } catch (error: any) {
+      console.error('Database import error:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error occurred during import'
+      };
+    }
+  }
+
+  private readFileAsText(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(file);
+    });
   }
 
   /**
