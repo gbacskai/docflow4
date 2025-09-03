@@ -250,6 +250,37 @@
               </label>
             </div>
             
+            <div class="conflict-resolution">
+              <h4>Existing Objects Handling:</h4>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input 
+                    type="radio" 
+                    name="conflictResolution"
+                    value="ignore"
+                    [(ngModel)]="restoreOptions.conflictResolution"
+                    class="radio-input"
+                  >
+                  <span class="radio-mark"></span>
+                  Ignore existing objects (skip duplicates)
+                </label>
+                <label class="radio-label">
+                  <input 
+                    type="radio" 
+                    name="conflictResolution"
+                    value="update"
+                    [(ngModel)]="restoreOptions.conflictResolution"
+                    class="radio-input"
+                  >
+                  <span class="radio-mark"></span>
+                  Update existing objects (overwrite with backup data)
+                </label>
+              </div>
+              <div class="help-text">
+                Choose how to handle objects that already exist in the database
+              </div>
+            </div>
+            
             <button 
               class="btn-secondary" 
               (click)="restoreFromBackup()" 

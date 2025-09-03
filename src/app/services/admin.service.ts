@@ -59,7 +59,7 @@ export class AdminService {
   /**
    * Import database from uploaded file - direct GraphQL implementation
    */
-  async importDatabase(file: File): Promise<{ success: boolean; imported?: any; error?: string }> {
+  async importDatabase(file: File, conflictResolution: 'ignore' | 'update' = 'ignore'): Promise<{ success: boolean; imported?: any; error?: string }> {
     try {
       // Read the file
       const fileContent = await this.readFileAsText(file);
@@ -99,7 +99,28 @@ export class AdminService {
             results.documentTypes.created++;
           } catch (error: any) {
             if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              results.documentTypes.skipped++;
+              if (conflictResolution === 'update') {
+                try {
+                  await client.models.DocumentType.update({
+                    id: docType.id,
+                    name: docType.name,
+                    identifier: docType.identifier,
+                    definition: docType.definition,
+                    validationRules: docType.validationRules,
+                    category: docType.category,
+                    fields: docType.fields || [],
+                    isActive: docType.isActive,
+                    usageCount: docType.usageCount || 0,
+                    templateCount: docType.templateCount,
+                    updatedAt: new Date().toISOString()
+                  });
+                  results.documentTypes.created++;
+                } catch (updateError: any) {
+                  results.documentTypes.errors.push(`${docType.name} (update failed): ${updateError.message}`);
+                }
+              } else {
+                results.documentTypes.skipped++;
+              }
             } else {
               results.documentTypes.errors.push(`${docType.name}: ${error.message}`);
             }
@@ -123,7 +144,23 @@ export class AdminService {
             results.workflows.created++;
           } catch (error: any) {
             if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              results.workflows.skipped++;
+              if (conflictResolution === 'update') {
+                try {
+                  await client.models.Workflow.update({
+                    id: workflow.id,
+                    name: workflow.name,
+                    description: workflow.description,
+                    rules: workflow.rules || [],
+                    isActive: workflow.isActive,
+                    updatedAt: new Date().toISOString()
+                  });
+                  results.workflows.created++;
+                } catch (updateError: any) {
+                  results.workflows.errors.push(`${workflow.name} (update failed): ${updateError.message}`);
+                }
+              } else {
+                results.workflows.skipped++;
+              }
             } else {
               results.workflows.errors.push(`${workflow.name}: ${error.message}`);
             }
@@ -148,7 +185,24 @@ export class AdminService {
             results.projects.created++;
           } catch (error: any) {
             if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              results.projects.skipped++;
+              if (conflictResolution === 'update') {
+                try {
+                  await client.models.Project.update({
+                    id: project.id,
+                    name: project.name,
+                    description: project.description,
+                    status: project.status,
+                    ownerId: project.ownerId,
+                    workflowId: project.workflowId,
+                    updatedAt: new Date().toISOString()
+                  });
+                  results.projects.created++;
+                } catch (updateError: any) {
+                  results.projects.errors.push(`${project.name} (update failed): ${updateError.message}`);
+                }
+              } else {
+                results.projects.skipped++;
+              }
             } else {
               results.projects.errors.push(`${project.name}: ${error.message}`);
             }
@@ -172,9 +226,25 @@ export class AdminService {
             results.documents.created++;
           } catch (error: any) {
             if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              results.documents.skipped++;
+              if (conflictResolution === 'update') {
+                try {
+                  await client.models.Document.update({
+                    id: document.id,
+                    status: document.status,
+                    projectId: document.projectId,
+                    documentType: document.documentType,
+                    formData: document.formData,
+                    updatedAt: new Date().toISOString()
+                  });
+                  results.documents.created++;
+                } catch (updateError: any) {
+                  results.documents.errors.push(`${document.name || document.id} (update failed): ${updateError.message}`);
+                }
+              } else {
+                results.documents.skipped++;
+              }
             } else {
-              results.documents.errors.push(`${document.name}: ${error.message}`);
+              results.documents.errors.push(`${document.name || document.id}: ${error.message}`);
             }
           }
         }

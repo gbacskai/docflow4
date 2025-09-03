@@ -61,7 +61,8 @@ export class Admin implements OnInit {
     documentTypes: false,
     workflows: false,
     projects: false,
-    documents: false
+    documents: false,
+    conflictResolution: 'ignore' as 'ignore' | 'update'
   };
   
   // Form data
@@ -595,7 +596,8 @@ export class Admin implements OnInit {
         documentTypes: false,
         workflows: false,
         projects: false,
-        documents: false
+        documents: false,
+        conflictResolution: 'ignore' as 'ignore' | 'update'
       };
     }
   }
@@ -620,10 +622,11 @@ export class Admin implements OnInit {
       return;
     }
 
+    const conflictAction = this.restoreOptions.conflictResolution === 'update' ? 'overwritten' : 'skipped';
     const confirmRestore = confirm(
-      'This will restore the selected data types from the backup file. ' +
-      'Existing records may be overwritten. This operation cannot be undone. ' +
-      'Are you sure you want to proceed?'
+      `This will restore the selected data types from the backup file. ` +
+      `Existing records will be ${conflictAction}. This operation cannot be undone. ` +
+      `Are you sure you want to proceed?`
     );
 
     if (!confirmRestore) {
@@ -665,13 +668,18 @@ export class Admin implements OnInit {
             const { id, createdAt, updatedAt, ...updateData } = docType;
             
             if (existingQuery.data && existingQuery.data.length > 0) {
-              // Update existing document type
-              const existing = existingQuery.data[0];
-              await client.models.DocumentType.update({
-                id: existing.id,
-                ...updateData,
-                updatedAt: new Date().toISOString()
-              });
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing document type
+                const existing = existingQuery.data[0];
+                await client.models.DocumentType.update({
+                  id: existing.id,
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+              } else {
+                // Skip existing document type
+                continue;
+              }
             } else {
               // Create new document type
               await client.models.DocumentType.create({
@@ -702,13 +710,18 @@ export class Admin implements OnInit {
             const { id, createdAt, updatedAt, ...updateData } = workflow;
             
             if (existingQuery.data && existingQuery.data.length > 0) {
-              // Update existing workflow
-              const existing = existingQuery.data[0];
-              await client.models.Workflow.update({
-                id: existing.id,
-                ...updateData,
-                updatedAt: new Date().toISOString()
-              });
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing workflow
+                const existing = existingQuery.data[0];
+                await client.models.Workflow.update({
+                  id: existing.id,
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+              } else {
+                // Skip existing workflow
+                continue;
+              }
             } else {
               // Create new workflow
               await client.models.Workflow.create({
@@ -739,13 +752,18 @@ export class Admin implements OnInit {
             const { id, createdAt, updatedAt, ...updateData } = project;
             
             if (existingQuery.data && existingQuery.data.length > 0) {
-              // Update existing project
-              const existing = existingQuery.data[0];
-              await client.models.Project.update({
-                id: existing.id,
-                ...updateData,
-                updatedAt: new Date().toISOString()
-              });
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing project
+                const existing = existingQuery.data[0];
+                await client.models.Project.update({
+                  id: existing.id,
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+              } else {
+                // Skip existing project
+                continue;
+              }
             } else {
               // Create new project
               await client.models.Project.create({
@@ -781,13 +799,18 @@ export class Admin implements OnInit {
             const { id, createdAt, updatedAt, ...updateData } = document;
             
             if (existingQuery.data && existingQuery.data.length > 0) {
-              // Update existing document
-              const existing = existingQuery.data[0];
-              await client.models.Document.update({
-                id: existing.id,
-                ...updateData,
-                updatedAt: new Date().toISOString()
-              });
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing document
+                const existing = existingQuery.data[0];
+                await client.models.Document.update({
+                  id: existing.id,
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+              } else {
+                // Skip existing document
+                continue;
+              }
             } else {
               // Create new document
               await client.models.Document.create({

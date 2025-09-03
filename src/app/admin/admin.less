@@ -257,6 +257,77 @@
           }
         }
 
+        .conflict-resolution {
+          margin-top: 1.5rem;
+          padding-top: 1.5rem;
+          border-top: 1px solid #ecf0f1;
+
+          h4 {
+            margin: 0 0 1rem 0;
+            color: #2c3e50;
+            font-size: 1rem;
+            font-weight: 600;
+          }
+
+          .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+
+            .radio-label {
+              display: flex;
+              align-items: center;
+              gap: 0.75rem;
+              cursor: pointer;
+              font-size: 0.95rem;
+              color: #2c3e50;
+              transition: color 0.3s ease;
+
+              &:hover {
+                color: #3498db;
+              }
+
+              .radio-input {
+                appearance: none;
+                width: 18px;
+                height: 18px;
+                border: 2px solid #bdc3c7;
+                border-radius: 50%;
+                position: relative;
+                cursor: pointer;
+                transition: all 0.3s ease;
+
+                &:checked {
+                  border-color: #3498db;
+
+                  &::after {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 8px;
+                    height: 8px;
+                    background: #3498db;
+                    border-radius: 50%;
+                  }
+                }
+
+                &:hover {
+                  border-color: #3498db;
+                }
+              }
+            }
+          }
+
+          .help-text {
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            font-style: italic;
+          }
+        }
+
         .file-upload-area {
           margin-bottom: 1.5rem;
 
