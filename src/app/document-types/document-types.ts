@@ -1122,11 +1122,4 @@ export class DocumentTypes implements OnInit, OnDestroy {
     return JSON.stringify({ fields }, null, 2);
   }
 
-
-
-
-
-
-
-
 }

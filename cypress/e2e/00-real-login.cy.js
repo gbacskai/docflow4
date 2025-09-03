@@ -86,14 +86,16 @@ describe('Real Login Tests', () => {
       
       cy.url({ timeout: 15000 }).should('include', '/dashboard');
       
-      // User menu should be visible
-      cy.get('app-user-menu, .user-menu, .user-avatar', { timeout: 10000 })
-        .should('exist');
+      // User menu button should be visible - contains the email address
+      cy.get('.user-menu-button', { timeout: 10000 })
+        .should('be.visible');
       
-      // Should have logout functionality
-      cy.get('app-user-menu').click();
-      cy.get('button:contains("Logout"), .logout-btn')
-        .should('exist');
+      // Click user menu button to open dropdown
+      cy.get('.user-menu-button').click();
+      
+      // Verify logout option is visible in dropdown
+      cy.get('.menu-item.logout, button:contains("Logout")')
+        .should('be.visible');
       
       cy.task('log', '✅ User menu displayed with logout option');
     });
@@ -107,17 +109,24 @@ describe('Real Login Tests', () => {
       
       cy.url({ timeout: 15000 }).should('include', '/dashboard');
       
-      // Logout
-      cy.get('app-user-menu, .user-menu').click();
-      cy.get('button:contains("Logout"), .logout-btn').click();
+      // Logout - click user menu button first, then logout from dropdown
+      cy.get('.user-menu-button', { timeout: 10000 }).click();
+      cy.get('.menu-item.logout, button:contains("Logout")').click();
       
-      // Should redirect to landing page
-      cy.url({ timeout: 10000 }).should('match', /\/(#\/)?$/);
+      // Should redirect to landing page or auth page
+      cy.url({ timeout: 10000 }).should('match', /\/(auth|#\/)?$/);
       
-      // Verify unauthenticated state
-      cy.get('body').should('contain.text', 'DocFlow')
-        .or('contain.text', 'Landing')
-        .or('contain.text', 'Welcome');
+      // Verify unauthenticated state - should see login form or landing content
+      cy.get('body').should(($body) => {
+        const text = $body.text();
+        const hasAuthContent = text.includes('Sign In') || 
+                              text.includes('Login') || 
+                              text.includes('Email') || 
+                              text.includes('Password') ||
+                              text.includes('DocFlow') ||
+                              text.includes('Welcome');
+        expect(hasAuthContent).to.be.true;
+      });
       
       cy.task('log', '✅ Logout successful - redirected to landing page');
     });
@@ -208,13 +217,17 @@ describe('Real Login Tests', () => {
       cy.task('log', '✅ Step 3: Workflows page accessible');
       
       // Step 4: Test user menu
-      cy.get('app-user-menu').click();
-      cy.get('button:contains("Logout")').should('exist');
+      cy.get('.user-menu-button').click();
+      cy.get('.menu-item.logout, button:contains("Logout")').should('be.visible');
       cy.task('log', '✅ Step 4: User menu functional');
       
+      // Close dropdown first
+      cy.get('body').click();
+      
       // Step 5: Logout
-      cy.get('button:contains("Logout")').click();
-      cy.url({ timeout: 10000 }).should('match', /\/(#\/)?$/);
+      cy.get('.user-menu-button').click();
+      cy.get('.menu-item.logout, button:contains("Logout")').click();
+      cy.url({ timeout: 10000 }).should('match', /\/(auth|#\/)?$/);
       cy.task('log', '✅ Step 5: Logout successful');
       
       cy.task('log', '🎉 Complete application workflow verified with real authentication');

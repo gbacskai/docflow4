@@ -49,6 +49,11 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# PAC (Product as Code) temporary files
+.pac/tmp/
+.pac/cache/
+*.pac.lock
+
 # AWS Amplify
 
 #amplify-do-not-edit-begin
@@ -74,6 +79,5 @@ amplifytools.xcconfig
 
 amplify_outputs.json
 .amplify
-.claude
 .opencode
 *.png

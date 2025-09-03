@@ -42,6 +42,7 @@ const schema = a.schema({
   DocumentType: a.model({
       name: a.string().required(),
       identifier: a.string(),
+      description: a.string(),
       definition: a.string().required(),
       validationRules: a.string(),
       category: a.string(),

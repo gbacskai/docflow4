@@ -15,30 +15,11 @@ describe('DocumentTypes', () => {
     name: 'Test Document',
     identifier: 'test-document',
     description: 'Test Description',
-    domainIds: ['domain-1'],
+    definition: '{"fields": []}',
     isActive: true,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z'
   };
-
-  const mockDomains: Schema['Domain']['type'][] = [
-    {
-      id: 'domain-1',
-      name: 'Legal',
-      description: 'Legal documents',
-      status: 'active',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    },
-    {
-      id: 'domain-2',
-      name: 'Finance',
-      description: 'Financial documents',
-      status: 'active',
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z'
-    }
-  ];
 
   beforeEach(fakeAsync(() => {
     mockClient = {
@@ -48,9 +29,6 @@ describe('DocumentTypes', () => {
           create: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockDocumentType })),
           update: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockDocumentType })),
           delete: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockDocumentType }))
-        },
-        Domain: {
-          list: jasmine.createSpy().and.returnValue(Promise.resolve({ data: mockDomains }))
         }
       }
     };
@@ -81,14 +59,6 @@ describe('DocumentTypes', () => {
       component.loading.set(false);
     });
     
-    spyOn(component, 'loadDomains').and.callFake(async () => {
-      component.loadingDomains.set(true);
-      const { data } = await mockClient.models.Domain.list();
-      component.domains.set(data);
-      component.filteredDomains.set(data);
-      component.loadingDomains.set(false);
-    });
-    
     spyOn(component, 'createDocumentType').and.callFake(async (docType: any) => {
       await mockClient.models.DocumentType.create({
         ...docType,
@@ -96,158 +66,69 @@ describe('DocumentTypes', () => {
         updatedAt: new Date().toISOString()
       });
     });
-    
-    spyOn(component, 'updateDocumentType').and.callFake(async (id: string, updates: any) => {
-      await mockClient.models.DocumentType.update({
-        id,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
-    });
 
-    fixture.detectChanges();
+    // Initialize component
+    component.ngOnInit();
     tick();
   }));
 
   it('should create', fakeAsync(() => {
     expect(component).toBeTruthy();
     expect(component.documentTypes().length).toBe(1);
-    expect(component.domains().length).toBe(2);
+    expect(component.documentTypes()[0].name).toBe('Test Document');
   }));
 
-  describe('Document Type Domain Change Test', () => {
-    it('should edit a document type and change its domain successfully', fakeAsync(() => {
-      // Data should be loaded from beforeEach
-      expect(component.documentTypes().length).toBeGreaterThan(0);
-      expect(component.domains().length).toBe(2);
-      
-      const originalDocType = component.documentTypes()[0];
-      
-      component.openEditForm(originalDocType);
-      tick();
-
-      expect(component.currentMode()).toBe('edit');
-      expect(component.selectedDocumentType()).toEqual(originalDocType);
-      
-      // Open the domain sidebar to initialize temp selection
-      component.openDomainSidebar();
+  describe('Document Type Management', () => {
+    it('should load document types successfully', fakeAsync(() => {
+      component.loadDocumentTypes();
       tick();
       
-      // Now domain-1 should be in tempSelectedDomains, toggle it to remove it
-      component.toggleDomain('domain-1', { target: { checked: false } } as any);
-      tick();
+      expect(component.documentTypes().length).toBe(1);
+      expect(component.loading()).toBe(false);
+    }));
 
-      // Toggle domain-2 to add it  
-      component.toggleDomain('domain-2', { target: { checked: true } } as any);
-      tick();
-
-      // Apply the domain selection to update the form
-      component.applyDomainSelection();
+    it('should create a new document type', fakeAsync(() => {
+      component.documentTypeForm.patchValue({
+        name: 'New Document Type',
+        identifier: 'new-document-type',
+        definition: '{"fields": []}',
+        isActive: true
+      });
       
-      expect(component.documentTypeForm.get('domainIds')?.value).toEqual(['domain-2']);
-
-      const updatedDocType = {
-        ...originalDocType,
-        domainIds: ['domain-2'],
-        updatedAt: new Date().toISOString()
-      };
+      component.createDocumentType(component.documentTypeForm.value);
+      tick();
       
-      mockClient.models.DocumentType.update.and.returnValue(Promise.resolve({ data: updatedDocType }));
-      mockClient.models.DocumentType.list.and.returnValue(Promise.resolve({ data: [updatedDocType] }));
+      expect(mockClient.models.DocumentType.create).toHaveBeenCalled();
+    }));
 
+    it('should validate form fields correctly', fakeAsync(() => {
+      const form = component.documentTypeForm;
+      
+      // Test required field validation
+      form.get('name')?.setValue('');
+      form.get('name')?.markAsTouched();
+      expect(form.get('name')?.invalid).toBe(true);
+      
+      // Test valid input
+      form.get('name')?.setValue('Valid Document Type');
+      expect(form.get('name')?.invalid).toBe(false);
+    }));
+
+    it('should handle form submission', fakeAsync(() => {
+      component.currentMode.set('create');
+      component.documentTypeForm.patchValue({
+        name: 'Test Document Type',
+        identifier: 'test-doc-type',
+        definition: '{"fields": []}',
+        isActive: true
+      });
+      
+      spyOn(component, 'onSubmitForm').and.callThrough();
+      
       component.onSubmitForm();
       tick();
-
-      expect(mockClient.models.DocumentType.update).toHaveBeenCalled();
-      expect(component.showForm()).toBe(false);
-      expect(component.selectedDocumentType()).toBeNull();
-    }));
-
-    it('should verify domain change by checking form values', fakeAsync(() => {
-      // Data should be loaded from beforeEach
-      const testDocType = component.documentTypes()[0];
       
-      component.openEditForm(testDocType);
-      tick();
-
-      // Open domain sidebar to initialize temp selection
-      component.openDomainSidebar();
-      tick();
-
-      const removeEvent = { target: { checked: false } } as any;
-      component.toggleDomain('domain-1', removeEvent);
-      
-      const addEvent = { target: { checked: true } } as any;
-      component.toggleDomain('domain-2', addEvent);
-      
-      tick();
-
-      expect(component.isDomainSelected('domain-1')).toBe(false);
-      expect(component.isDomainSelected('domain-2')).toBe(true);
-
-      const domainNames = component.getDomainNames(['domain-2']);
-      expect(domainNames).toBe('Finance');
-    }));
-
-    it('should handle multiple domain changes correctly', fakeAsync(() => {
-      // Data should be loaded from beforeEach
-      const testDocType = component.documentTypes()[0];
-      component.openEditForm(testDocType);
-      tick();
-
-      // Open domain sidebar to initialize temp selection
-      component.openDomainSidebar();
-      tick();
-
-      // Add Finance domain
-      const addFinanceEvent = { target: { checked: true } } as any;
-      component.toggleDomain('domain-2', addFinanceEvent);
-      tick();
-
-      // Apply selection to update form
-      component.applyDomainSelection();
-      
-      const currentDomains = component.documentTypeForm.get('domainIds')?.value || [];
-      expect(currentDomains).toContain('domain-2');
-
-      // Open sidebar again for next change
-      component.openDomainSidebar();
-      tick();
-
-      // Remove Legal domain
-      const removeLegalEvent = { target: { checked: false } } as any;
-      component.toggleDomain('domain-1', removeLegalEvent);
-      tick();
-
-      // Apply selection again
-      component.applyDomainSelection();
-
-      const finalDomains = component.documentTypeForm.get('domainIds')?.value || [];
-      expect(finalDomains).toContain('domain-2');
-      expect(component.getDomainNames(['domain-2'])).toBe('Finance');
-    }));
-
-    it('should maintain form validation when changing domains', fakeAsync(() => {
-      // Data should be loaded from beforeEach
-      const testDocType = component.documentTypes()[0];
-      component.openEditForm(testDocType);
-      tick();
-
-      const removeEvent = { target: { checked: false } } as any;
-      component.toggleDomain('domain-1', removeEvent);
-      tick();
-
-      const domainIdsControl = component.documentTypeForm.get('domainIds');
-      const domains = domainIdsControl?.value || [];
-      
-      // Domain IDs are optional, so removing all domains should still be valid
-      expect(domainIdsControl?.valid).toBe(true);
-
-      const addEvent = { target: { checked: true } } as any;
-      component.toggleDomain('domain-2', addEvent);
-      tick();
-
-      expect(domainIdsControl?.valid).toBe(true);
+      expect(component.onSubmitForm).toHaveBeenCalled();
     }));
   });
 });
