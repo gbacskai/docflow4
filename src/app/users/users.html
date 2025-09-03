@@ -177,7 +177,6 @@
                         @for (docTypeId of userForm.get('interestedDocumentTypes')?.value; track docTypeId) {
                           <div class="selected-document-type-item">
                             <div class="document-type-name">{{ getDocumentTypeName(docTypeId) }}</div>
-                            <div class="document-type-description">{{ getDocumentTypeDescription(docTypeId) }}</div>
                           </div>
                         }
                       </div>
@@ -327,7 +326,6 @@
                     </div>
                     <div class="document-type-details">
                       <h4>{{ docType.name }}</h4>
-                      <p>{{ docType.definition }}</p>
                       @if (docType.category) {
                         <span class="document-type-category">{{ docType.category }}</span>
                       }
