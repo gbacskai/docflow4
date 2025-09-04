@@ -194,20 +194,20 @@ const schema = a.schema({
   )
   .authorization((allow) => allow.publicApiKey()),
 
-  // Email duplication check
-  checkEmailDuplicate: a.query()
-    .arguments({
-      email: a.string().required()
-    })
-    .returns(
-      a.customType({
-        isDuplicate: a.boolean(),
-        message: a.string(),
-        existingUserId: a.string()
-      })
-    )
-    .handler(a.handler.function('checkEmailDuplicateFunction'))
-    .authorization((allow) => allow.publicApiKey()),
+  // Email duplication check - temporarily disabled
+  // checkEmailDuplicate: a.query()
+  //   .arguments({
+  //     email: a.string().required()
+  //   })
+  //   .returns(
+  //     a.customType({
+  //       isDuplicate: a.boolean(),
+  //       message: a.string(),
+  //       existingUserId: a.string()
+  //     })
+  //   )
+  //   .handler(a.handler.function('checkEmailDuplicateFunction'))
+  //   .authorization((allow) => allow.publicApiKey()),
 
   // Delete all Cognito users (admin function) - temporarily disabled
   // deleteAllCognitoUsers: a.query()

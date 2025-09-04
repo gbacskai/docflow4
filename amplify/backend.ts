@@ -5,7 +5,7 @@ import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { createTestUsersFunction } from './functions/create-test-users/resource';
 import { activeRecordProcessorFunction } from './functions/active-record-processor/resource';
-import { checkEmailDuplicateFunction } from './functions/check-email-duplicate/resource';
+// import { checkEmailDuplicateFunction } from './functions/check-email-duplicate/resource';
 // import { deleteAllCognitoUsersFunction } from './functions/delete-all-cognito-users/resource';
 import { configureStreamTriggers } from './functions/active-record-processor/stream-config';
 // TODO: Re-enable stream handler once CDK integration is resolved
@@ -16,17 +16,18 @@ const backend = defineBackend({
   data,
   storage,
   createTestUsersFunction,
-  activeRecordProcessorFunction,
-  checkEmailDuplicateFunction
+  activeRecordProcessorFunction
+  // checkEmailDuplicateFunction
   // TODO: Re-enable stream handler
   // chatStreamHandler
 });
 
 // Get environment name from various sources
-const envName = process.env['AMPLIFY_BRANCH'] || 
+const envName = process.env['AMPLIFY_ENVIRONMENT_NAME'] ||
+                process.env['AMPLIFY_BRANCH'] || 
                 process.env['AWS_BRANCH'] || 
                 backend.stack.node.tryGetContext('amplify-environment-name') ||
-                'dev';
+                'dev001';
 console.log(`🎯 Using environment name: ${envName}`);
 
 // Configure DynamoDB streams and permissions for active record processor
@@ -37,16 +38,16 @@ configureStreamTriggers(
 );
 
 // Configure permissions and environment for checkEmailDuplicateFunction
-backend.checkEmailDuplicateFunction.resources.lambda.addToRolePolicy(
-  new PolicyStatement({
-    effect: Effect.ALLOW,
-    actions: ['dynamodb:Scan', 'dynamodb:Query'],
-    resources: [backend.data.resources.tables['User'].tableArn]
-  })
-);
+// backend.checkEmailDuplicateFunction.resources.lambda.addToRolePolicy(
+//   new PolicyStatement({
+//     effect: Effect.ALLOW,
+//     actions: ['dynamodb:Scan', 'dynamodb:Query'],
+//     resources: [backend.data.resources.tables['User'].tableArn]
+//   })
+// );
 
 // Add Users table name as environment variable
-backend.checkEmailDuplicateFunction.addEnvironment('AMPLIFY_DATA_USER_TABLE_NAME', backend.data.resources.tables['User'].tableName);
+// backend.checkEmailDuplicateFunction.addEnvironment('AMPLIFY_DATA_USER_TABLE_NAME', backend.data.resources.tables['User'].tableName);
 
 // Configure permissions and environment for deleteAllCognitoUsersFunction
 // backend.deleteAllCognitoUsersFunction.resources.lambda.addToRolePolicy(
