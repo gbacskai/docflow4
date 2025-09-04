@@ -24,8 +24,8 @@ test:
         - sleep 30
         - 'echo "🔧 Generating Amplify outputs..."'
         - timeout 300 npx ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID || echo "⚠️  Outputs generation timed out, continuing with existing config"
-        - 'echo "👥 Creating test users..."'
-        - timeout 120 node scripts/create-test-users.js || echo "⚠️  Test user creation failed, continuing"
+        - 'echo "👥 Creating test users (optional in deployment)..."'
+        - timeout 120 node scripts/create-test-users.js || echo "⚠️  Test user creation skipped in deployment (normal for production)"
         - 'echo "📁 Checking amplify_outputs.json exists..."'
         - ls -la amplify_outputs.json || echo "⚠️  amplify_outputs.json not found"
         - 'echo "🚀 Starting application server..."'

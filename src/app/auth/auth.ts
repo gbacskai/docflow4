@@ -137,14 +137,20 @@ export class Auth {
     this.clearMessages();
 
     const { email, password } = this.loginForm.value;
+    console.log('Attempting login with:', { email, password: password ? '***' : 'empty' });
+    
     const result = await this.authService.signIn({ email, password });
+    console.log('Login result:', result);
 
     if (result.success) {
       this.successMessage.set('Login successful!');
       this.loginForm.reset();
       this.router.navigate(['/dashboard']);
     } else {
-      this.errorMessage.set(result.error || 'Login failed');
+      const errorMsg = result.error || 'Login failed';
+      console.log('Setting error message:', errorMsg);
+      this.errorMessage.set(errorMsg);
+      console.log('Error message signal value:', this.errorMessage());
     }
 
     this.processing.set(false);

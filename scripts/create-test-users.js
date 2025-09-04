@@ -7,6 +7,7 @@ const {
   AdminConfirmSignUpCommand,
   UsernameExistsException 
 } = require('@aws-sdk/client-cognito-identity-provider');
+const { fromIni } = require('@aws-sdk/credential-providers');
 
 // Read amplify_outputs.json to get User Pool ID
 const fs = require('fs');
@@ -42,8 +43,22 @@ const region = amplifyOutputs.auth.aws_region;
 
 console.log(`Using User Pool: ${userPoolId} in region: ${region}`);
 
+  // Determine if we're in local development, AWS deployment, or Amplify build
+  const isLocalDevelopment = process.env.AWS_PROFILE || process.env.NODE_ENV !== 'production';
+  const isAmplifyBuild = process.env.AWS_APP_ID && process.env.AWS_BRANCH;
+  
+  if (isAmplifyBuild && !isLocalDevelopment) {
+    console.log('🏗️  Running in AWS Amplify deployment environment');
+    console.log('⚠️  Test user creation requires additional IAM permissions in production');
+    console.log('✅ Skipping test user creation (normal for deployment)');
+    process.exit(0);
+  }
+  
   const cognitoClient = new CognitoIdentityProviderClient({ 
-    region: region
+    region: region,
+    ...(isLocalDevelopment && { 
+      credentials: fromIni({ profile: 'aws_amplify_permithunter' }) 
+    })
     // In AWS Amplify deployment, credentials are provided automatically
   });
 

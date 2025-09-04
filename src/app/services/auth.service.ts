@@ -246,6 +246,14 @@ export class AuthService {
         };
       }
     } catch (error: any) {
+      console.error('SignIn Error Details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        statusCode: error.$metadata?.httpStatusCode,
+        requestId: error.$metadata?.requestId,
+        stack: error.stack
+      });
       
       // Handle specific "already signed in" error
       if (error.message?.includes('already') && error.message?.includes('signed')) {
@@ -258,12 +266,26 @@ export class AuthService {
             error: 'Session conflict detected. Please try signing in again.' 
           };
         } catch (signOutError) {
+          console.error('SignOut Error:', signOutError);
         }
+      }
+      
+      // Handle specific Cognito errors
+      let errorMessage = error.message || 'Sign in failed';
+      
+      if (error.name === 'NotAuthorizedException') {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
+      } else if (error.name === 'UserNotConfirmedException') {
+        errorMessage = 'Account not verified. Please check your email for verification code.';
+      } else if (error.name === 'TooManyRequestsException') {
+        errorMessage = 'Too many attempts. Please wait before trying again.';
+      } else if (error.name === 'UserNotFoundException') {
+        errorMessage = 'User not found. Please check your email address.';
       }
       
       return { 
         success: false, 
-        error: error.message || 'Sign in failed' 
+        error: errorMessage 
       };
     } finally {
       this._isLoading.set(false);
