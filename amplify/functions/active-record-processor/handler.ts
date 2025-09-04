@@ -13,7 +13,9 @@ const dynamoClient = new DynamoDBClient({
 });
 
 export const handler: DynamoDBStreamHandler = async (event) => {
-  console.log('DynamoDB Stream Event:', JSON.stringify(event, null, 2));
+  console.log('🚀 LAMBDA TRIGGERED - DynamoDB Stream Event received');
+  console.log('Event details:', JSON.stringify(event, null, 2));
+  console.log('Number of records:', event.Records.length);
   
   for (const record of event.Records) {
     // Only process INSERT events
@@ -86,107 +88,62 @@ async function deactivateOtherRecords(
   keyFields: string[]
 ): Promise<void> {
   try {
-    // Try to use the GSI index first, fallback to scan if GSI doesn't exist
     let totalProcessed = 0;
+    console.log(`Processing table: ${tableName}`);
+    console.log(`New item key: ${JSON.stringify(newItemKey, null, 2)}`);
     
-    try {
-      // Use Query on the active GSI (index name follows pattern: gsi-active-createdAt)
-      const indexName = `gsi-active-createdAt`;
-      
-      const queryCommand = new QueryCommand({
+    // First, try to query for existing active records using a more efficient approach
+    // Since we can't use GSI with boolean fields, we'll use scan but with better filtering
+    // and we'll exclude the current record's version from the start
+    let lastEvaluatedKey: Record<string, AttributeValue> | undefined;
+
+    do {
+      const scanCommand = new ScanCommand({
         TableName: tableName,
-        IndexName: indexName,
-        KeyConditionExpression: '#active = :activeValue',
+        FilterExpression: '#id = :idValue AND #active = :activeValue AND #version <> :currentVersion',
         ExpressionAttributeNames: {
-          '#active': 'active'
+          '#id': 'id',
+          '#active': 'active',
+          '#version': 'version'
         },
         ExpressionAttributeValues: marshall({
-          ':activeValue': true
+          ':idValue': newItemKey.id,
+          ':activeValue': true,
+          ':currentVersion': newItemKey.version
         }),
-        Limit: 50 // Higher limit since query is more efficient
+        Limit: 50,
+        ExclusiveStartKey: lastEvaluatedKey
       });
 
-      const queryResult = await dynamoClient.send(queryCommand);
+      const scanResult = await dynamoClient.send(scanCommand);
       
-      if (!queryResult.Items || queryResult.Items.length === 0) {
-        console.log('No active records found in GSI');
-        return;
+      if (!scanResult.Items || scanResult.Items.length === 0) {
+        if (totalProcessed === 0) {
+          console.log(`No other active records found for ID ${newItemKey.id} - this is the first active record`);
+        } else {
+          console.log(`No more active records found for ID ${newItemKey.id} (processed ${totalProcessed} total)`);
+        }
+        break;
       }
 
-      console.log(`Found ${queryResult.Items.length} active records using GSI`);
+      console.log(`Found ${scanResult.Items.length} older active records for ID ${newItemKey.id} in this batch`);
 
-      // Process each active record
-      for (const item of queryResult.Items) {
+      for (const item of scanResult.Items) {
         const unmarshalledItem = unmarshall(item);
         const itemKey = getItemKey(unmarshalledItem, keyFields);
         
-        // Skip the newly inserted record
-        const isNewRecord = keyFields.every(field => 
-          itemKey[field] === newItemKey[field]
-        );
-        
-        if (isNewRecord) {
-          console.log('Skipping newly inserted record:', JSON.stringify(itemKey, null, 2));
-          continue;
-        }
+        console.log(`Deactivating older record:`, JSON.stringify(itemKey, null, 2));
 
-        // Remove the active attribute from this record
+        // Remove the active attribute from this older record
         await removeActiveAttribute(tableName, itemKey, keyFields);
         totalProcessed++;
       }
 
-    } catch (gsiError) {
-      console.log('GSI not available or error querying GSI, falling back to scan:', gsiError);
+      lastEvaluatedKey = scanResult.LastEvaluatedKey;
       
-      // Fallback to scan operation with pagination
-      let lastEvaluatedKey: Record<string, AttributeValue> | undefined;
+    } while (lastEvaluatedKey);
 
-      do {
-        const scanCommand = new ScanCommand({
-          TableName: tableName,
-          FilterExpression: '#active = :activeValue',
-          ExpressionAttributeNames: {
-            '#active': 'active'
-          },
-          ExpressionAttributeValues: marshall({
-            ':activeValue': true
-          }),
-          Limit: 25,
-          ExclusiveStartKey: lastEvaluatedKey
-        });
-
-        const scanResult = await dynamoClient.send(scanCommand);
-        
-        if (!scanResult.Items || scanResult.Items.length === 0) {
-          console.log(`No more active records found (processed ${totalProcessed} total)`);
-          break;
-        }
-
-        console.log(`Found ${scanResult.Items.length} active records in this batch`);
-
-        for (const item of scanResult.Items) {
-          const unmarshalledItem = unmarshall(item);
-          const itemKey = getItemKey(unmarshalledItem, keyFields);
-          
-          const isNewRecord = keyFields.every(field => 
-            itemKey[field] === newItemKey[field]
-          );
-          
-          if (isNewRecord) {
-            console.log('Skipping newly inserted record:', JSON.stringify(itemKey, null, 2));
-            continue;
-          }
-
-          await removeActiveAttribute(tableName, itemKey, keyFields);
-          totalProcessed++;
-        }
-
-        lastEvaluatedKey = scanResult.LastEvaluatedKey;
-        
-      } while (lastEvaluatedKey);
-    }
-
-    console.log(`Completed processing. Total records deactivated: ${totalProcessed}`);
+    console.log(`Completed processing for ID ${newItemKey.id}. Total older records deactivated: ${totalProcessed}`);
 
   } catch (error) {
     console.error('Error deactivating other records:', error);

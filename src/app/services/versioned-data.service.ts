@@ -240,19 +240,34 @@ export class VersionedDataService {
         };
       }
 
-      // With active=true filter, each record returned is already the latest version
-      console.log(`${modelName} - Latest active records found: ${latestRecords.length}`);
-      if (latestRecords.length > 0) {
+      // Filter to ensure only latest version per ID (in case Lambda function didn't process duplicates)
+      const latestByIdMap = new Map<string, any>();
+      
+      for (const record of latestRecords) {
+        const existingRecord = latestByIdMap.get(record.id);
+        if (!existingRecord || new Date(record.version) > new Date(existingRecord.version)) {
+          latestByIdMap.set(record.id, record);
+        }
+      }
+      
+      const deduplicatedRecords = Array.from(latestByIdMap.values());
+      
+      if (deduplicatedRecords.length !== latestRecords.length) {
+        console.warn(`${modelName} - Found ${latestRecords.length} active records, deduplicated to ${deduplicatedRecords.length}. Lambda function may not be processing correctly.`);
+      }
+      
+      console.log(`${modelName} - Latest active records found: ${deduplicatedRecords.length}`);
+      if (deduplicatedRecords.length > 0) {
         console.log(`${modelName} - Sample latest record:`, {
-          id: (latestRecords[0] as any).id,
-          version: (latestRecords[0] as any).version,
-          active: (latestRecords[0] as any).active
+          id: (deduplicatedRecords[0] as any).id,
+          version: (deduplicatedRecords[0] as any).version,
+          active: (deduplicatedRecords[0] as any).active
         });
       }
 
       return {
         success: true,
-        data: latestRecords
+        data: deduplicatedRecords
       };
     } catch (error: any) {
       console.error(`Error getting all latest versions for ${String(modelName)}:`, error);
