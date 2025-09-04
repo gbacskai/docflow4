@@ -62,7 +62,7 @@ console.log(`Using GraphQL API: ${graphqlEndpoint}`);
   
   const cognitoClient = new CognitoIdentityProviderClient({ 
     region: region,
-    credentials: fromIni({ profile: 'aws_amplify_permithunter' })
+    credentials: fromIni({ profile: 'aws_amplify_docflow4' })
   });
 
 const testUsers = [

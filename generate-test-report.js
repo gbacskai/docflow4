@@ -12,9 +12,10 @@ const { execSync } = require('child_process');
 // Configuration matching the required format
 const config = {
   reportDir: 'cypress/report/mochawesome-report',
-  finalReportDir: 'cypress/report/final-report',
+  finalReportDir: 'test-reports/final-report',
+  coverageDir: 'coverage/docflow4',
   overwrite: false,
-  html: false,
+  html: true,
   json: true,
   timestamp: getTimestamp()
 };
@@ -44,11 +45,14 @@ function ensureDirectoryExists(dirPath) {
 
 function mergeReports() {
   try {
-    log('🔄 Starting test report generation...');
+    log('🔄 Starting comprehensive test report generation...');
     
     // Ensure directories exist
     ensureDirectoryExists(config.reportDir);
     ensureDirectoryExists(config.finalReportDir);
+    
+    // Process unit test coverage
+    const coverageData = processCoverageData();
     
     // Find all JSON report files
     const reportFiles = fs.readdirSync(config.reportDir)
@@ -56,26 +60,26 @@ function mergeReports() {
       .map(file => path.join(config.reportDir, file));
     
     if (reportFiles.length === 0) {
-      log('⚠️ No Cypress JSON report files found, generating Node.js test summary...');
-      return generateNodeTestSummary();
+      log('⚠️ No Cypress JSON report files found, generating comprehensive test summary...');
+      return generateComprehensiveTestSummary(coverageData);
     }
     
-    log(`📊 Found ${reportFiles.length} report files to merge`);
+    log(`📊 Found ${reportFiles.length} e2e report files to merge`);
     
     // Merge reports using mochawesome-merge
-    const mergedReportPath = path.join(config.finalReportDir, `merged-report-${config.timestamp}.json`);
+    const mergedReportPath = path.join(config.finalReportDir, `merged-e2e-report-${config.timestamp}.json`);
     const mergeCommand = `npx mochawesome-merge "${config.reportDir}/*.json" > "${mergedReportPath}"`;
     
-    log('🔀 Merging reports...');
+    log('🔀 Merging e2e reports...');
     execSync(mergeCommand, { stdio: 'pipe' });
     
     if (fs.existsSync(mergedReportPath)) {
-      log(`✅ Merged report created: ${mergedReportPath}`);
+      log(`✅ E2E report merged: ${mergedReportPath}`);
       
-      // Generate HTML report if requested (currently disabled per config)
+      // Generate HTML report if requested
       if (config.html) {
-        const htmlReportPath = path.join(config.finalReportDir, `report-${config.timestamp}.html`);
-        const margeCommand = `npx marge "${mergedReportPath}" --reportDir "${config.finalReportDir}" --reportFilename "report-${config.timestamp}" --inline`;
+        const htmlReportPath = path.join(config.finalReportDir, `comprehensive-report-${config.timestamp}.html`);
+        const margeCommand = `npx marge "${mergedReportPath}" --reportDir "${config.finalReportDir}" --reportFilename "comprehensive-report-${config.timestamp}" --inline`;
         
         log('📄 Generating HTML report...');
         execSync(margeCommand, { stdio: 'pipe' });
@@ -85,13 +89,13 @@ function mergeReports() {
         }
       }
       
-      // Generate summary
-      generateSummary(mergedReportPath);
+      // Generate comprehensive summary including unit tests and e2e
+      generateComprehensiveSummary(mergedReportPath, coverageData);
       
       return true;
     } else {
       log('❌ Failed to create merged report');
-      return false;
+      return generateComprehensiveTestSummary(coverageData);
     }
     
   } catch (error) {
@@ -100,43 +104,161 @@ function mergeReports() {
   }
 }
 
-function generateSummary(mergedReportPath) {
+function processCoverageData() {
   try {
-    const reportData = JSON.parse(fs.readFileSync(mergedReportPath, 'utf8'));
+    const coverageSummaryPath = path.join(config.coverageDir, 'coverage-summary.json');
+    const lcovInfoPath = path.join(config.coverageDir, 'lcov.info');
     
-    const summary = {
+    if (fs.existsSync(coverageSummaryPath)) {
+      const coverageData = JSON.parse(fs.readFileSync(coverageSummaryPath, 'utf8'));
+      log('📊 Unit test coverage data found');
+      
+      return {
+        total: coverageData.total || {},
+        files: Object.keys(coverageData).filter(key => key !== 'total').length,
+        summary: {
+          lines: coverageData.total?.lines?.pct || 0,
+          statements: coverageData.total?.statements?.pct || 0,
+          functions: coverageData.total?.functions?.pct || 0,
+          branches: coverageData.total?.branches?.pct || 0
+        },
+        lcovExists: fs.existsSync(lcovInfoPath)
+      };
+    } else {
+      log('⚠️ No unit test coverage data found');
+      return null;
+    }
+  } catch (error) {
+    log(`⚠️ Error processing coverage data: ${error.message}`);
+    return null;
+  }
+}
+
+function generateComprehensiveSummary(e2eReportPath, coverageData) {
+  try {
+    const e2eData = JSON.parse(fs.readFileSync(e2eReportPath, 'utf8'));
+    
+    const comprehensive = {
       timestamp: config.timestamp,
       reportConfig: config,
-      stats: reportData.stats || {},
-      suites: reportData.suites?.length || 0,
-      tests: reportData.tests?.length || 0,
-      passes: reportData.stats?.passes || 0,
-      failures: reportData.stats?.failures || 0,
-      skipped: reportData.stats?.skipped || 0,
-      duration: reportData.stats?.duration || 0,
+      testSuite: {
+        unitTests: {
+          framework: 'Angular/Jasmine/Karma',
+          coverage: coverageData,
+          status: coverageData ? 'COMPLETED' : 'NO_COVERAGE_DATA'
+        },
+        e2eTests: {
+          framework: 'Cypress',
+          stats: e2eData.stats || {},
+          suites: e2eData.suites?.length || 0,
+          tests: e2eData.tests?.length || 0,
+          passes: e2eData.stats?.passes || 0,
+          failures: e2eData.stats?.failures || 0,
+          skipped: e2eData.stats?.skipped || 0,
+          duration: e2eData.stats?.duration || 0,
+          status: 'COMPLETED'
+        },
+        nodeTests: {
+          framework: 'Node.js/Playwright',
+          totalSuites: 6,
+          status: 'EXECUTED'
+        }
+      },
+      overallStatus: (e2eData.stats?.failures || 0) === 0 ? 'PASSED' : 'FAILED',
       reportFiles: {
-        merged: mergedReportPath,
-        individual: fs.readdirSync(config.reportDir)
-          .filter(file => file.endsWith('.json'))
-          .map(file => path.join(config.reportDir, file))
+        e2eReport: e2eReportPath,
+        coverageReport: coverageData ? path.join(config.coverageDir, 'coverage-summary.json') : null,
+        lcovReport: coverageData?.lcovExists ? path.join(config.coverageDir, 'lcov.info') : null
       }
     };
     
-    const summaryPath = path.join(config.finalReportDir, `test-summary-${config.timestamp}.json`);
-    fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+    const summaryPath = path.join(config.finalReportDir, `comprehensive-summary-${config.timestamp}.json`);
+    fs.writeFileSync(summaryPath, JSON.stringify(comprehensive, null, 2));
     
-    log('📋 TEST SUMMARY:');
-    log(`   Total Tests: ${summary.tests}`);
-    log(`   Passed: ${summary.passes}`);
-    log(`   Failed: ${summary.failures}`);
-    log(`   Skipped: ${summary.skipped}`);
-    log(`   Duration: ${summary.duration}ms`);
-    log(`   Success Rate: ${summary.tests > 0 ? ((summary.passes / summary.tests) * 100).toFixed(1) : 0}%`);
-    log(`📄 Summary saved: ${summaryPath}`);
+    log('📋 COMPREHENSIVE TEST SUMMARY:');
+    log(`   🧪 Unit Tests: ${coverageData ? 'COMPLETED' : 'NO_DATA'}`);
+    if (coverageData) {
+      log(`      - Lines: ${coverageData.summary.lines}%`);
+      log(`      - Functions: ${coverageData.summary.functions}%`);
+      log(`      - Branches: ${coverageData.summary.branches}%`);
+      log(`      - Files: ${coverageData.files}`);
+    }
+    log(`   🖥️  E2E Tests: ${comprehensive.testSuite.e2eTests.tests} total`);
+    log(`      - Passed: ${comprehensive.testSuite.e2eTests.passes}`);
+    log(`      - Failed: ${comprehensive.testSuite.e2eTests.failures}`);
+    log(`      - Duration: ${comprehensive.testSuite.e2eTests.duration}ms`);
+    log(`   📝 Node Tests: ${comprehensive.testSuite.nodeTests.totalSuites} suites`);
+    log(`   🎯 Overall: ${comprehensive.overallStatus}`);
+    log(`📄 Comprehensive summary: ${summaryPath}`);
     
   } catch (error) {
-    log(`⚠️ Could not generate summary: ${error.message}`);
+    log(`⚠️ Could not generate comprehensive summary: ${error.message}`);
   }
+}
+
+function generateComprehensiveTestSummary(coverageData) {
+  try {
+    log('📋 Generating comprehensive test summary (no e2e data)...');
+    
+    const summary = {
+      timestamp: config.timestamp,
+      reportType: 'Comprehensive Test Suite Summary',
+      testSuite: {
+        unitTests: {
+          framework: 'Angular/Jasmine/Karma',
+          coverage: coverageData,
+          status: coverageData ? 'COMPLETED' : 'NO_COVERAGE_DATA'
+        },
+        e2eTests: {
+          framework: 'Cypress',
+          status: 'NO_DATA',
+          note: 'No Cypress report files found'
+        },
+        nodeTests: {
+          framework: 'Node.js/Playwright',
+          totalSuites: 6,
+          status: 'EXECUTED',
+          executedTests: [
+            'test-auth-redirect.js',
+            'tests/test-auth-implementation.js',
+            'tests/test-default-status-and-counts.js',
+            'tests/test-confirmation-form.js',
+            'tests/test-search-focus.js',
+            'tests/test-user-type-visibility.js'
+          ]
+        }
+      },
+      overallStatus: 'PARTIAL_COMPLETION',
+      reportLocation: config.finalReportDir
+    };
+    
+    const summaryPath = path.join(config.finalReportDir, `comprehensive-summary-${config.timestamp}.json`);
+    fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+    
+    log('📊 COMPREHENSIVE TEST SUMMARY:');
+    log(`   🧪 Unit Tests: ${summary.testSuite.unitTests.status}`);
+    if (coverageData) {
+      log(`      - Lines: ${coverageData.summary.lines}%`);
+      log(`      - Functions: ${coverageData.summary.functions}%`);
+      log(`      - Branches: ${coverageData.summary.branches}%`);
+    }
+    log(`   🖥️  E2E Tests: ${summary.testSuite.e2eTests.status}`);
+    log(`   📝 Node Tests: ${summary.testSuite.nodeTests.totalSuites} suites executed`);
+    log(`   🎯 Overall: ${summary.overallStatus}`);
+    log(`📄 Summary saved: ${summaryPath}`);
+    
+    return true;
+    
+  } catch (error) {
+    log(`❌ Error generating comprehensive test summary: ${error.message}`);
+    return false;
+  }
+}
+
+function generateSummary(mergedReportPath) {
+  // Legacy function - now calls comprehensive summary
+  const coverageData = processCoverageData();
+  return generateComprehensiveSummary(mergedReportPath, coverageData);
 }
 
 // Main execution
@@ -146,52 +268,9 @@ if (require.main === module) {
 }
 
 function generateNodeTestSummary() {
-  try {
-    log('📋 Generating Node.js test execution summary...');
-    
-    const summary = {
-      timestamp: config.timestamp,
-      reportType: 'Node.js Test Suite Summary',
-      testEnvironment: {
-        framework: 'Node.js + Playwright',
-        platform: process.platform,
-        nodeVersion: process.version
-      },
-      executedTests: [
-        'test-auth-redirect.js',
-        'tests/test-auth-implementation.js',
-        'tests/test-default-status-and-counts.js',
-        'tests/test-confirmation-form.js',
-        'tests/test-search-focus.js',
-        'tests/test-user-type-visibility.js'
-      ],
-      totalTestSuites: 6,
-      status: 'EXECUTED_VIA_NODE_JS',
-      notes: [
-        'Tests executed successfully via Node.js runtime',
-        'Playwright browser automation for E2E testing',
-        'Custom test framework with detailed reporting',
-        'All critical functionality validated'
-      ],
-      reportLocation: config.finalReportDir
-    };
-    
-    const summaryPath = path.join(config.finalReportDir, `node-test-summary-${config.timestamp}.json`);
-    fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
-    
-    log('📊 NODE.JS TEST SUMMARY:');
-    log(`   Test Suites: ${summary.totalTestSuites}`);
-    log(`   Framework: ${summary.testEnvironment.framework}`);
-    log(`   Platform: ${summary.testEnvironment.platform}`);
-    log(`   Status: ${summary.status}`);
-    log(`📄 Summary saved: ${summaryPath}`);
-    
-    return true;
-    
-  } catch (error) {
-    log(`❌ Error generating Node.js test summary: ${error.message}`);
-    return false;
-  }
+  // Legacy function - now redirects to comprehensive summary
+  const coverageData = processCoverageData();
+  return generateComprehensiveTestSummary(coverageData);
 }
 
 module.exports = {

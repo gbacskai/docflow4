@@ -47,7 +47,7 @@ APP_NAME=docflow4
   console.log(`- Storage: docflow4-${currentBranch}`);
   console.log('');
   console.log('To use with Amplify sandbox:');
-  console.log(`npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003`);
+  console.log(`npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00003`);
 }
 
 // Run if called directly

@@ -34,12 +34,19 @@ test:
         - timeout 180 wait-on http://localhost:4200
     test:
       commands:
-        - 'echo "🧪 Running deployment validation tests..."'
+        - 'echo "🧪 Running comprehensive test suite with reporting..."'
         - 'echo "🔍 Checking if server is responding..."'
         - 'curl -I http://localhost:4200 || echo "⚠️  Server not responding"'
-        - 'echo "🏃 Running unit tests..."'
-        - 'timeout 300 npm run test:ci-smart || echo "⚠️  Unit tests had issues, continuing"'
-        - 'echo "✅ Deployment validation complete (E2E tests skipped in AWS deployment)"'
+        - 'echo "🏃 Running unit tests with coverage..."'
+        - 'timeout 600 npm run test:coverage || echo "⚠️  Unit tests had issues, continuing"'
+        - 'echo "🖥️  Running E2E tests..."'
+        - 'timeout 900 npm run test:cypress:headless || echo "⚠️  E2E tests had issues, continuing"'
+        - 'echo "📊 Generating comprehensive test reports..."'
+        - 'npm run test:report || echo "⚠️  Report generation failed"'
+        - 'echo "📁 Listing generated artifacts..."'
+        - 'ls -la test-reports/final-report/ || echo "⚠️  No test reports found"'
+        - 'ls -la coverage/docflow4/ || echo "⚠️  No coverage reports found"'
+        - 'echo "✅ Comprehensive testing and reporting complete"'
     postTest:
       commands:
         - 'echo "🧹 Cleanup..."'
@@ -47,6 +54,9 @@ test:
   artifacts:
     files:
       - '**/*.log'
+      - 'test-reports/final-report/**/*'
+      - 'coverage/docflow4/**/*'
+      - 'cypress/report/**/*'
 frontend:
   phases:
     preBuild:

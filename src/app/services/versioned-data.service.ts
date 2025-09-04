@@ -38,6 +38,7 @@ export class VersionedDataService {
         ...params.data,
         id: recordId,
         version,
+        active: true,
         updatedAt: version
       };
 
@@ -102,6 +103,7 @@ export class VersionedDataService {
         ...updateData,
         id,
         version,
+        active: true,
         updatedAt: version
       };
 
@@ -153,25 +155,25 @@ export class VersionedDataService {
       let records;
       switch (modelName) {
         case 'Project':
-          records = (await this.client.models.Project.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.Project.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         case 'Document':
-          records = (await this.client.models.Document.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.Document.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         case 'User':
-          records = (await this.client.models.User.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.User.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         case 'DocumentType':
-          records = (await this.client.models.DocumentType.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.DocumentType.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         case 'Workflow':
-          records = (await this.client.models.Workflow.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.Workflow.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         case 'ChatRoom':
-          records = (await this.client.models.ChatRoom.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.ChatRoom.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         case 'ChatMessage':
-          records = (await this.client.models.ChatMessage.list({ filter: { id: { eq: id } } })).data;
+          records = (await this.client.models.ChatMessage.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data;
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
@@ -184,9 +186,8 @@ export class VersionedDataService {
         };
       }
 
-      const latestRecord = records.sort((a: any, b: any) => 
-        new Date(b.version).getTime() - new Date(a.version).getTime()
-      )[0];
+      // With active=true filter, there should be exactly one record
+      const latestRecord = records[0];
 
       return {
         success: true,
@@ -205,67 +206,53 @@ export class VersionedDataService {
     modelName: string
   ): Promise<{ success: boolean; data?: any[]; error?: string }> {
     try {
-      let allRecords;
+      let latestRecords;
       switch (modelName) {
         case 'Project':
-          allRecords = (await this.client.models.Project.list()).data;
+          latestRecords = (await this.client.models.Project.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'Document':
-          allRecords = (await this.client.models.Document.list()).data;
+          latestRecords = (await this.client.models.Document.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'User':
-          allRecords = (await this.client.models.User.list()).data;
+          latestRecords = (await this.client.models.User.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'DocumentType':
-          allRecords = (await this.client.models.DocumentType.list()).data;
+          latestRecords = (await this.client.models.DocumentType.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'Workflow':
-          allRecords = (await this.client.models.Workflow.list()).data;
+          latestRecords = (await this.client.models.Workflow.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'ChatRoom':
-          allRecords = (await this.client.models.ChatRoom.list()).data;
+          latestRecords = (await this.client.models.ChatRoom.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'ChatMessage':
-          allRecords = (await this.client.models.ChatMessage.list()).data;
+          latestRecords = (await this.client.models.ChatMessage.list({ filter: { active: { eq: true } } })).data;
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
       }
 
-      if (!allRecords || allRecords.length === 0) {
+      if (!latestRecords) {
         return {
           success: true,
           data: []
         };
       }
 
-      // Sort all records by version (sort key) in descending order to ensure latest first
-      const sortedRecords = allRecords.sort((a: any, b: any) => {
-        return new Date(b.version).getTime() - new Date(a.version).getTime();
-      });
-
-      // Group by ID and keep only the latest version (first record due to sort)
-      const recordsById = sortedRecords.reduce((acc: any, record: any) => {
-        if (!acc[record.id]) {
-          acc[record.id] = record; // Keep first occurrence (which is latest due to sort)
-        }
-        return acc;
-      }, {});
-
-      const latestVersions = Object.values(recordsById);
-
-      // Debug logging to verify latest versions are being returned
-      console.log(`${modelName} - Total records: ${allRecords.length}, Latest versions: ${latestVersions.length}`);
-      if (latestVersions.length > 0) {
-        console.log(`${modelName} - Sample latest version:`, {
-          id: (latestVersions[0] as any).id,
-          version: (latestVersions[0] as any).version
+      // With active=true filter, each record returned is already the latest version
+      console.log(`${modelName} - Latest active records found: ${latestRecords.length}`);
+      if (latestRecords.length > 0) {
+        console.log(`${modelName} - Sample latest record:`, {
+          id: (latestRecords[0] as any).id,
+          version: (latestRecords[0] as any).version,
+          active: (latestRecords[0] as any).active
         });
       }
 
       return {
         success: true,
-        data: latestVersions
+        data: latestRecords
       };
     } catch (error: any) {
       console.error(`Error getting all latest versions for ${String(modelName)}:`, error);

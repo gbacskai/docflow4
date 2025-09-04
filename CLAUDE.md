@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### AWS Amplify Setup
 - **Setup environment**: `node scripts/setup-env.js` - configures environment variables for consistent table naming
 - **Generate amplify outputs**: `npx ampx generate outputs` - creates amplify_outputs.json
-- **Create sandbox environment**: `npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003`
+- **Create sandbox environment**: `npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00003`
 - **Environment variables**: Set via `AMPLIFY_BRANCH`, `AMPLIFY_ENVIRONMENT_NAME`, and git branch detection
 
 #### Table Naming Convention

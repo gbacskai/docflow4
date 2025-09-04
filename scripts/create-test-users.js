@@ -59,7 +59,7 @@ console.log(`Using User Pool: ${userPoolId} in region: ${region}`);
   const cognitoClient = new CognitoIdentityProviderClient({ 
     region: region,
     ...(isLocalDevelopment && { 
-      credentials: fromIni({ profile: 'aws_amplify_permithunter' }) 
+      credentials: fromIni({ profile: 'aws_amplify_docflow4' }) 
     })
     // In AWS Amplify deployment, credentials are provided automatically
   });

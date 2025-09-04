@@ -11,6 +11,7 @@ const schema = a.schema({
       adminUsers: a.string().array(),
       workflowId: a.string(),
       status: a.enum(['active', 'completed', 'archived']),
+      active: a.boolean().default(true),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
@@ -24,6 +25,7 @@ const schema = a.schema({
       projectId: a.string().required(),
       documentType: a.string().required(),
       formData: a.string(),
+      active: a.boolean().default(true),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
@@ -44,6 +46,7 @@ const schema = a.schema({
       createdBy: a.string(),
       invitedAt: a.datetime(),
       lastLoginAt: a.datetime(),
+      active: a.boolean().default(true),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
@@ -60,6 +63,7 @@ const schema = a.schema({
       category: a.string(),
       fields: a.string().array(),
       isActive: a.boolean(),
+      active: a.boolean().default(true),
       usageCount: a.integer(),
       templateCount: a.integer(),
       createdAt: a.datetime(),
@@ -76,6 +80,7 @@ const schema = a.schema({
       rules: a.json().array(),
       actors: a.string().array(),
       isActive: a.boolean().default(true),
+      active: a.boolean().default(true),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
@@ -109,6 +114,7 @@ const schema = a.schema({
       messageCount: a.integer().default(0), // Total message count
       unreadCount: a.integer().default(0), // Unread messages count
       isActive: a.boolean().default(true),
+      active: a.boolean().default(true),
       isArchived: a.boolean().default(false),
       
       // Room settings
@@ -159,6 +165,9 @@ const schema = a.schema({
       // Message threading (for replies)
       replyToMessageId: a.string(),
       threadId: a.string(),
+      
+      // General status
+      active: a.boolean().default(true),
       
       // Timestamps
       createdAt: a.datetime(),

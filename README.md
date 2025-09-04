@@ -13,7 +13,7 @@ or
 
 Generate Sandbox environment
 ```bash
-npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003
+npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00003
 ```
 
 To start a local development server, run:

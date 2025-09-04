@@ -31,4 +31,4 @@ Backend uses branch-based naming:
 
 ## Development Commands
 - `npx ampx generate outputs` - Generate amplify_outputs.json
-- `npx ampx sandbox --profile aws_amplify_permithunter --identifier 00003` - Local development
+- `npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00003` - Local development

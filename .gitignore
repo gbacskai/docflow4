@@ -23,6 +23,7 @@ yarn-error.log
 cypress/report/
 cypress/videos/
 cypress/screenshots/
+test-reports/
 *.log
 test-*.png
 auth-redirect-test-report.json

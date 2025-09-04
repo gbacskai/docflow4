@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { TestHelpers } from '../../test-helpers';
 import type { Schema } from '../../../amplify/data/resource';
@@ -22,7 +22,7 @@ describe('DocumentTypes', () => {
     updatedAt: '2024-01-01T00:00:00Z'
   };
 
-  beforeEach(fakeAsync(() => {
+  beforeEach(async () => {
     mockClient = {
       models: {
         DocumentType: {
@@ -43,10 +43,10 @@ describe('DocumentTypes', () => {
       mockIsAuthenticated: true
     });
     
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [DocumentTypes, ReactiveFormsModule, ...testConfig.imports],
       providers: testConfig.providers
-    });
+    }).compileComponents();
 
     fixture = TestBed.createComponent(DocumentTypes);
     component = fixture.componentInstance;
@@ -69,26 +69,25 @@ describe('DocumentTypes', () => {
     });
 
     // Initialize component
-    component.ngOnInit();
-    tick();
-  }));
+    await component.ngOnInit();
+    fixture.detectChanges();
+  });
 
-  it('should create', fakeAsync(() => {
+  it('should create', () => {
     expect(component).toBeTruthy();
     expect(component.documentTypes().length).toBe(1);
     expect(component.documentTypes()[0].name).toBe('Test Document');
-  }));
+  });
 
   describe('Document Type Management', () => {
-    it('should load document types successfully', fakeAsync(() => {
-      component.loadDocumentTypes();
-      tick();
+    it('should load document types successfully', async () => {
+      await component.loadDocumentTypes();
       
       expect(component.documentTypes().length).toBe(1);
       expect(component.loading()).toBe(false);
-    }));
+    });
 
-    it('should create a new document type', fakeAsync(() => {
+    it('should create a new document type', async () => {
       component.documentTypeForm.patchValue({
         name: 'New Document Type',
         identifier: 'new-document-type',
@@ -96,13 +95,12 @@ describe('DocumentTypes', () => {
         isActive: true
       });
       
-      component.createDocumentType(component.documentTypeForm.value);
-      tick();
+      await component.createDocumentType(component.documentTypeForm.value);
       
       expect(mockClient.models.DocumentType.create).toHaveBeenCalled();
-    }));
+    });
 
-    it('should validate form fields correctly', fakeAsync(() => {
+    it('should validate form fields correctly', () => {
       const form = component.documentTypeForm;
       
       // Test required field validation
@@ -113,9 +111,9 @@ describe('DocumentTypes', () => {
       // Test valid input
       form.get('name')?.setValue('Valid Document Type');
       expect(form.get('name')?.invalid).toBe(false);
-    }));
+    });
 
-    it('should handle form submission', fakeAsync(() => {
+    it('should handle form submission', async () => {
       component.currentMode.set('create');
       component.documentTypeForm.patchValue({
         name: 'Test Document Type',
@@ -126,10 +124,9 @@ describe('DocumentTypes', () => {
       
       spyOn(component, 'onSubmitForm').and.callThrough();
       
-      component.onSubmitForm();
-      tick();
+      await component.onSubmitForm();
       
       expect(component.onSubmitForm).toHaveBeenCalled();
-    }));
+    });
   });
 });

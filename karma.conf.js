@@ -24,7 +24,8 @@ module.exports = function (config) {
       reporters: [
         { type: 'html' },
         { type: 'text-summary' },
-        { type: 'lcovonly' }
+        { type: 'lcovonly' },
+        { type: 'json-summary' }
       ]
     },
     reporters: ['progress', 'kjhtml'],
