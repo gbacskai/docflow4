@@ -10,11 +10,12 @@
 
 .main-panel {
   position: relative;
-  margin-left: @sidebar-width;
-  width: calc(100% - @sidebar-width);
+  margin-left: 0;
+  width: 100%;
   min-height: 100vh;
   background-color: #f4f3ef;
   transition: @transition-base;
+  margin-top: 60px;
   
   .content {
     padding: 0;
@@ -40,9 +41,9 @@
   }
 }
 
-// Mobile header (hidden on desktop)
+// Header with hamburger menu (shown on all devices)
 .mobile-header {
-  display: none;
+  display: flex;
   position: fixed;
   top: 0;
   left: 0;
@@ -50,7 +51,7 @@
   height: 60px;
   background: white;
   border-bottom: 1px solid @light-gray;
-  z-index: 1030;
+  z-index: 1020;
   align-items: center;
   padding: 0 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -104,29 +105,36 @@
   z-index: 1045;
 }
 
-// Responsive behavior
-@media (max-width: 991px) {
-  .mobile-header {
-    display: flex;
+// Sidebar behavior (hidden by default, shown when active)
+.sidebar {
+  position: fixed !important;
+  transform: translate3d(-@sidebar-width, 0, 0);
+  z-index: 1060;
+  
+  &.active {
+    transform: translate3d(0, 0, 0);
   }
+}
 
-  .main-panel {
-    margin-left: 0;
-    width: 100%;
-    margin-top: 60px;
+// Desktop responsive behavior
+@media (min-width: 992px) {
+  .sidebar {
+    position: fixed !important;
+    transform: translate3d(-@sidebar-width, 0, 0);
+    z-index: 1060;
     
-    .content {
-      padding: 0;
-      
-      &.padded {
-        padding: 30px 15px;
-      }
+    &.active {
+      transform: translate3d(0, 0, 0);
     }
   }
-  
+}
+
+// Mobile responsive behavior
+@media (max-width: 991px) {
   .sidebar {
+    position: fixed !important;
     transform: translate3d(-@sidebar-width, 0, 0);
-    z-index: 1050;
+    z-index: 1060;
     
     &.active {
       transform: translate3d(0, 0, 0);

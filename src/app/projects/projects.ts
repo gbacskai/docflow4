@@ -7,6 +7,7 @@ import { AuthService } from '../services/auth.service';
 import { UserDataService } from '../services/user-data.service';
 import { VersionedDataService } from '../services/versioned-data.service';
 import { ChatService } from '../services/chat.service';
+import { DynamicFormService } from '../services/dynamic-form.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -52,6 +53,7 @@ export class Projects implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private userDataService = inject(UserDataService);
   private chatService = inject(ChatService);
+  private dynamicFormService = inject(DynamicFormService);
   private router = inject(Router);
   private searchTimeout: any = null;
   private projectSearchTimeout: any = null;
@@ -826,17 +828,78 @@ export class Projects implements OnInit, OnDestroy {
         console.log('Associated document types found:', associatedDocumentTypes);
 
         if (associatedDocumentTypes.length > 0) {
-          // Create documents for each associated document type
-          const documentPromises = associatedDocumentTypes.map(docType => {
+          // Create documents for each associated document type with validation
+          const documentPromises = associatedDocumentTypes.map(async (docType) => {
             console.log(`Creating document for type: ${docType.name}`);
-            return this.versionedDataService.createVersionedRecord('Document', {
-              data: {
-                projectId: createdProject.id,
-                documentType: docType.id,
-                status: 'draft',
-                createdAt: new Date().toISOString()
+            
+            try {
+              // Parse document type definition to create initial form data
+              let initialFormData: any = {};
+              if (docType.definition) {
+                try {
+                  const definition = JSON.parse(docType.definition);
+                  if (definition.fields && Array.isArray(definition.fields)) {
+                    // Initialize form data with default values from definition
+                    definition.fields.forEach((field: any) => {
+                      if (field.defaultValue !== undefined) {
+                        initialFormData[field.name] = field.defaultValue;
+                      } else if (field.type === 'boolean' || field.type === 'checkbox') {
+                        initialFormData[field.name] = false;
+                      } else {
+                        // Leave other fields undefined to trigger validation rules
+                        initialFormData[field.name] = undefined;
+                      }
+                    });
+                  }
+                } catch (parseError) {
+                  console.warn(`Failed to parse definition for ${docType.name}:`, parseError);
+                }
               }
-            });
+              
+              // Create a temporary FormGroup for validation
+              const tempForm = this.fb.group(initialFormData);
+              
+              // Execute validation rules if they exist
+              if (docType.validationRules) {
+                try {
+                  console.log(`Executing validation rules for ${docType.name}...`);
+                  
+                  // Parse validation rules (they're stored as text, not JSON)
+                  const rulesText = docType.validationRules;
+                  const rules = this.parseValidationRulesFromText(rulesText);
+                  
+                  // Apply validation rules to update form data
+                  const updatedFormData = await this.applyValidationRules(rules, tempForm, initialFormData);
+                  initialFormData = { ...initialFormData, ...updatedFormData };
+                  
+                  console.log(`Validation applied for ${docType.name}, final data:`, initialFormData);
+                } catch (validationError) {
+                  console.warn(`Validation failed for ${docType.name}:`, validationError);
+                }
+              }
+              
+              // Create the document with validated form data
+              return this.versionedDataService.createVersionedRecord('Document', {
+                data: {
+                  projectId: createdProject.id,
+                  documentType: docType.id,
+                  formData: JSON.stringify(initialFormData),
+                  status: initialFormData.status || 'draft',
+                  createdAt: new Date().toISOString()
+                }
+              });
+            } catch (error) {
+              console.error(`Error processing document for ${docType.name}:`, error);
+              // Fallback to basic document creation
+              return this.versionedDataService.createVersionedRecord('Document', {
+                data: {
+                  projectId: createdProject.id,
+                  documentType: docType.id,
+                  status: 'draft',
+                  createdAt: new Date().toISOString()
+                }
+              });
+            }
           });
 
           // Wait for all documents to be created
@@ -932,5 +995,102 @@ export class Projects implements OnInit, OnDestroy {
       console.error('❌ Error details:', error);
       alert(`Failed to create chat room: ${error}. Please try again.`);
     }
+  }
+
+  private parseValidationRulesFromText(rulesText: string): Array<{ validation: string, action: string }> {
+    const rules: Array<{ validation: string, action: string }> = [];
+    
+    // Split by lines and parse each rule
+    const lines = rulesText.split('\n').map(line => line.trim()).filter(line => line);
+    
+    for (const line of lines) {
+      const match = line.match(/validation:\s*(.+?)\s+action:\s*(.+)/);
+      if (match) {
+        const [, validation, action] = match;
+        rules.push({
+          validation: validation.trim(),
+          action: action.trim()
+        });
+      }
+    }
+    
+    return rules;
+  }
+
+  private async applyValidationRules(
+    rules: Array<{ validation: string, action: string }>, 
+    formGroup: FormGroup, 
+    initialData: any
+  ): Promise<any> {
+    const updatedData: any = {};
+    
+    try {
+      // Use the DynamicFormService to evaluate validation rules
+      for (const rule of rules) {
+        const condition = rule.validation;
+        const actions = rule.action;
+        
+        // Check if the validation condition is met
+        const conditionMet = this.dynamicFormService.evaluateCondition(condition, formGroup, {});
+        
+        if (conditionMet) {
+          console.log(`✅ Rule condition met: ${condition} -> ${actions}`);
+          
+          // Parse and apply actions
+          const actionUpdates = this.parseValidationActions(actions);
+          Object.assign(updatedData, actionUpdates);
+          
+          // Update the FormGroup with new values for subsequent rule evaluations
+          Object.keys(actionUpdates).forEach(key => {
+            if (formGroup.get(key)) {
+              formGroup.get(key)?.setValue(actionUpdates[key]);
+            } else {
+              formGroup.addControl(key, this.fb.control(actionUpdates[key]));
+            }
+          });
+        } else {
+          console.log(`❌ Rule condition not met: ${condition}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error applying validation rules:', error);
+    }
+    
+    return updatedData;
+  }
+
+  private parseValidationActions(actionsText: string): any {
+    const updates: any = {};
+    
+    // Parse actions like "status = 'queued', files.hidden = true"
+    const actionParts = actionsText.split(',').map(part => part.trim());
+    
+    for (const actionPart of actionParts) {
+      const assignmentMatch = actionPart.match(/(\w+(?:\.\w+)?)\s*=\s*(.+)/);
+      if (assignmentMatch) {
+        const [, fieldPath, value] = assignmentMatch;
+        
+        // Handle simple field assignments (ignore complex field.property for now)
+        if (!fieldPath.includes('.')) {
+          let parsedValue: any = value.trim() as any;
+          
+          // Remove quotes from string values
+          if ((parsedValue.startsWith('"') && parsedValue.endsWith('"')) ||
+              (parsedValue.startsWith("'") && parsedValue.endsWith("'"))) {
+            parsedValue = parsedValue.slice(1, -1);
+          } else if (parsedValue === 'true') {
+            parsedValue = true;
+          } else if (parsedValue === 'false') {
+            parsedValue = false;
+          } else if (!isNaN(Number(parsedValue))) {
+            parsedValue = Number(parsedValue);
+          }
+          
+          updates[fieldPath] = parsedValue;
+        }
+      }
+    }
+    
+    return updates;
   }
 }

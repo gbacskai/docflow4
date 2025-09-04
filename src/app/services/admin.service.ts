@@ -178,7 +178,6 @@ export class AdminService {
                 projectId: document.projectId,
                 documentType: document.documentType,
                 formData: document.formData,
-                status: document.status,
                 createdAt: document.createdAt || new Date().toISOString()
               }
             });

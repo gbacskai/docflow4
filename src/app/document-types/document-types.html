@@ -1,5 +1,6 @@
-<div class="document-types-page">
+<div class="document-types-page" [class.has-inline-edit]="editingInlineId()">
   <header class="page-header">
+    <!-- Page title -->
     <h1>Document Types</h1>
     <div class="header-actions">
       <div class="search-wrapper">
@@ -319,32 +320,169 @@
     }
 
     @for (docType of filteredDocumentTypes(); track trackDocTypeById($index, docType)) {
-      <div class="document-type-card" [class.inactive]="!docType.isActive">
-        <div class="type-content">
-          <h3>{{ docType.name }}</h3>
-          <div class="type-meta">
-            @if ((docType.usageCount || 0) > 0) {
-              <span class="usage-count">{{ docType.usageCount }} documents</span>
-            }
-            <span class="workflow-count">{{ getWorkflowCount(docType) }} workflows</span>
-            @if (!docType.isActive) {
-              <span class="inactive-badge">Inactive</span>
+      <div class="document-type-card" [class.inactive]="!docType.isActive" [class.editing]="editingInlineId() === docType.id">
+        @if (editingInlineId() === docType.id) {
+          <!-- Inline Edit Form -->
+          <div class="inline-edit-form">
+            <div class="inline-form-header">
+              <h3>Edit Document Type</h3>
+              <button class="close-btn" (click)="cancelInlineEdit()">✕</button>
+            </div>
+            
+            <form [formGroup]="documentTypeForm" (ngSubmit)="onSubmitForm()" class="inline-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="name">Name *</label>
+                  <input id="name" type="text" formControlName="name" placeholder="Document Type Name">
+                  @if (documentTypeForm.get('name')?.touched && documentTypeForm.get('name')?.errors) {
+                    <div class="error-message">Name is required</div>
+                  }
+                </div>
+                <div class="form-group">
+                  <label for="identifier">Identifier *</label>
+                  <input id="identifier" type="text" formControlName="identifier" placeholder="unique-identifier">
+                  @if (documentTypeForm.get('identifier')?.touched && documentTypeForm.get('identifier')?.errors) {
+                    <div class="error-message">Identifier is required and must be unique</div>
+                  }
+                </div>
+              </div>
+              
+              <!-- Definition Field - Full Width -->
+              <div class="form-group full-width-group">
+                <div class="definition-header">
+                  <div class="label-with-link">
+                    <label for="inline-definition">Definition *</label>
+                    <a href="https://angular.dev/guide/forms" target="_blank" rel="noopener noreferrer" class="documentation-link">
+                      📖 Guide
+                    </a>
+                  </div>
+                  <div class="example-buttons">
+                    <span class="examples-label">Examples:</span>
+                    <button type="button" class="example-btn" (click)="loadExampleDefinition('BuildingPermit')" title="Building Permit">🏗️</button>
+                    <button type="button" class="example-btn" (click)="loadExampleDefinition('business_license')" title="Business License">🏢</button>
+                    <button type="button" class="example-btn" (click)="loadExampleDefinition('simple_form')" title="Simple Form">📝</button>
+                  </div>
+                </div>
+                <textarea 
+                  id="inline-definition"
+                  formControlName="definition" 
+                  placeholder="Enter document type definition JSON"
+                  rows="10"
+                  class="definition-textarea"
+                  [class.error]="documentTypeForm.get('definition')?.invalid && documentTypeForm.get('definition')?.touched"
+                ></textarea>
+                @if (documentTypeForm.get('definition')?.invalid && documentTypeForm.get('definition')?.touched) {
+                  <div class="error-message">Definition is required</div>
+                }
+              </div>
+
+              <!-- Validation Rules Field -->
+              <div class="form-group full-width-group">
+                <div class="validation-rules-header">
+                  <label for="inline-validationRules">Validation Rules</label>
+                  <button 
+                    type="button" 
+                    class="btn-evaluate-rules"
+                    (click)="evaluateValidationRules()"
+                    [disabled]="!isTestMode()"
+                  >
+                    🔍 Test
+                  </button>
+                </div>
+                <textarea 
+                  id="inline-validationRules"
+                  formControlName="validationRules" 
+                  placeholder="validation: condition action: field = value"
+                  rows="3"
+                  class="validation-rules-input"
+                  [class.validation-error]="dynamicFormService.validationHasErrors()"
+                ></textarea>
+                
+                @if (dynamicFormService.validationResults().length > 0) {
+                  <div class="validation-results">
+                    @for (result of dynamicFormService.validationResults(); track result.message) {
+                      <div class="validation-result-item" [class]="'result-' + result.type">
+                        {{ result.message }}
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <!-- Dynamic Form Preview -->
+              @if (dynamicFormService.dynamicFormGroup() && dynamicFormService.dynamicFormFields().length > 0) {
+                <div class="dynamic-form-preview">
+                  <div class="preview-header">
+                    <h5>Form Preview</h5>
+                    <button type="button" class="test-form-btn" (click)="toggleFormTestMode()">
+                      {{ isTestMode() ? '🔒 Lock' : '🔓 Test' }}
+                    </button>
+                  </div>
+                  
+                  <app-dynamic-form
+                    title=""
+                    [showTitle]="false"
+                    [isTestMode]="isTestMode()"
+                    [allowArrayEditing]="isTestMode()"
+                    [allowFileUpload]="false"
+                    [showValidationResults]="false"
+                    [onFileChange]="dynamicFormService.onFileChange"
+                    [getFileNames]="dynamicFormService.getFileNames"
+                    [removeSingleFile]="dynamicFormService.removeSingleFile"
+                    [isExistingFile]="dynamicFormService.isExistingFile"
+                    [openExistingFile]="dynamicFormService.openExistingFile"
+                  />
+                </div>
+              }
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="isActive">Status *</label>
+                  <select id="isActive" formControlName="isActive">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn-cancel" (click)="cancelInlineEdit()" [disabled]="processing()">
+                  Cancel
+                </button>
+                <button type="submit" class="btn-submit" [disabled]="processing() || !documentTypeForm.valid">
+                  {{ processing() ? 'Saving...' : 'Update' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        } @else {
+          <!-- Regular Card Display -->
+          <div class="type-content">
+            <h3>{{ docType.name }}</h3>
+            <div class="type-meta">
+              @if ((docType.usageCount || 0) > 0) {
+                <span class="usage-count">{{ docType.usageCount }} documents</span>
+              }
+              <span class="workflow-count">{{ getWorkflowCount(docType) }} workflows</span>
+              @if (!docType.isActive) {
+                <span class="inactive-badge">Inactive</span>
+              }
+            </div>
+          </div>
+          <div class="type-actions">
+            <button class="action-btn" (click)="openEditForm(docType)">Edit</button>
+            <button class="action-btn secondary" (click)="cloneDocumentType(docType)" title="Create a copy of this document type">Clone</button>
+            @if (docType.isActive !== false) {
+              <button class="action-btn danger" (click)="archiveDocumentType(docType)" [disabled]="processing()">
+                {{ processing() ? '...' : 'Archive' }}
+              </button>
+            } @else {
+              <button class="action-btn success" (click)="activateDocumentType(docType)" [disabled]="processing()">
+                {{ processing() ? '...' : 'Activate' }}
+              </button>
             }
           </div>
-        </div>
-        <div class="type-actions">
-          <button class="action-btn" (click)="openEditForm(docType)">Edit</button>
-          <button class="action-btn secondary" (click)="cloneDocumentType(docType)" title="Create a copy of this document type">Clone</button>
-          @if (docType.isActive !== false) {
-            <button class="action-btn danger" (click)="archiveDocumentType(docType)" [disabled]="processing()">
-              {{ processing() ? '...' : 'Archive' }}
-            </button>
-          } @else {
-            <button class="action-btn success" (click)="activateDocumentType(docType)" [disabled]="processing()">
-              {{ processing() ? '...' : 'Activate' }}
-            </button>
-          }
-        </div>
+        }
       </div>
     }
   </div>

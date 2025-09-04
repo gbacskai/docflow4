@@ -1,7 +1,20 @@
 <div class="reporting-page">
   <header class="page-header">
-    <h1>📊 Reporting</h1>
-    <p>Project and document workflow status matrix</p>
+    <div class="header-content">
+      <div class="title-section">
+        <h1>📊 Reporting</h1>
+        <p>Project and document workflow status matrix</p>
+      </div>
+      <div class="header-controls">
+        <button 
+          class="toggle-btn" 
+          (click)="toggleShowAllProjects()"
+          [class.active]="showAllProjects()"
+        >
+          {{ showAllProjects() ? '📋 Show Active Only' : '📁 Show All Projects' }}
+        </button>
+      </div>
+    </div>
   </header>
 
   @if (loading()) {
@@ -17,23 +30,27 @@
         <div class="legend-items">
           <div class="legend-item">
             <span class="status-icon" style="color: #95a5a6;">⏳</span>
-            <span>Queued (Not Started)</span>
+            <span>Queued</span>
           </div>
           <div class="legend-item">
             <span class="status-icon" style="color: #f39c12;">⏰</span>
-            <span>Waiting (In Progress)</span>
+            <span>Waiting</span>
           </div>
           <div class="legend-item">
             <span class="status-icon" style="color: #27ae60;">✅</span>
             <span>Completed</span>
           </div>
           <div class="legend-item">
-            <span class="status-icon" style="color: #e74c3c;">❌</span>
-            <span>Rejected</span>
+            <span class="status-icon" style="color: #27ae60;">✅</span>
+            <span>Confirmed</span>
           </div>
           <div class="legend-item">
-            <span class="status-icon" style="color: #9b59b6;">🔄</span>
-            <span>Amended</span>
+            <span class="status-icon" style="color: #34495e;">🚫</span>
+            <span>Not Required</span>
+          </div>
+          <div class="legend-item">
+            <span class="status-icon" style="color: #e67e22;">⚠️</span>
+            <span>Missing Status</span>
           </div>
         </div>
       </div>
@@ -93,31 +110,9 @@
         </div>
         
         <div class="modal-body">
-          <div class="document-info">
-            <div class="info-row">
-              <div class="info-item">
-                <strong>Status:</strong>
-                <span class="status-badge" [style.background-color]="getDocumentStatus(selectedDocument()!).color">
-                  {{ getDocumentStatus(selectedDocument()!).icon }} {{ getFormStatus(selectedDocument()!) || 'queued' }}
-                </span>
-              </div>
-              <div class="info-item">
-                <strong>Created:</strong>
-                <span>{{ selectedDocument()!.createdAt | date:'MMM dd, yyyy HH:mm' }}</span>
-              </div>
-              @if (selectedDocument()!.updatedAt) {
-                <div class="info-item">
-                  <strong>Updated:</strong>
-                  <span>{{ selectedDocument()!.updatedAt | date:'MMM dd, yyyy HH:mm' }}</span>
-                </div>
-              }
-            </div>
-          </div>
-
           <!-- Dynamic Form -->
           @if (dynamicFormService.dynamicFormGroup() && dynamicFormService.dynamicFormFields().length > 0) {
             <div class="dynamic-form-container">
-              <h4>Document Form</h4>
               <app-dynamic-form
                 title=""
                 [showTitle]="false"

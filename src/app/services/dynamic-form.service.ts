@@ -136,6 +136,7 @@ export class DynamicFormService {
     const rules: {validation: string, action: string}[] = [];
     const lines = rulesText.split('\n').filter((line: string) => line.trim());
     
+    // Process rules sequentially from first line to maintain execution order
     for (const line of lines) {
       const parts = line.split('action:').map((p: string) => p.trim());
       if (parts.length === 2) {
@@ -163,29 +164,36 @@ export class DynamicFormService {
     const results: {message: string, type: 'success' | 'warning' | 'error'}[] = [];
     let hasErrors = false;
     
-    
-    for (const rule of rules) {
+    // Process rules sequentially from first row to ensure proper order
+    // Each rule is processed in the exact order it appears in the rules array
+    for (let i = 0; i < rules.length; i++) {
+      const rule = rules[i];
+      
       try {
         const result = this.parseAndExecuteRule(rule.validation + ' action: ' + rule.action, formGroup, arrayData);
         
         if (result) {
           if (result.startsWith('✅')) {
-            results.push({ message: result, type: 'success' });
+            results.push({ message: `[${i + 1}] ${result}`, type: 'success' });
           } else if (result.startsWith('⚠️')) {
-            results.push({ message: result, type: 'warning' });
+            results.push({ message: `[${i + 1}] ${result}`, type: 'warning' });
           } else {
-            results.push({ message: result, type: 'success' });
+            results.push({ message: `[${i + 1}] ${result}`, type: 'success' });
           }
         } else {
-          results.push({ message: `ℹ️ Rule "${rule.validation}" condition not met`, type: 'warning' });
+          results.push({ message: `[${i + 1}] ℹ️ Rule "${rule.validation}" condition not met`, type: 'warning' });
         }
       } catch (error) {
-        console.error('Rule error:', error);
+        console.error(`Rule ${i + 1} error:`, error);
         hasErrors = true;
         results.push({ 
-          message: `❌ Error in rule "${rule.validation}": ${error}`, 
+          message: `[${i + 1}] ❌ Error in rule "${rule.validation}": ${error}`, 
           type: 'error' 
         });
+        
+        // Stop processing further rules if there's a critical error
+        // This ensures sequential processing stops on first error
+        break;
       }
     }
 
@@ -221,7 +229,7 @@ export class DynamicFormService {
     return null;
   }
 
-  private evaluateCondition(condition: string, formGroup: any, arrayData: any): boolean {
+  evaluateCondition(condition: string, formGroup: any, arrayData: any): boolean {
     // Handle AND/OR operators
     if (condition.includes(' & ') || condition.includes(' | ') || condition.includes(' and ') || condition.includes(' or ')) {
       return this.evaluateComplexCondition(condition, formGroup, arrayData);
@@ -329,22 +337,59 @@ export class DynamicFormService {
     }
 
     // Handle field value conditions like "status == 'waiting'" or "notrequired == true"
-    const fieldValueMatch = condition.match(/(\w+)\s*([><=!]+)\s*['"]?([^'"]+)['"]?/);
+    // Updated regex to handle null, undefined, and empty string values
+    const fieldValueMatch = condition.match(/(\w+)\s*([><=!]+)\s*(null|undefined|['"]([^'"]*)['"]|([^'"\s]+))/);
     if (fieldValueMatch) {
-      const [, fieldKey, operator, expectedValue] = fieldValueMatch;
+      const [, fieldKey, operator, fullValue, quotedValue, unquotedValue] = fieldValueMatch;
       let actualValue = formGroup?.get(fieldKey)?.value;
+      let expectedValue: any = quotedValue !== undefined ? quotedValue : (unquotedValue || fullValue);
+      
+      // Handle special null/undefined cases
+      if (fullValue === 'null') {
+        expectedValue = null;
+      } else if (fullValue === 'undefined') {
+        expectedValue = undefined;
+      }
       
       // Handle boolean values for checkboxes
       if (expectedValue === 'true' || expectedValue === 'false') {
         actualValue = actualValue === true ? 'true' : 'false';
-      } else {
+        expectedValue = expectedValue; // Keep as string for comparison
+      } else if (expectedValue === null) {
+        // For null comparison, check if field is actually null or empty
+        // Keep actualValue as-is for null comparison
+      } else if (expectedValue === undefined) {
+        // For undefined comparison, keep actualValue as-is
+      } else if (expectedValue === '') {
+        // For empty string comparison, convert falsy values to empty string
         actualValue = actualValue || '';
+      } else {
+        // For other values, convert to string but preserve null/undefined distinction
+        actualValue = actualValue == null ? actualValue : String(actualValue);
+        expectedValue = String(expectedValue);
       }
       
+      console.log(`Validating: ${fieldKey} (${typeof actualValue}) '${actualValue}' ${operator} (${typeof expectedValue}) '${expectedValue}'`);
       
       switch (operator) {
-        case '==': case '=': return actualValue === expectedValue;
-        case '!=': return actualValue !== expectedValue;
+        case '==': case '=': 
+          if (expectedValue === null) {
+            return actualValue == null || actualValue === '';
+          } else if (expectedValue === undefined) {
+            return actualValue === undefined;
+          } else if (expectedValue === '') {
+            return actualValue == null || actualValue === '';
+          }
+          return actualValue === expectedValue;
+        case '!=': 
+          if (expectedValue === null) {
+            return !(actualValue == null || actualValue === '');
+          } else if (expectedValue === undefined) {
+            return actualValue !== undefined;
+          } else if (expectedValue === '') {
+            return !(actualValue == null || actualValue === '');
+          }
+          return actualValue !== expectedValue;
         default: throw new Error(`Unsupported operator for field values: ${operator}`);
       }
     }

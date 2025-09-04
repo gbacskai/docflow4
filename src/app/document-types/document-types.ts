@@ -25,6 +25,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
   showForm = signal(false);
   currentMode = signal<'create' | 'edit' | 'view'>('create');
   selectedDocumentType = signal<Schema['DocumentType']['type'] | null>(null);
+  editingInlineId = signal<string | null>(null); // Track which item is being edited inline
   processing = signal(false);
   expandedDescriptions = signal<Set<string>>(new Set());
   
@@ -370,6 +371,13 @@ export class DocumentTypes implements OnInit, OnDestroy {
   }
 
   openEditForm(docType: Schema['DocumentType']['type']) {
+    // Close any existing inline edit
+    if (this.editingInlineId()) {
+      this.cancelInlineEdit();
+    }
+    
+    // Set up inline editing
+    this.editingInlineId.set(docType.id);
     this.currentMode.set('edit');
     this.selectedDocumentType.set(docType);
     
@@ -399,9 +407,21 @@ export class DocumentTypes implements OnInit, OnDestroy {
       if (definition) {
         this.dynamicFormService.generateDynamicFormSchema(definition);
       }
+      
+      // Also load workflow rules for validation
+      this.loadWorkflowRules();
     }, 100);
     
-    this.showForm.set(true);
+    // Don't show the top form anymore - we'll show inline
+    // this.showForm.set(true);
+  }
+
+  cancelInlineEdit() {
+    this.editingInlineId.set(null);
+    this.selectedDocumentType.set(null);
+    this.currentMode.set('create');
+    this.documentTypeForm.reset();
+    this.dynamicFormService.resetForm();
   }
 
   openViewMode(docType: Schema['DocumentType']['type']) {
@@ -412,6 +432,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
   closeForm() {
     this.showForm.set(false);
+    this.editingInlineId.set(null);
     this.currentMode.set('create');
     this.selectedDocumentType.set(null);
     this.documentTypeForm.reset();
@@ -859,6 +880,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
   private async loadWorkflowRules() {
     const rulesText = this.documentTypeForm.get('validationRules')?.value || '';
     console.log('Loading workflow rules from text:', rulesText);
+    // Rules will be processed sequentially from first row as entered in validationRules field
     this.dynamicFormService.loadWorkflowRulesFromText(rulesText);
     console.log('Rules loaded into service:', this.dynamicFormService.workflowRules());
   }

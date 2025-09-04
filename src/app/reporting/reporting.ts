@@ -40,6 +40,7 @@ export class Reporting implements OnInit {
   selectedDocument = signal<Schema['Document']['type'] | null>(null);
   showDocumentModal = signal(false);
   saving = signal(false);
+  showAllProjects = signal(false); // By default, show only active projects
   
   dynamicFormService = inject(DynamicFormService);
   versionedDataService = inject(VersionedDataService);
@@ -76,13 +77,28 @@ export class Reporting implements OnInit {
   }
 
   buildMatrix() {
-    // Get all unique document types and order them by workflow rules
-    const allDocTypes = this.documentTypes();
-    const orderedTypes = this.getWorkflowOrderedDocumentTypes(allDocTypes);
+    // Filter projects based on showAllProjects setting
+    const filteredProjects = this.getFilteredProjects();
+
+    // Get only document types that have actual documents in the filtered projects
+    const usedDocumentTypeIds = new Set<string>();
+    this.documents().forEach(doc => {
+      if (filteredProjects.some(project => project.id === doc.projectId)) {
+        usedDocumentTypeIds.add(doc.documentType);
+      }
+    });
+
+    // Filter to only used document types
+    const usedDocTypes = this.documentTypes().filter(docType => 
+      usedDocumentTypeIds.has(docType.id!)
+    );
+    
+    // Order the used document types by workflow rules
+    const orderedTypes = this.getWorkflowOrderedDocumentTypes(usedDocTypes);
     this.orderedDocumentTypes.set(orderedTypes);
 
     // Build matrix for each project
-    const matrix: ProjectRow[] = this.projects().map(project => ({
+    const matrix: ProjectRow[] = filteredProjects.map((project: Schema['Project']['type']) => ({
       project,
       cells: orderedTypes.map(docType => {
         const document = this.findDocumentForProjectAndType(project.id!, docType.id!);
@@ -101,7 +117,7 @@ export class Reporting implements OnInit {
 
   updateGridTemplate() {
     const numColumns = this.orderedDocumentTypes().length + 1; // +1 for project name column
-    const gridTemplate = `200px repeat(${this.orderedDocumentTypes().length}, 120px)`;
+    const gridTemplate = `200px repeat(${this.orderedDocumentTypes().length}, 60px)`;
     
     // Update CSS custom property for grid template
     setTimeout(() => {
@@ -110,6 +126,22 @@ export class Reporting implements OnInit {
         matrixTable.style.gridTemplateColumns = gridTemplate;
       }
     });
+  }
+
+  getFilteredProjects(): Array<Schema['Project']['type']> {
+    const allProjects = this.projects();
+    
+    if (this.showAllProjects()) {
+      return allProjects;
+    }
+    
+    // Show only active projects by default
+    return allProjects.filter(project => project.status === 'active');
+  }
+
+  toggleShowAllProjects() {
+    this.showAllProjects.set(!this.showAllProjects());
+    this.buildMatrix(); // Rebuild matrix with new filter
   }
 
   getWorkflowOrderedDocumentTypes(docTypes: Array<Schema['DocumentType']['type']>): Array<Schema['DocumentType']['type']> {
@@ -216,22 +248,74 @@ export class Reporting implements OnInit {
       return { status: 'queued', icon: '⏳', color: '#95a5a6' }; // Gray for queued/not started
     }
 
-    // Extract status from formData JSON
+    // Extract status from formData JSON - prioritize form data status
     let formStatus = null;
     if (document.formData) {
       try {
         const formData = JSON.parse(document.formData);
-        // Look for common status field names
-        formStatus = formData.status || formData.documentStatus || formData.requestStatus || formData.applicationStatus;
+        // Debug logging to see what's in the form data
+        console.log('Document formData:', document.formData);
+        console.log('Parsed formData:', formData);
+        
+        // Look for common status field names in priority order
+        formStatus = formData.status || formData.documentStatus || formData.requestStatus || formData.applicationStatus || 
+                    formData.documentRequestStatus || formData.permitStatus || formData.approvalStatus || 
+                    formData.submissionStatus || formData.reviewStatus || formData.processingStatus;
+        
+        // Handle boolean confirmation fields (e.g., confirmed: true means completed)
+        if (!formStatus && formData.confirmed === true) {
+          formStatus = 'completed';
+        }
+        
+        // Handle notrequired field 
+        if (!formStatus && formData.notrequired === true) {
+          formStatus = 'not required';
+        }
+        
+        // Handle documents that have form fields but no explicit status
+        if (!formStatus && Object.keys(formData).length > 0) {
+          // If document has files uploaded, consider it completed
+          if (formData.files && formData.files !== '' && formData.files !== null) {
+            formStatus = 'completed';
+          } else {
+            // If document has form data but no files/status, assume it's queued (being worked on)
+            formStatus = 'queued';
+          }
+        }
+        
+        // If no standard status fields found, search for any field containing "status"
+        if (!formStatus) {
+          const statusFields = Object.keys(formData).filter(key => key.toLowerCase().includes('status'));
+          if (statusFields.length > 0) {
+            formStatus = formData[statusFields[0]]; // Use first status field found
+          }
+        }
+        
+        console.log('All formData keys:', Object.keys(formData));
+        console.log('Extracted formStatus:', formStatus);
       } catch (error) {
         console.error('Error parsing formData for status:', error);
       }
     }
 
-    // Use formData status if available, otherwise fall back to document.status
-    const status = formStatus || document.status;
+    // Use formData status, show error if no status field found
+    const status = formStatus !== null && formStatus !== undefined ? formStatus : 'error';
 
     switch (status?.toLowerCase()) {
+      // Primary status configuration
+      case 'queued':
+        return { status: 'queued', icon: '⏳', color: '#95a5a6' }; // Gray for queued
+      case 'waiting':
+        return { status: 'waiting', icon: '⏰', color: '#f39c12' }; // Yellow for waiting
+      case 'completed':
+        return { status: 'completed', icon: '✅', color: '#27ae60' }; // Green for completed
+      case 'confirmed':
+        return { status: 'confirmed', icon: '✅', color: '#27ae60' }; // Green for confirmed
+      case 'notrequired':
+      case 'not required':
+        return { status: 'not_required', icon: '🚫', color: '#34495e' }; // Dark gray for not required
+      
+      // Additional status mappings
       case 'requested':
       case 'submitted':
       case 'pending':
@@ -241,11 +325,16 @@ export class Reporting implements OnInit {
       case 'processing':
         return { status: 'waiting', icon: '⏰', color: '#f39c12' }; // Yellow for waiting
       case 'provided':
-      case 'completed':
       case 'approved':
       case 'finished':
       case 'done':
         return { status: 'completed', icon: '✅', color: '#27ae60' }; // Green for completed
+      case 'project completed':
+      case 'project_completed':
+      case 'projectcompleted':
+      case 'fully completed':
+      case 'fully_completed':
+        return { status: 'project_completed', icon: '🏆', color: '#f39c12' }; // Gold trophy for project completion
       case 'rejected':
       case 'denied':
       case 'declined':
@@ -255,11 +344,18 @@ export class Reporting implements OnInit {
       case 'needs revision':
       case 'needsrevision':
         return { status: 'amended', icon: '🔄', color: '#9b59b6' }; // Purple for amended
-      case 'queued':
+      case 'not_required':
+      case 'n/a':
+      case 'na':
+      case 'skip':
+      case 'skipped':
+        return { status: 'not_required', icon: '🚫', color: '#34495e' }; // Dark gray for not required
       case 'draft':
       case 'not started':
       case 'notstarted':
         return { status: 'queued', icon: '⏳', color: '#95a5a6' }; // Gray for queued
+      case 'error':
+        return { status: 'error', icon: '⚠️', color: '#e67e22' }; // Orange warning for missing status
       default:
         return { status: 'queued', icon: '⏳', color: '#95a5a6' }; // Default to queued
     }
@@ -277,17 +373,48 @@ export class Reporting implements OnInit {
 
   getFormStatus(document: Schema['Document']['type']): string {
     if (!document.formData) {
-      return document.status || 'queued';
+      return 'error';
     }
 
     try {
       const formData = JSON.parse(document.formData);
       // Look for common status field names in the form data
-      const formStatus = formData.status || formData.documentStatus || formData.requestStatus || formData.applicationStatus;
-      return formStatus || document.status || 'queued';
+      let formStatus = formData.status || formData.documentStatus || formData.requestStatus || formData.applicationStatus || 
+                      formData.documentRequestStatus || formData.permitStatus || formData.approvalStatus || 
+                      formData.submissionStatus || formData.reviewStatus || formData.processingStatus;
+      
+      // Handle boolean confirmation fields (e.g., confirmed: true means completed)
+      if (!formStatus && formData.confirmed === true) {
+        formStatus = 'completed';
+      }
+      
+      // Handle notrequired field 
+      if (!formStatus && formData.notrequired === true) {
+        formStatus = 'not required';
+      }
+      
+      // Handle documents that have form fields but no explicit status
+      if (!formStatus && Object.keys(formData).length > 0) {
+        // If document has files uploaded, consider it completed
+        if (formData.files && formData.files !== '' && formData.files !== null) {
+          formStatus = 'completed';
+        } else {
+          // If document has form data but no files/status, assume it's queued (being worked on)
+          formStatus = 'queued';
+        }
+      }
+      
+      // If no standard status fields found, search for any field containing "status"
+      if (!formStatus) {
+        const statusFields = Object.keys(formData).filter(key => key.toLowerCase().includes('status'));
+        if (statusFields.length > 0) {
+          formStatus = formData[statusFields[0]]; // Use first status field found
+        }
+      }
+      return formStatus !== null && formStatus !== undefined ? formStatus : 'error';
     } catch (error) {
       console.error('Error parsing formData for status display:', error);
-      return document.status || 'queued';
+      return 'error';
     }
   }
 
@@ -295,13 +422,14 @@ export class Reporting implements OnInit {
     if (document) {
       this.selectedDocument.set(document);
       
-      // Load the document type and initialize dynamic form (same as documents page)
-      this.onDocumentTypeChange(document.documentType);
+      // Generate dynamic form for the document type
+      await this.onDocumentTypeChange(document.documentType);
       
-      // Load existing form data if available
-      if (document.formData) {
+      // Populate dynamic form with existing data if available (match documents component approach)
+      const documentWithFormData = document as any;
+      if (documentWithFormData.formData) {
         try {
-          const existingData = JSON.parse(document.formData);
+          const existingData = JSON.parse(documentWithFormData.formData);
           setTimeout(() => {
             this.dynamicFormService.patchFormValue(existingData);
           }, 100);
@@ -314,11 +442,14 @@ export class Reporting implements OnInit {
     }
   }
 
-  onDocumentTypeChange(documentTypeId: string) {
+  async onDocumentTypeChange(documentTypeId: string) {
     const documentType = this.documentTypes().find(dt => dt.id === documentTypeId);
     
     if (documentType && documentType.definition) {
       this.dynamicFormService.generateDynamicFormSchema(documentType.definition);
+      
+      // Setup form change listeners for validation
+      this.dynamicFormService.setupFormChangeListeners();
       
       // Reset rules first
       this.dynamicFormService.workflowRules.set([]);
@@ -332,50 +463,45 @@ export class Reporting implements OnInit {
       // Also load workflow rules from project workflow if available
       const document = this.selectedDocument();
       if (document) {
-        this.loadWorkflowRulesForDocumentType(document.projectId, documentTypeId);
+        const project = this.projects().find(p => p.id === document.projectId);
+        if (project?.workflowId) {
+          const documentTypeName = this.getDocumentTypeName(documentTypeId);
+          await this.dynamicFormService.loadWorkflowRulesForDocumentType(
+            documentTypeId, 
+            documentTypeName, 
+            this.workflows(), 
+            project.workflowId
+          );
+        }
       }
     } else {
       this.dynamicFormService.resetForm();
     }
   }
 
-  async loadWorkflowRulesForDocumentType(projectId: string, documentTypeId: string) {
-    try {
-      // Find the project and its workflow
-      const project = this.projects().find(p => p.id === projectId);
-      if (!project || !project.workflowId) return;
 
-      const workflow = this.workflows().find(w => w.id === project.workflowId);
-      if (!workflow || !workflow.rules) return;
-
-      // Extract rules for this document type
-      const relevantRules: string[] = [];
-      workflow.rules.forEach((ruleString: any) => {
-        try {
-          const rule = typeof ruleString === 'string' ? JSON.parse(ruleString) : ruleString;
-          const validation = rule.validation || '';
-          const action = rule.action || '';
-          
-          // Get document type identifier
-          const documentType = this.documentTypes().find(dt => dt.id === documentTypeId);
-          if (documentType?.identifier) {
-            const identifier = documentType.identifier.toLowerCase();
-            if (validation.toLowerCase().includes(identifier) || action.toLowerCase().includes(identifier)) {
-              relevantRules.push(`validation: ${validation} action: ${action}`);
-            }
-          }
-        } catch (error) {
-          // Skip invalid rule JSON
+  updateMatrixForDocument(documentId: string, formData: any) {
+    // Create updated document object
+    const updatedDocument = this.documents().find(doc => doc.id === documentId);
+    if (!updatedDocument) return;
+    
+    // Update the matrix cells for this document
+    const currentMatrix = this.projectMatrix();
+    const updatedMatrix = currentMatrix.map(row => ({
+      ...row,
+      cells: row.cells.map(cell => {
+        if (cell.document?.id === documentId) {
+          return {
+            ...cell,
+            document: { ...updatedDocument, formData: JSON.stringify(formData) },
+            status: this.getDocumentStatus({ ...updatedDocument, formData: JSON.stringify(formData) })
+          };
         }
-      });
-
-      // Load workflow rules into dynamic form service
-      if (relevantRules.length > 0) {
-        this.dynamicFormService.loadWorkflowRulesFromText(relevantRules.join('\n'));
-      }
-    } catch (error) {
-      console.error('Error loading workflow rules:', error);
-    }
+        return cell;
+      })
+    }));
+    
+    this.projectMatrix.set(updatedMatrix);
   }
 
   closeDocumentModal() {
@@ -398,7 +524,19 @@ export class Reporting implements OnInit {
         return;
       }
 
-      const dynamicFormValue = this.dynamicFormService.dynamicFormGroup()?.value;
+      let dynamicFormValue = this.dynamicFormService.getFormValue();
+      
+      // Handle file uploads if there are any
+      let uploadedFileUrls = {};
+      if (Object.keys(this.dynamicFormService.fileObjects()).length > 0) {
+        uploadedFileUrls = await this.dynamicFormService.uploadFilesForDocument(document.id);
+        // Merge uploaded file URLs with existing form data
+        dynamicFormValue = { ...dynamicFormValue, ...uploadedFileUrls };
+      }
+      
+      // Debug logging to see what form data is being saved
+      console.log('Saving document with form data:', dynamicFormValue);
+      console.log('Serialized form data:', JSON.stringify(dynamicFormValue));
       
       // Update the document with new form data using versioned service
       const result = await this.versionedDataService.updateVersionedRecord('Document', document.id, {
@@ -409,9 +547,16 @@ export class Reporting implements OnInit {
         throw new Error(result.error || 'Failed to update document');
       }
 
-      // Refresh data and rebuild matrix to show updated status
-      await this.loadAllData();
-      this.buildMatrix();
+      // Update only the specific document in the documents array
+      const updatedDocuments = this.documents().map(doc => 
+        doc.id === document.id 
+          ? { ...doc, formData: JSON.stringify(dynamicFormValue), updatedAt: new Date().toISOString() }
+          : doc
+      );
+      this.documents.set(updatedDocuments);
+      
+      // Update only the affected matrix cells without rebuilding the entire matrix
+      this.updateMatrixForDocument(document.id!, dynamicFormValue);
       
       // Close modal
       this.closeDocumentModal();

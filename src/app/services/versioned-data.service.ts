@@ -239,14 +239,29 @@ export class VersionedDataService {
         };
       }
 
-      const recordsById = allRecords.reduce((acc: any, record: any) => {
-        if (!acc[record.id] || new Date(record.version) > new Date(acc[record.id].version)) {
-          acc[record.id] = record;
+      // Sort all records by version (sort key) in descending order to ensure latest first
+      const sortedRecords = allRecords.sort((a: any, b: any) => {
+        return new Date(b.version).getTime() - new Date(a.version).getTime();
+      });
+
+      // Group by ID and keep only the latest version (first record due to sort)
+      const recordsById = sortedRecords.reduce((acc: any, record: any) => {
+        if (!acc[record.id]) {
+          acc[record.id] = record; // Keep first occurrence (which is latest due to sort)
         }
         return acc;
       }, {});
 
       const latestVersions = Object.values(recordsById);
+
+      // Debug logging to verify latest versions are being returned
+      console.log(`${modelName} - Total records: ${allRecords.length}, Latest versions: ${latestVersions.length}`);
+      if (latestVersions.length > 0) {
+        console.log(`${modelName} - Sample latest version:`, {
+          id: (latestVersions[0] as any).id,
+          version: (latestVersions[0] as any).version
+        });
+      }
 
       return {
         success: true,
@@ -323,30 +338,41 @@ export class VersionedDataService {
     version: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      let result;
       switch (modelName) {
         case 'Project':
-          await this.client.models.Project.delete({ id, version });
+          result = await this.client.models.Project.delete({ id, version });
           break;
         case 'Document':
-          await this.client.models.Document.delete({ id, version });
+          result = await this.client.models.Document.delete({ id, version });
           break;
         case 'User':
-          await this.client.models.User.delete({ id, version });
+          result = await this.client.models.User.delete({ id, version });
           break;
         case 'DocumentType':
-          await this.client.models.DocumentType.delete({ id, version });
+          result = await this.client.models.DocumentType.delete({ id, version });
           break;
         case 'Workflow':
-          await this.client.models.Workflow.delete({ id, version });
+          result = await this.client.models.Workflow.delete({ id, version });
           break;
         case 'ChatRoom':
-          await this.client.models.ChatRoom.delete({ id, version });
+          result = await this.client.models.ChatRoom.delete({ id, version });
           break;
         case 'ChatMessage':
-          await this.client.models.ChatMessage.delete({ id, version });
+          result = await this.client.models.ChatMessage.delete({ id, version });
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
+      }
+
+      // Check for GraphQL errors in the response
+      if (result && result.errors && result.errors.length > 0) {
+        const errorMessages = result.errors.map((err: any) => err.message).join(', ');
+        console.error(`GraphQL errors deleting ${String(modelName)} ${id}:${version}:`, result.errors);
+        return {
+          success: false,
+          error: `GraphQL error: ${errorMessages}`
+        };
       }
 
       return {
@@ -354,6 +380,95 @@ export class VersionedDataService {
       };
     } catch (error: any) {
       console.error(`Error deleting versioned ${String(modelName)}:`, error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error occurred'
+      };
+    }
+  }
+
+  async getAllVersionsAllRecords(
+    modelName: string
+  ): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    try {
+      let records;
+      switch (modelName) {
+        case 'Project':
+          records = (await this.client.models.Project.list()).data;
+          break;
+        case 'Document':
+          records = (await this.client.models.Document.list()).data;
+          break;
+        case 'User':
+          records = (await this.client.models.User.list()).data;
+          break;
+        case 'DocumentType':
+          records = (await this.client.models.DocumentType.list()).data;
+          break;
+        case 'Workflow':
+          records = (await this.client.models.Workflow.list()).data;
+          break;
+        case 'ChatRoom':
+          records = (await this.client.models.ChatRoom.list()).data;
+          break;
+        case 'ChatMessage':
+          records = (await this.client.models.ChatMessage.list()).data;
+          break;
+        default:
+          throw new Error(`Unknown model: ${modelName}`);
+      }
+
+      return {
+        success: true,
+        data: records || []
+      };
+    } catch (error: any) {
+      console.error(`Error getting all versions for ${String(modelName)}:`, error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error occurred'
+      };
+    }
+  }
+
+  async deleteAllVersionsAllRecords(
+    modelName: string
+  ): Promise<{ success: boolean; deletedCount?: number; error?: string }> {
+    try {
+      const result = await this.getAllVersionsAllRecords(modelName);
+      if (!result.success || !result.data) {
+        return {
+          success: false,
+          error: result.error || 'Failed to get records'
+        };
+      }
+
+      let deletedCount = 0;
+      const errors: string[] = [];
+
+      for (const record of result.data) {
+        try {
+          const deleteResult = await this.deleteVersionedRecord(modelName, record.id, record.version);
+          if (deleteResult.success) {
+            deletedCount++;
+          } else {
+            errors.push(`Failed to delete ${record.id}:${record.version} - ${deleteResult.error}`);
+          }
+        } catch (error: any) {
+          errors.push(`Error deleting ${record.id}:${record.version} - ${error.message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        console.warn(`Some deletion errors occurred for ${modelName}:`, errors);
+      }
+
+      return {
+        success: true,
+        deletedCount
+      };
+    } catch (error: any) {
+      console.error(`Error deleting all versions for ${String(modelName)}:`, error);
       return {
         success: false,
         error: error.message || 'Unknown error occurred'

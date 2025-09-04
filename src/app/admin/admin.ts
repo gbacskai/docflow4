@@ -507,8 +507,8 @@ export class Admin implements OnInit {
       // Backup Document Types
       if (this.backupOptions.documentTypes) {
         this.backupStatus.set('Backing up Document Types...');
-        const result = await client.models.DocumentType.list();
-        if (result.data) {
+        const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        if (result.success && result.data) {
           backupData.tables.DocumentTypes = result.data;
           backupData.statistics.DocumentTypes = result.data.length;
           totalRecords += result.data.length;
@@ -518,8 +518,8 @@ export class Admin implements OnInit {
       // Backup Workflows
       if (this.backupOptions.workflows) {
         this.backupStatus.set('Backing up Workflows...');
-        const result = await client.models.Workflow.list();
-        if (result.data) {
+        const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+        if (result.success && result.data) {
           backupData.tables.Workflows = result.data;
           backupData.statistics.Workflows = result.data.length;
           totalRecords += result.data.length;
@@ -529,8 +529,8 @@ export class Admin implements OnInit {
       // Backup Projects
       if (this.backupOptions.projects) {
         this.backupStatus.set('Backing up Projects...');
-        const result = await client.models.Project.list();
-        if (result.data) {
+        const result = await this.versionedDataService.getAllLatestVersions('Project');
+        if (result.success && result.data) {
           backupData.tables.Projects = result.data;
           backupData.statistics.Projects = result.data.length;
           totalRecords += result.data.length;
@@ -540,8 +540,8 @@ export class Admin implements OnInit {
       // Backup Documents
       if (this.backupOptions.documents) {
         this.backupStatus.set('Backing up Documents...');
-        const result = await client.models.Document.list();
-        if (result.data) {
+        const result = await this.versionedDataService.getAllLatestVersions('Document');
+        if (result.success && result.data) {
           backupData.tables.Documents = result.data;
           backupData.statistics.Documents = result.data.length;
           totalRecords += result.data.length;
@@ -662,17 +662,17 @@ export class Admin implements OnInit {
         
         for (const docType of documentTypes) {
           try {
-            // Find existing document type by identifier
-            const existingQuery = await client.models.DocumentType.list({
-              filter: { identifier: { eq: docType.identifier } }
-            });
+            // Find existing document type by identifier using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('DocumentType');
+            const allDocTypes = existingResult.success ? existingResult.data || [] : [];
+            const existingDocTypes = allDocTypes.filter(dt => dt.identifier === docType.identifier);
             
             const { id, createdAt, updatedAt, ...updateData } = docType;
             
-            if (existingQuery.data && existingQuery.data.length > 0) {
+            if (existingDocTypes && existingDocTypes.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing document type
-                const existing = existingQuery.data[0];
+                const existing = existingDocTypes[0];
                 const result = await this.versionedDataService.updateVersionedRecord('DocumentType', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
@@ -685,12 +685,17 @@ export class Admin implements OnInit {
                 continue;
               }
             } else {
-              // Create new document type
-              await client.models.DocumentType.create({
-                ...updateData,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+              // Create new document type using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
               });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create DocumentType');
+              }
             }
             restoredCount++;
           } catch (error: any) {
@@ -706,17 +711,17 @@ export class Admin implements OnInit {
         
         for (const workflow of workflows) {
           try {
-            // Find existing workflow by identifier
-            const existingQuery = await client.models.Workflow.list({
-              filter: { identifier: { eq: workflow.identifier } }
-            });
+            // Find existing workflow by identifier using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('Workflow');
+            const allWorkflows = existingResult.success ? existingResult.data || [] : [];
+            const existingWorkflows = allWorkflows.filter(w => w.identifier === workflow.identifier);
             
             const { id, createdAt, updatedAt, ...updateData } = workflow;
             
-            if (existingQuery.data && existingQuery.data.length > 0) {
+            if (existingWorkflows && existingWorkflows.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing workflow
-                const existing = existingQuery.data[0];
+                const existing = existingWorkflows[0];
                 const result = await this.versionedDataService.updateVersionedRecord('Workflow', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
@@ -729,12 +734,17 @@ export class Admin implements OnInit {
                 continue;
               }
             } else {
-              // Create new workflow
-              await client.models.Workflow.create({
-                ...updateData,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+              // Create new workflow using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('Workflow', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
               });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create Workflow');
+              }
             }
             restoredCount++;
           } catch (error: any) {
@@ -750,17 +760,17 @@ export class Admin implements OnInit {
         
         for (const project of projects) {
           try {
-            // Find existing project by identifier
-            const existingQuery = await client.models.Project.list({
-              filter: { identifier: { eq: project.identifier } }
-            });
+            // Find existing project by identifier using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('Project');
+            const allProjects = existingResult.success ? existingResult.data || [] : [];
+            const existingProjects = allProjects.filter(p => p.identifier === project.identifier);
             
             const { id, createdAt, updatedAt, ...updateData } = project;
             
-            if (existingQuery.data && existingQuery.data.length > 0) {
+            if (existingProjects && existingProjects.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing project
-                const existing = existingQuery.data[0];
+                const existing = existingProjects[0];
                 const result = await this.versionedDataService.updateVersionedRecord('Project', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
@@ -773,12 +783,17 @@ export class Admin implements OnInit {
                 continue;
               }
             } else {
-              // Create new project
-              await client.models.Project.create({
-                ...updateData,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+              // Create new project using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('Project', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
               });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create Project');
+              }
             }
             restoredCount++;
           } catch (error: any) {
@@ -794,22 +809,19 @@ export class Admin implements OnInit {
         
         for (const document of documents) {
           try {
-            // Find existing document by projectId and documentType combination
-            const existingQuery = await client.models.Document.list({
-              filter: { 
-                and: [
-                  { projectId: { eq: document.projectId } },
-                  { documentType: { eq: document.documentType } }
-                ]
-              }
-            });
+            // Find existing document by projectId and documentType combination using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('Document');
+            const allDocuments = existingResult.success ? existingResult.data || [] : [];
+            const existingDocuments = allDocuments.filter(d => 
+              d.projectId === document.projectId && d.documentType === document.documentType
+            );
             
             const { id, createdAt, updatedAt, ...updateData } = document;
             
-            if (existingQuery.data && existingQuery.data.length > 0) {
+            if (existingDocuments && existingDocuments.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing document
-                const existing = existingQuery.data[0];
+                const existing = existingDocuments[0];
                 const result = await this.versionedDataService.updateVersionedRecord('Document', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
@@ -822,12 +834,17 @@ export class Admin implements OnInit {
                 continue;
               }
             } else {
-              // Create new document
-              await client.models.Document.create({
-                ...updateData,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+              // Create new document using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('Document', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
               });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create Document');
+              }
             }
             restoredCount++;
           } catch (error: any) {
@@ -870,11 +887,14 @@ export class Admin implements OnInit {
   async clearDatabase() {
     const confirmClear = confirm(
       'This will permanently delete ALL data from the database including:\n' +
-      '• Document Types\n' +
-      '• Workflows\n' +
-      '• Projects\n' +
-      '• Documents\n\n' +
-      'This operation cannot be undone. Are you absolutely sure you want to proceed?'
+      '• Document Types (all versions)\n' +
+      '• Workflows (all versions)\n' +
+      '• Projects (all versions)\n' +
+      '• Documents (all versions)\n' +
+      '• Chat Rooms (all versions)\n' +
+      '• Chat Messages (all versions)\n' +
+      '• Users (all versions)\n\n' +
+      'This operation will delete EVERY version of EVERY record and cannot be undone. Are you absolutely sure you want to proceed?'
     );
 
     if (!confirmClear) {
@@ -900,63 +920,100 @@ export class Admin implements OnInit {
       const errors: string[] = [];
 
       // Clear Documents first (to avoid foreign key constraints)
-      this.clearDatabaseStatus.set('Clearing Documents...');
+      this.clearDatabaseStatus.set('Clearing Documents (all versions)...');
       try {
-        const result = await this.versionedDataService.getAllLatestVersions('Document');
-        if (result.success && result.data) {
-          for (const document of result.data) {
-            await this.versionedDataService.deleteVersionedRecord('Document', document.id, document.version);
-            deletedCount++;
-          }
-          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Documents...`);
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('Document');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Document records (all versions)...`);
+        } else {
+          errors.push(`Documents: ${result.error || 'Unknown error'}`);
         }
       } catch (error: any) {
         errors.push(`Documents: ${error.message || 'Unknown error'}`);
       }
 
       // Clear Projects
-      this.clearDatabaseStatus.set('Clearing Projects...');
+      this.clearDatabaseStatus.set('Clearing Projects (all versions)...');
       try {
-        const result = await this.versionedDataService.getAllLatestVersions('Project');
-        if (result.success && result.data) {
-          for (const project of result.data) {
-            await this.versionedDataService.deleteVersionedRecord('Project', project.id, project.version);
-            deletedCount++;
-          }
-          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Projects...`);
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('Project');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Project records (all versions)...`);
+        } else {
+          errors.push(`Projects: ${result.error || 'Unknown error'}`);
         }
       } catch (error: any) {
         errors.push(`Projects: ${error.message || 'Unknown error'}`);
       }
 
       // Clear Workflows
-      this.clearDatabaseStatus.set('Clearing Workflows...');
+      this.clearDatabaseStatus.set('Clearing Workflows (all versions)...');
       try {
-        const result = await this.versionedDataService.getAllLatestVersions('Workflow');
-        if (result.success && result.data) {
-          for (const workflow of result.data) {
-            await this.versionedDataService.deleteVersionedRecord('Workflow', workflow.id, workflow.version);
-            deletedCount++;
-          }
-          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Workflows...`);
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('Workflow');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Workflow records (all versions)...`);
+        } else {
+          errors.push(`Workflows: ${result.error || 'Unknown error'}`);
         }
       } catch (error: any) {
         errors.push(`Workflows: ${error.message || 'Unknown error'}`);
       }
 
       // Clear Document Types last
-      this.clearDatabaseStatus.set('Clearing Document Types...');
+      this.clearDatabaseStatus.set('Clearing Document Types (all versions)...');
       try {
-        const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
-        if (result.success && result.data) {
-          for (const docType of result.data) {
-            await this.versionedDataService.deleteVersionedRecord('DocumentType', docType.id, docType.version);
-            deletedCount++;
-          }
-          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Document Types...`);
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('DocumentType');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} DocumentType records (all versions)...`);
+        } else {
+          errors.push(`Document Types: ${result.error || 'Unknown error'}`);
         }
       } catch (error: any) {
         errors.push(`Document Types: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Chat data (ChatRooms and ChatMessages)
+      this.clearDatabaseStatus.set('Clearing Chat Messages (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatMessage');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatMessage records (all versions)...`);
+        } else {
+          errors.push(`Chat Messages: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Chat Messages: ${error.message || 'Unknown error'}`);
+      }
+
+      this.clearDatabaseStatus.set('Clearing Chat Rooms (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatRoom');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatRoom records (all versions)...`);
+        } else {
+          errors.push(`Chat Rooms: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Chat Rooms: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Users (keeping this for completeness, though usually admin users might want to keep user accounts)
+      this.clearDatabaseStatus.set('Clearing Users (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('User');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} User records (all versions)...`);
+        } else {
+          errors.push(`Users: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Users: ${error.message || 'Unknown error'}`);
       }
 
       // Show results

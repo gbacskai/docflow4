@@ -30,6 +30,12 @@
             Workflows
           </a>
         </li>
+        <li>
+          <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">👥</i>
+            Users
+          </a>
+        </li>
       }
       <li>
         <a routerLink="/projects" routerLinkActive="active" (click)="onNavigationClick()">
@@ -53,12 +59,6 @@
         <a routerLink="/chat" routerLinkActive="active" (click)="onNavigationClick()">
           <i class="icon">💬</i>
           Chat
-        </a>
-      </li>
-      <li>
-        <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">👥</i>
-          Users
         </a>
       </li>
     }

@@ -16,7 +16,7 @@ const schema = a.schema({
     })
     .identifier(['id', 'version'])
     .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read'])
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete'])
     ]),
   Document: a.model({
       id: a.string().required(),
@@ -24,12 +24,11 @@ const schema = a.schema({
       projectId: a.string().required(),
       documentType: a.string().required(),
       formData: a.string(),
-      status: a.string(),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
   User: a.model({
       id: a.string().required(),
       version: a.datetime().required(),
@@ -39,15 +38,17 @@ const schema = a.schema({
       lastName: a.string(),
       interestedDocumentTypes: a.string().array(),
       status: a.enum(['invited', 'active', 'inactive', 'archived']),
+      emailVerified: a.boolean(), // Email verification status
       cognitoUserId: a.string(), // Cognito user ID for linking authenticated users
       invitedBy: a.string(),
+      createdBy: a.string(),
       invitedAt: a.datetime(),
       lastLoginAt: a.datetime(),
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
   DocumentType: a.model({
       id: a.string().required(),
       version: a.datetime().required(),
@@ -65,7 +66,7 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
   Workflow: a.model({
       id: a.string().required(),
       version: a.datetime().required(),
@@ -79,7 +80,7 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
   ChatRoom: a.model({
       // Primary key fields
       id: a.string().required(),
@@ -121,8 +122,8 @@ const schema = a.schema({
     })
     .identifier(['id', 'version'])
     .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read']),
-      allow.authenticated().to(['create', 'read'])
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
     ]),
   ChatMessage: a.model({
       // Primary key fields
@@ -166,8 +167,8 @@ const schema = a.schema({
     })
     .identifier(['id', 'version'])
     .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read']),
-      allow.authenticated().to(['create', 'read'])
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
     ]),
   // AI-powered workflow validation
   validateWorkflow: a.generation({

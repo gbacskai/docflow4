@@ -31,7 +31,7 @@ export const routes: Routes = [
   { path: 'documents', component: Documents, canActivate: [authGuard] },
   { path: 'projects', component: Projects, canActivate: [authGuard] },
   { path: 'chat', component: Chat, canActivate: [authGuard] },
-  { path: 'users', component: Users, canActivate: [authGuard] },
+  { path: 'users', component: Users, canActivate: [adminGuard] },
   { path: 'workflows', component: Workflows, canActivate: [authGuard] },
   { path: 'reporting', component: Reporting, canActivate: [authGuard] },
   { path: 'my-account', component: MyAccount, canActivate: [authGuard] },
