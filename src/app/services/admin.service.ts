@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from './auth.service';
+import { VersionedDataService } from './versioned-data.service';
 
 export interface DatabaseExport {
   id: string;
@@ -25,6 +26,7 @@ export interface ExportRequest {
 })
 export class AdminService {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
 
   /**
    * Trigger a database export (placeholder - requires backend lambda functions)
@@ -82,48 +84,29 @@ export class AdminService {
       if (importData.tables.DocumentTypes) {
         for (const docType of importData.tables.DocumentTypes) {
           try {
-            await client.models.DocumentType.create({
+            const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
               id: docType.id,
-              name: docType.name,
-              identifier: docType.identifier,
-              definition: docType.definition,
-              validationRules: docType.validationRules,
-              category: docType.category,
-              fields: docType.fields || [],
-              isActive: docType.isActive,
-              usageCount: docType.usageCount || 0,
-              templateCount: docType.templateCount,
-              createdAt: docType.createdAt,
-              updatedAt: docType.updatedAt
-            });
-            results.documentTypes.created++;
-          } catch (error: any) {
-            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              if (conflictResolution === 'update') {
-                try {
-                  await client.models.DocumentType.update({
-                    id: docType.id,
-                    name: docType.name,
-                    identifier: docType.identifier,
-                    definition: docType.definition,
-                    validationRules: docType.validationRules,
-                    category: docType.category,
-                    fields: docType.fields || [],
-                    isActive: docType.isActive,
-                    usageCount: docType.usageCount || 0,
-                    templateCount: docType.templateCount,
-                    updatedAt: new Date().toISOString()
-                  });
-                  results.documentTypes.created++;
-                } catch (updateError: any) {
-                  results.documentTypes.errors.push(`${docType.name} (update failed): ${updateError.message}`);
-                }
-              } else {
-                results.documentTypes.skipped++;
+              data: {
+                name: docType.name,
+                identifier: docType.identifier,
+                definition: docType.definition,
+                validationRules: docType.validationRules,
+                category: docType.category,
+                fields: docType.fields || [],
+                isActive: docType.isActive,
+                usageCount: docType.usageCount || 0,
+                templateCount: docType.templateCount,
+                createdAt: docType.createdAt || new Date().toISOString()
               }
+            });
+            
+            if (result.success) {
+              results.documentTypes.created++;
             } else {
-              results.documentTypes.errors.push(`${docType.name}: ${error.message}`);
+              results.documentTypes.errors.push(`${docType.name}: ${result.error}`);
             }
+          } catch (error: any) {
+            results.documentTypes.errors.push(`${docType.name}: ${error.message}`);
           }
         }
       }
@@ -132,38 +115,26 @@ export class AdminService {
       if (importData.tables.Workflows) {
         for (const workflow of importData.tables.Workflows) {
           try {
-            await client.models.Workflow.create({
+            const result = await this.versionedDataService.createVersionedRecord('Workflow', {
               id: workflow.id,
-              name: workflow.name,
-              description: workflow.description,
-              rules: workflow.rules || [],
-              isActive: workflow.isActive,
-              createdAt: workflow.createdAt,
-              updatedAt: workflow.updatedAt
-            });
-            results.workflows.created++;
-          } catch (error: any) {
-            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              if (conflictResolution === 'update') {
-                try {
-                  await client.models.Workflow.update({
-                    id: workflow.id,
-                    name: workflow.name,
-                    description: workflow.description,
-                    rules: workflow.rules || [],
-                    isActive: workflow.isActive,
-                    updatedAt: new Date().toISOString()
-                  });
-                  results.workflows.created++;
-                } catch (updateError: any) {
-                  results.workflows.errors.push(`${workflow.name} (update failed): ${updateError.message}`);
-                }
-              } else {
-                results.workflows.skipped++;
+              data: {
+                name: workflow.name,
+                identifier: workflow.identifier,
+                description: workflow.description,
+                rules: workflow.rules || [],
+                actors: workflow.actors || [],
+                isActive: workflow.isActive,
+                createdAt: workflow.createdAt || new Date().toISOString()
               }
+            });
+            
+            if (result.success) {
+              results.workflows.created++;
             } else {
-              results.workflows.errors.push(`${workflow.name}: ${error.message}`);
+              results.workflows.errors.push(`${workflow.name}: ${result.error}`);
             }
+          } catch (error: any) {
+            results.workflows.errors.push(`${workflow.name}: ${error.message}`);
           }
         }
       }
@@ -172,40 +143,27 @@ export class AdminService {
       if (importData.tables.Projects) {
         for (const project of importData.tables.Projects) {
           try {
-            await client.models.Project.create({
+            const result = await this.versionedDataService.createVersionedRecord('Project', {
               id: project.id,
-              name: project.name,
-              description: project.description,
-              status: project.status,
-              ownerId: project.ownerId,
-              workflowId: project.workflowId,
-              createdAt: project.createdAt,
-              updatedAt: project.updatedAt
-            });
-            results.projects.created++;
-          } catch (error: any) {
-            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              if (conflictResolution === 'update') {
-                try {
-                  await client.models.Project.update({
-                    id: project.id,
-                    name: project.name,
-                    description: project.description,
-                    status: project.status,
-                    ownerId: project.ownerId,
-                    workflowId: project.workflowId,
-                    updatedAt: new Date().toISOString()
-                  });
-                  results.projects.created++;
-                } catch (updateError: any) {
-                  results.projects.errors.push(`${project.name} (update failed): ${updateError.message}`);
-                }
-              } else {
-                results.projects.skipped++;
+              data: {
+                name: project.name,
+                identifier: project.identifier,
+                description: project.description,
+                status: project.status,
+                ownerId: project.ownerId,
+                adminUsers: project.adminUsers || [],
+                workflowId: project.workflowId,
+                createdAt: project.createdAt || new Date().toISOString()
               }
+            });
+            
+            if (result.success) {
+              results.projects.created++;
             } else {
-              results.projects.errors.push(`${project.name}: ${error.message}`);
+              results.projects.errors.push(`${project.name}: ${result.error}`);
             }
+          } catch (error: any) {
+            results.projects.errors.push(`${project.name}: ${error.message}`);
           }
         }
       }
@@ -214,38 +172,24 @@ export class AdminService {
       if (importData.tables.Documents) {
         for (const document of importData.tables.Documents) {
           try {
-            await client.models.Document.create({
+            const result = await this.versionedDataService.createVersionedRecord('Document', {
               id: document.id,
-              status: document.status,
-              projectId: document.projectId,
-              documentType: document.documentType,
-              formData: document.formData,
-              createdAt: document.createdAt,
-              updatedAt: document.updatedAt
-            });
-            results.documents.created++;
-          } catch (error: any) {
-            if (error.message?.includes('DuplicateKeyException') || error.message?.includes('already exists')) {
-              if (conflictResolution === 'update') {
-                try {
-                  await client.models.Document.update({
-                    id: document.id,
-                    status: document.status,
-                    projectId: document.projectId,
-                    documentType: document.documentType,
-                    formData: document.formData,
-                    updatedAt: new Date().toISOString()
-                  });
-                  results.documents.created++;
-                } catch (updateError: any) {
-                  results.documents.errors.push(`${document.name || document.id} (update failed): ${updateError.message}`);
-                }
-              } else {
-                results.documents.skipped++;
+              data: {
+                projectId: document.projectId,
+                documentType: document.documentType,
+                formData: document.formData,
+                status: document.status,
+                createdAt: document.createdAt || new Date().toISOString()
               }
+            });
+            
+            if (result.success) {
+              results.documents.created++;
             } else {
-              results.documents.errors.push(`${document.name || document.id}: ${error.message}`);
+              results.documents.errors.push(`${document.name || document.id}: ${result.error}`);
             }
+          } catch (error: any) {
+            results.documents.errors.push(`${document.name || document.id}: ${error.message}`);
           }
         }
       }
@@ -337,12 +281,18 @@ export class AdminService {
       // Create document types
       for (const docType of documentTypes) {
         try {
-          await client.models.DocumentType.create({
-            ...docType,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+          const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
+            data: {
+              ...docType,
+              createdAt: new Date().toISOString()
+            }
           });
-          results.documentTypes.created++;
+          
+          if (result.success) {
+            results.documentTypes.created++;
+          } else {
+            results.documentTypes.errors.push(`${docType.name}: ${result.error}`);
+          }
         } catch (error: any) {
           results.documentTypes.errors.push(`${docType.name}: ${error.message || 'Unknown error'}`);
         }
@@ -376,22 +326,24 @@ export class AdminService {
         return { success: false, error: 'User not authenticated' };
       }
 
-      const client = generateClient<Schema>();
-      
-      // Get counts of various entities
+      // Get latest versions of all entities
       const [users, documentTypes, projects] = await Promise.all([
-        client.models.User.list(),
-        client.models.DocumentType.list(),
-        client.models.Project.list()
+        this.versionedDataService.getAllLatestVersions('User'),
+        this.versionedDataService.getAllLatestVersions('DocumentType'),
+        this.versionedDataService.getAllLatestVersions('Project')
       ]);
 
+      const userData = users.success ? users.data || [] : [];
+      const documentTypeData = documentTypes.success ? documentTypes.data || [] : [];
+      const projectData = projects.success ? projects.data || [] : [];
+
       const stats = {
-        userCount: users.data.length,
-        activeUsers: users.data.filter(u => u.status === 'active').length,
-        documentTypeCount: documentTypes.data.length,
-        activeDocumentTypes: documentTypes.data.filter(dt => dt.isActive).length,
-        projectCount: projects.data.length,
-        activeProjects: projects.data.filter(p => p.status === 'active').length
+        userCount: userData.length,
+        activeUsers: userData.filter(u => u.status === 'active').length,
+        documentTypeCount: documentTypeData.length,
+        activeDocumentTypes: documentTypeData.filter(dt => dt.isActive).length,
+        projectCount: projectData.length,
+        activeProjects: projectData.filter(p => p.status === 'active').length
       };
 
       return {

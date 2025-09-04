@@ -4,6 +4,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { UserManagementService } from '../services/user-management.service';
 
 @Component({
@@ -32,6 +33,7 @@ export class Users implements OnInit, OnDestroy {
   @ViewChild('docTypeSearchInput') docTypeSearchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
+  private versionedDataService = inject(VersionedDataService);
   private authService = inject(AuthService);
   private userManagementService = inject(UserManagementService);
   private searchTimeout: any = null;
@@ -64,7 +66,8 @@ export class Users implements OnInit, OnDestroy {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+        const data = result.success ? result.data || [] : [];
       this.users.set(data.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
     } catch (error) {
       console.error('Error loading users:', error);
@@ -78,7 +81,8 @@ export class Users implements OnInit, OnDestroy {
     try {
       this.loadingDocumentTypes.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data.filter(dt => dt.isActive !== false));
     } catch (error) {
       console.error('Error loading document types:', error);
@@ -392,18 +396,25 @@ export class Users implements OnInit, OnDestroy {
       }
       
       // Create user with invited status and minimal required fields
-      const newUser = await client.models.User.create({
-        email: inviteData.email,
-        firstName: '', // Will be filled when user accepts invitation
-        lastName: '',  // Will be filled when user accepts invitation
-        userType: 'client', // Default to client, can be changed later
-        interestedDocumentTypes: [],
-        status: 'invited',
-        invitedAt: new Date().toISOString(),
-        invitedBy: currentUserId, // Current authenticated user ID
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const userResult = await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: inviteData.email,
+          firstName: '', // Will be filled when user accepts invitation
+          lastName: '',  // Will be filled when user accepts invitation
+          userType: 'client', // Default to client, can be changed later
+          interestedDocumentTypes: [],
+          status: 'invited',
+          invitedAt: new Date().toISOString(),
+          invitedBy: currentUserId, // Current authenticated user ID
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!userResult.success) {
+        throw new Error(userResult.error || 'Failed to invite user');
+      }
+      
+      const newUser = { data: userResult.data };
 
       console.log('User invited successfully:', newUser);
       console.log('Invited by user ID:', currentUserId);
@@ -458,7 +469,8 @@ export class Users implements OnInit, OnDestroy {
         if (updates.status !== undefined) updateData.status = updates.status;
       }
       
-      await client.models.User.update(updateData);
+      const updateParams = updateData;
+        await this.versionedDataService.updateVersionedRecord('User', updateParams.id, updateParams);
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;
@@ -471,12 +483,14 @@ export class Users implements OnInit, OnDestroy {
     this.processing.set(true);
     
     try {
-      const client = generateClient<Schema>();
-      await client.models.User.update({ 
-        id: user.id, 
-        status: 'archived',
-        updatedAt: new Date().toISOString()
+      const result = await this.versionedDataService.updateVersionedRecord('User', user.id, {
+        status: 'archived'
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to archive user');
+      }
+      
       await this.loadUsers();
     } catch (error) {
       console.error('Error archiving user:', error);

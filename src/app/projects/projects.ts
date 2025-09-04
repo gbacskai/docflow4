@@ -5,6 +5,7 @@ import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 import { UserDataService } from '../services/user-data.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { ChatService } from '../services/chat.service';
 import { Router } from '@angular/router';
 
@@ -47,6 +48,7 @@ export class Projects implements OnInit, OnDestroy {
   @ViewChild('ownerSearchInput') ownerSearchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
+  private versionedDataService = inject(VersionedDataService);
   private authService = inject(AuthService);
   private userDataService = inject(UserDataService);
   private chatService = inject(ChatService);
@@ -95,7 +97,8 @@ export class Projects implements OnInit, OnDestroy {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Project.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Project');
+      const data = result.success ? result.data || [] : [];
       this.projects.set(data);
       this.applyProjectFiltering();
     } catch (error) {
@@ -215,7 +218,8 @@ export class Projects implements OnInit, OnDestroy {
     try {
       this.loadingUsers.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      const data = result.success ? result.data || [] : [];
       this.users.set(data);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -229,7 +233,8 @@ export class Projects implements OnInit, OnDestroy {
   async loadDocumentTypes() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+      const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data.filter(docType => docType.isActive));
     } catch (error) {
       console.error('Error loading document types:', error);
@@ -240,7 +245,8 @@ export class Projects implements OnInit, OnDestroy {
   async loadWorkflows() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.Workflow.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+      const data = result.success ? result.data || [] : [];
       this.workflows.set(data.filter(workflow => workflow.isActive));
     } catch (error) {
       console.error('Error loading workflows:', error);
@@ -698,13 +704,22 @@ export class Projects implements OnInit, OnDestroy {
       const firstName = nameParts[0] || 'User';
       const lastName = nameParts[1] || '';
 
-      const { data } = await client.models.User.create({
-        email: currentUser.email,
-        firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
-        lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const result = await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: currentUser.email,
+          firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
+          lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
+          userType: 'client',
+          status: 'active',
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create user');
+      }
+      
+      const data = result.data;
 
       // Refresh users list
       await this.loadUsers();
@@ -777,17 +792,24 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
+  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>) {
     try {
       console.log('Creating project with data:', project);
       const client = generateClient<Schema>();
       
       // Create the project
-      const { data: createdProject } = await client.models.Project.create({
-        ...project,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const projectResult = await this.versionedDataService.createVersionedRecord('Project', {
+        data: {
+          ...project,
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!projectResult.success) {
+        throw new Error(projectResult.error || 'Failed to create project');
+      }
+      
+      const createdProject = projectResult.data;
       
       console.log('Project creation result:', createdProject);
 
@@ -807,11 +829,13 @@ export class Projects implements OnInit, OnDestroy {
           // Create documents for each associated document type
           const documentPromises = associatedDocumentTypes.map(docType => {
             console.log(`Creating document for type: ${docType.name}`);
-            return client.models.Document.create({
-              projectId: createdProject.id,
-              documentType: docType.id,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+            return this.versionedDataService.createVersionedRecord('Document', {
+              data: {
+                projectId: createdProject.id,
+                documentType: docType.id,
+                status: 'draft',
+                createdAt: new Date().toISOString()
+              }
             });
           });
 
@@ -833,12 +857,12 @@ export class Projects implements OnInit, OnDestroy {
 
   async updateProject(id: string, updates: Omit<Partial<Schema['Project']['type']>, 'id' | 'ownerId' | 'createdAt'>) {
     try {
-      const client = generateClient<Schema>();
-      await client.models.Project.update({
-        id,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
+      const result = await this.versionedDataService.updateVersionedRecord('Project', id, updates);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update project');
+      }
+      
       await this.loadProjects();
     } catch (error) {
       console.error('Error updating project:', error);

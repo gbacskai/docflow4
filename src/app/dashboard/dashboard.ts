@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 
@@ -13,6 +14,7 @@ import type { Schema } from '../../../amplify/data/resource';
 })
 export class Dashboard {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
 
   // Dashboard data signals
   loading = signal(false);

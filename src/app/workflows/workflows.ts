@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } fr
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
+import { VersionedDataService } from '../services/versioned-data.service';
 
 interface WorkflowRule {
   id: string;
@@ -54,6 +55,7 @@ export class Workflows implements OnInit, OnDestroy {
   newActorName = signal<string>('');
   
   private fb = inject(FormBuilder);
+  private versionedDataService = inject(VersionedDataService);
   private searchTimeout: any = null;
   
   workflowForm: FormGroup = this.fb.group({
@@ -94,7 +96,8 @@ export class Workflows implements OnInit, OnDestroy {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Workflow.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+        const data = result.success ? result.data || [] : [];
       this.workflows.set(data);
       this.applyWorkflowSearch();
     } catch (error) {
@@ -339,12 +342,14 @@ export class Workflows implements OnInit, OnDestroy {
 
   async updateWorkflow(id: string, updates: any) {
     try {
-      const client = generateClient<Schema>();
-      await client.models.Workflow.update({
-        id,
+      const result = await this.versionedDataService.updateVersionedRecord('Workflow', id, {
         ...updates,
         updatedAt: new Date().toISOString()
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update workflow');
+      }
     } catch (error) {
       console.error('Error updating workflow:', error);
       throw error;
@@ -357,8 +362,12 @@ export class Workflows implements OnInit, OnDestroy {
     this.processing.set(true);
     
     try {
-      const client = generateClient<Schema>();
-      await client.models.Workflow.delete({ id: workflow.id });
+      const result = await this.versionedDataService.deleteVersionedRecord('Workflow', workflow.id, workflow.version);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete workflow');
+      }
+      
       await this.loadWorkflows();
     } catch (error) {
       console.error('Error deleting workflow:', error);
@@ -463,7 +472,8 @@ export class Workflows implements OnInit, OnDestroy {
   async loadDocumentTypes() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
       const validDocTypes = data.filter(docType => docType != null);
       this.documentTypes.set(validDocTypes);
       this.filteredDocumentTypes.set(validDocTypes);
@@ -480,7 +490,8 @@ export class Workflows implements OnInit, OnDestroy {
   async loadProjects() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.Project.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Project');
+        const data = result.success ? result.data || [] : [];
       this.projects.set(data || []);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -628,7 +639,8 @@ export class Workflows implements OnInit, OnDestroy {
       
       if (!query) {
         // Load all document types when no search query
-        const { data } = await client.models.DocumentType.list();
+        const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
         const validDocTypes = data.filter(docType => docType != null);
         this.filteredDocumentTypes.set(validDocTypes);
       } else {

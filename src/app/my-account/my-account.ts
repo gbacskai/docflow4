@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { UserDataService } from '../services/user-data.service';
 
 @Component({
@@ -15,6 +16,7 @@ import { UserDataService } from '../services/user-data.service';
 })
 export class MyAccount implements OnInit, OnDestroy {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
   private userDataService = inject(UserDataService);
   private fb = inject(FormBuilder);
   
@@ -59,7 +61,8 @@ export class MyAccount implements OnInit, OnDestroy {
   async loadDocumentTypes() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data.filter(dt => dt.isActive !== false));
       this.filteredDocumentTypes.set(this.documentTypes());
     } catch (error) {
@@ -101,19 +104,21 @@ export class MyAccount implements OnInit, OnDestroy {
       const client = generateClient<Schema>();
       const formData = this.userForm.value;
 
-      const { data: updatedUser, errors } = await client.models.User.update({
-        id: userData.id,
+      const updateParams = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         interestedDocumentTypes: formData.interestedDocumentTypes || []
-      });
-
-      if (errors) {
-        console.error('Error updating user profile:', errors);
+      };
+      
+      const result = await this.versionedDataService.updateVersionedRecord('User', userData.id, updateParams);
+      
+      if (!result.success) {
+        console.error('Error updating user profile:', result.error);
         return;
       }
 
-      console.log('✅ Profile updated successfully:', updatedUser);
+
+      console.log('✅ Profile updated successfully:', result.data);
       
       // Refresh user data
       await this.userDataService.refreshUserData();

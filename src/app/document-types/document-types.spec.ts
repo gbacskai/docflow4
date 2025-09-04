@@ -12,6 +12,7 @@ describe('DocumentTypes', () => {
 
   const mockDocumentType: Schema['DocumentType']['type'] = {
     id: 'doc-type-1',
+    version: '2024-01-01T00:00:00Z',
     name: 'Test Document',
     identifier: 'test-document',
     description: 'Test Description',

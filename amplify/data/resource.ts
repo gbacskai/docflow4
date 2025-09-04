@@ -2,6 +2,8 @@ import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 
 const schema = a.schema({
   Project: a.model({
+      id: a.string().required(),
+      version: a.datetime().required(),
       name: a.string().required(),
       identifier: a.string(),
       description: a.string().required(),
@@ -12,10 +14,13 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
+    .identifier(['id', 'version'])
     .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read', 'update'])
+      allow.publicApiKey().to(['create', 'read'])
     ]),
   Document: a.model({
+      id: a.string().required(),
+      version: a.datetime().required(),
       projectId: a.string().required(),
       documentType: a.string().required(),
       formData: a.string(),
@@ -23,8 +28,11 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
-    .authorization(allow => [allow.publicApiKey()]),
+    .identifier(['id', 'version'])
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
   User: a.model({
+      id: a.string().required(),
+      version: a.datetime().required(),
       email: a.string().required(),
       userType: a.enum(['admin', 'client', 'provider']),
       firstName: a.string(),
@@ -38,8 +46,11 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
-    .authorization(allow => [allow.publicApiKey()]),
+    .identifier(['id', 'version'])
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
   DocumentType: a.model({
+      id: a.string().required(),
+      version: a.datetime().required(),
       name: a.string().required(),
       identifier: a.string(),
       description: a.string(),
@@ -53,8 +64,11 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
-    .authorization(allow => [allow.publicApiKey()]),
+    .identifier(['id', 'version'])
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
   Workflow: a.model({
+      id: a.string().required(),
+      version: a.datetime().required(),
       name: a.string().required(),
       identifier: a.string(),
       description: a.string(),
@@ -64,8 +78,13 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
-    .authorization(allow => [allow.publicApiKey()]),
+    .identifier(['id', 'version'])
+    .authorization(allow => [allow.publicApiKey().to(['create', 'read'])]),
   ChatRoom: a.model({
+      // Primary key fields
+      id: a.string().required(),
+      version: a.datetime().required(),
+      
       // Project/Document association
       projectId: a.string(),
       projectName: a.string(),
@@ -98,19 +117,20 @@ const schema = a.schema({
       // Timestamps
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
-      lastActivityAt: a.datetime(),
-      
-      // Relationship to messages
-      messages: a.hasMany('ChatMessage', 'chatRoomId')
+      lastActivityAt: a.datetime()
     })
+    .identifier(['id', 'version'])
     .authorization(allow => [
-      allow.publicApiKey(),
-      allow.authenticated()
+      allow.publicApiKey().to(['create', 'read']),
+      allow.authenticated().to(['create', 'read'])
     ]),
   ChatMessage: a.model({
+      // Primary key fields
+      id: a.string().required(),
+      version: a.datetime().required(),
+      
       // Reference to ChatRoom - this creates the relationship
       chatRoomId: a.string().required(),
-      chatRoom: a.belongsTo('ChatRoom', 'chatRoomId'),
       
       // Message sender information
       senderId: a.string().required(),
@@ -144,9 +164,10 @@ const schema = a.schema({
       updatedAt: a.datetime(),
       editedAt: a.datetime() // If message was edited
     })
+    .identifier(['id', 'version'])
     .authorization(allow => [
-      allow.publicApiKey(),
-      allow.authenticated()
+      allow.publicApiKey().to(['create', 'read']),
+      allow.authenticated().to(['create', 'read'])
     ]),
   // AI-powered workflow validation
   validateWorkflow: a.generation({

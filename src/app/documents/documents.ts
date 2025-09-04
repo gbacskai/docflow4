@@ -5,6 +5,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { ChatService } from '../services/chat.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { UserDataService } from '../services/user-data.service';
 import { DynamicFormService } from '../services/dynamic-form.service';
 import { DynamicFormComponent } from '../shared/dynamic-form.component';
@@ -33,6 +34,7 @@ export class Documents implements OnInit {
   private documentSearchTimeout: any = null;
   
   private fb = inject(FormBuilder);
+  private versionedDataService = inject(VersionedDataService);
   private router = inject(Router);
   private chatService = inject(ChatService);
   private userDataService = inject(UserDataService);
@@ -72,7 +74,8 @@ export class Documents implements OnInit {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Document.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Document');
+        const data = result.success ? result.data || [] : [];
       this.documents.set(data);
       this.applyDocumentSearch(); // Initialize filtered documents
     } catch (error) {
@@ -125,7 +128,8 @@ export class Documents implements OnInit {
     try {
       this.loadingDocumentTypes.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data);
     } catch (error) {
       this.documentTypes.set([]);
@@ -138,7 +142,8 @@ export class Documents implements OnInit {
     try {
       this.loadingProjects.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Project.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Project');
+        const data = result.success ? result.data || [] : [];
       
       // Show all projects (not just active) for document viewing/editing
       this.projects.set(data);
@@ -152,7 +157,8 @@ export class Documents implements OnInit {
   async loadWorkflows() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.Workflow.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+        const data = result.success ? result.data || [] : [];
       this.workflows.set(data.filter(workflow => workflow.isActive));
     } catch (error) {
       this.workflows.set([]);
@@ -272,15 +278,20 @@ export class Documents implements OnInit {
     }
   }
 
-  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'createdAt' | 'updatedAt'>): Promise<Schema['Document']['type']> {
+  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>): Promise<Schema['Document']['type']> {
     try {
-      const client = generateClient<Schema>();
-      const result = await client.models.Document.create({
-        ...document,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const result = await this.versionedDataService.createVersionedRecord('Document', {
+        data: {
+          ...document,
+          createdAt: new Date().toISOString()
+        }
       });
-      return result.data!;
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create document');
+      }
+      
+      return result.data;
     } catch (error) {
       throw error;
     }
@@ -289,12 +300,11 @@ export class Documents implements OnInit {
 
   async updateDocument(id: string, updates: Partial<Schema['Document']['type']>) {
     try {
-      const client = generateClient<Schema>();
-      await client.models.Document.update({
-        id,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
+      const result = await this.versionedDataService.updateVersionedRecord('Document', id, updates);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update document');
+      }
     } catch (error) {
       throw error;
     }

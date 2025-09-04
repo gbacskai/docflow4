@@ -5,6 +5,7 @@ import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { debounceTime } from 'rxjs/operators';
 import { DynamicFormService } from '../services/dynamic-form.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { DynamicFormComponent } from '../shared/dynamic-form.component';
 
 @Component({
@@ -41,6 +42,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
   
   private fb = inject(FormBuilder);
   dynamicFormService = inject(DynamicFormService);
+  private versionedDataService = inject(VersionedDataService);
   private docTypeSearchTimeout: any = null;
   private validationTimeout: any = null;
   private identifierValidationTimeout: any = null;
@@ -133,13 +135,14 @@ export class DocumentTypes implements OnInit, OnDestroy {
     
     // Only make API call if not found locally (for freshly created items not yet in local list)
     try {
-      const client = generateClient<Schema>();
-      const result = await client.models.DocumentType.list({
-        filter: { identifier: { eq: value } }
-      });
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+      
+      if (!result.success || !result.data) {
+        return null; // Allow on error to avoid blocking user
+      }
       
       // Check if identifier exists (excluding current document in edit mode)
-      const existingDoc = result.data?.find(docType => 
+      const existingDoc = result.data.find(docType => 
         docType && docType.identifier === value && docType.id !== currentEditingId
       );
       
@@ -290,9 +293,13 @@ export class DocumentTypes implements OnInit, OnDestroy {
   async loadDocumentTypes() {
     try {
       this.loading.set(true);
-      const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
-      this.documentTypes.set(data);
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+      if (result.success && result.data) {
+        this.documentTypes.set(result.data);
+      } else {
+        console.error('Error loading document types:', result.error);
+        this.documentTypes.set([]);
+      }
       this.applyDocTypeSearch(); // Initialize filtered document types
     } catch (error) {
       console.error('Error loading document types:', error);
@@ -305,9 +312,13 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
   async loadWorkflows() {
     try {
-      const client = generateClient<Schema>();
-      const { data } = await client.models.Workflow.list();
-      this.workflows.set(data || []);
+      const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+      if (result.success && result.data) {
+        this.workflows.set(result.data);
+      } else {
+        console.error('Error loading workflows:', result.error);
+        this.workflows.set([]);
+      }
     } catch (error) {
       console.error('Error loading workflows:', error);
       this.workflows.set([]);
@@ -449,7 +460,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
     }
   }
 
-  async createDocumentType(docType: Omit<Schema['DocumentType']['type'], 'id' | 'createdAt' | 'updatedAt' | 'usageCount' | 'templateCount' | 'fields'>) {
+  async createDocumentType(docType: Omit<Schema['DocumentType']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt' | 'usageCount' | 'templateCount' | 'fields'>) {
     try {
       // Double-check uniqueness before creating
       const existingDocTypes = this.documentTypes();
@@ -461,14 +472,18 @@ export class DocumentTypes implements OnInit, OnDestroy {
         throw new Error(`A document type with identifier "${docType.identifier}" already exists`);
       }
 
-      const client = generateClient<Schema>();
-      await client.models.DocumentType.create({
-        ...docType,
-        fields: [],
-        usageCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
+        data: {
+          ...docType,
+          fields: [],
+          usageCount: 0,
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create document type');
+      }
     } catch (error) {
       console.error('Error creating document type:', error);
       throw error;
@@ -489,12 +504,11 @@ export class DocumentTypes implements OnInit, OnDestroy {
         }
       }
 
-      const client = generateClient<Schema>();
-      await client.models.DocumentType.update({
-        id,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
+      const result = await this.versionedDataService.updateVersionedRecord('DocumentType', id, updates);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update document type');
+      }
     } catch (error) {
       console.error('Error updating document type:', error);
       throw error;
@@ -507,11 +521,14 @@ export class DocumentTypes implements OnInit, OnDestroy {
     this.processing.set(true);
     
     try {
-      const client = generateClient<Schema>();
-      await client.models.DocumentType.update({ 
-        id: docType.id,
+      const result = await this.versionedDataService.updateVersionedRecord('DocumentType', docType.id, {
         isActive: false // Set to inactive when archived
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to archive document type');
+      }
+      
       await this.loadDocumentTypes();
     } catch (error) {
       console.error('Error archiving document type:', error);
@@ -526,11 +543,14 @@ export class DocumentTypes implements OnInit, OnDestroy {
     this.processing.set(true);
     
     try {
-      const client = generateClient<Schema>();
-      await client.models.DocumentType.update({ 
-        id: docType.id,
+      const result = await this.versionedDataService.updateVersionedRecord('DocumentType', docType.id, {
         isActive: true // Set to active when restored
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to activate document type');
+      }
+      
       await this.loadDocumentTypes();
     } catch (error) {
       console.error('Error activating document type:', error);

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { DynamicFormService } from '../services/dynamic-form.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { DynamicFormComponent } from '../shared/dynamic-form.component';
 
 interface DocumentStatus {
@@ -41,6 +42,7 @@ export class Reporting implements OnInit {
   saving = signal(false);
   
   dynamicFormService = inject(DynamicFormService);
+  versionedDataService = inject(VersionedDataService);
 
   get isFormValid(): boolean {
     return this.dynamicFormService.isFormValid();
@@ -54,19 +56,18 @@ export class Reporting implements OnInit {
   async loadAllData() {
     try {
       this.loading.set(true);
-      const client = generateClient<Schema>();
       
       const [projectsResult, documentsResult, workflowsResult, documentTypesResult] = await Promise.all([
-        client.models.Project.list(),
-        client.models.Document.list(),
-        client.models.Workflow.list(),
-        client.models.DocumentType.list()
+        this.versionedDataService.getAllLatestVersions('Project'),
+        this.versionedDataService.getAllLatestVersions('Document'),
+        this.versionedDataService.getAllLatestVersions('Workflow'),
+        this.versionedDataService.getAllLatestVersions('DocumentType')
       ]);
 
-      this.projects.set(projectsResult.data || []);
-      this.documents.set(documentsResult.data || []);
-      this.workflows.set(workflowsResult.data || []);
-      this.documentTypes.set(documentTypesResult.data || []);
+      this.projects.set(projectsResult.success ? projectsResult.data || [] : []);
+      this.documents.set(documentsResult.success ? documentsResult.data || [] : []);
+      this.workflows.set(workflowsResult.success ? workflowsResult.data || [] : []);
+      this.documentTypes.set(documentTypesResult.success ? documentTypesResult.data || [] : []);
     } catch (error) {
       console.error('Error loading reporting data:', error);
     } finally {
@@ -398,13 +399,15 @@ export class Reporting implements OnInit {
       }
 
       const dynamicFormValue = this.dynamicFormService.dynamicFormGroup()?.value;
-      const client = generateClient<Schema>();
       
-      // Update the document with new form data (same pattern as documents page)
-      await client.models.Document.update({
-        id: document.id,
+      // Update the document with new form data using versioned service
+      const result = await this.versionedDataService.updateVersionedRecord('Document', document.id, {
         formData: JSON.stringify(dynamicFormValue)
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update document');
+      }
 
       // Refresh data and rebuild matrix to show updated status
       await this.loadAllData();

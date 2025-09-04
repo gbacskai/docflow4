@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.service';
 
 @Component({
@@ -15,6 +16,7 @@ import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.s
 })
 export class Admin implements OnInit {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
   private adminService = inject(AdminService);
   
   // Signals
@@ -671,11 +673,13 @@ export class Admin implements OnInit {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing document type
                 const existing = existingQuery.data[0];
-                await client.models.DocumentType.update({
-                  id: existing.id,
+                const result = await this.versionedDataService.updateVersionedRecord('DocumentType', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
                 });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update DocumentType');
+                }
               } else {
                 // Skip existing document type
                 continue;
@@ -713,11 +717,13 @@ export class Admin implements OnInit {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing workflow
                 const existing = existingQuery.data[0];
-                await client.models.Workflow.update({
-                  id: existing.id,
+                const result = await this.versionedDataService.updateVersionedRecord('Workflow', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
                 });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update Workflow');
+                }
               } else {
                 // Skip existing workflow
                 continue;
@@ -755,11 +761,13 @@ export class Admin implements OnInit {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing project
                 const existing = existingQuery.data[0];
-                await client.models.Project.update({
-                  id: existing.id,
+                const result = await this.versionedDataService.updateVersionedRecord('Project', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
                 });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update Project');
+                }
               } else {
                 // Skip existing project
                 continue;
@@ -802,11 +810,13 @@ export class Admin implements OnInit {
               if (this.restoreOptions.conflictResolution === 'update') {
                 // Update existing document
                 const existing = existingQuery.data[0];
-                await client.models.Document.update({
-                  id: existing.id,
+                const result = await this.versionedDataService.updateVersionedRecord('Document', existing.id, {
                   ...updateData,
                   updatedAt: new Date().toISOString()
                 });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update Document');
+                }
               } else {
                 // Skip existing document
                 continue;
@@ -892,13 +902,13 @@ export class Admin implements OnInit {
       // Clear Documents first (to avoid foreign key constraints)
       this.clearDatabaseStatus.set('Clearing Documents...');
       try {
-        const documents = await client.models.Document.list();
-        if (documents.data) {
-          for (const document of documents.data) {
-            await client.models.Document.delete({ id: document.id });
+        const result = await this.versionedDataService.getAllLatestVersions('Document');
+        if (result.success && result.data) {
+          for (const document of result.data) {
+            await this.versionedDataService.deleteVersionedRecord('Document', document.id, document.version);
             deletedCount++;
           }
-          this.clearDatabaseStatus.set(`Cleared ${documents.data.length} Documents...`);
+          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Documents...`);
         }
       } catch (error: any) {
         errors.push(`Documents: ${error.message || 'Unknown error'}`);
@@ -907,13 +917,13 @@ export class Admin implements OnInit {
       // Clear Projects
       this.clearDatabaseStatus.set('Clearing Projects...');
       try {
-        const projects = await client.models.Project.list();
-        if (projects.data) {
-          for (const project of projects.data) {
-            await client.models.Project.delete({ id: project.id });
+        const result = await this.versionedDataService.getAllLatestVersions('Project');
+        if (result.success && result.data) {
+          for (const project of result.data) {
+            await this.versionedDataService.deleteVersionedRecord('Project', project.id, project.version);
             deletedCount++;
           }
-          this.clearDatabaseStatus.set(`Cleared ${projects.data.length} Projects...`);
+          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Projects...`);
         }
       } catch (error: any) {
         errors.push(`Projects: ${error.message || 'Unknown error'}`);
@@ -922,13 +932,13 @@ export class Admin implements OnInit {
       // Clear Workflows
       this.clearDatabaseStatus.set('Clearing Workflows...');
       try {
-        const workflows = await client.models.Workflow.list();
-        if (workflows.data) {
-          for (const workflow of workflows.data) {
-            await client.models.Workflow.delete({ id: workflow.id });
+        const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+        if (result.success && result.data) {
+          for (const workflow of result.data) {
+            await this.versionedDataService.deleteVersionedRecord('Workflow', workflow.id, workflow.version);
             deletedCount++;
           }
-          this.clearDatabaseStatus.set(`Cleared ${workflows.data.length} Workflows...`);
+          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Workflows...`);
         }
       } catch (error: any) {
         errors.push(`Workflows: ${error.message || 'Unknown error'}`);
@@ -937,13 +947,13 @@ export class Admin implements OnInit {
       // Clear Document Types last
       this.clearDatabaseStatus.set('Clearing Document Types...');
       try {
-        const documentTypes = await client.models.DocumentType.list();
-        if (documentTypes.data) {
-          for (const docType of documentTypes.data) {
-            await client.models.DocumentType.delete({ id: docType.id });
+        const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        if (result.success && result.data) {
+          for (const docType of result.data) {
+            await this.versionedDataService.deleteVersionedRecord('DocumentType', docType.id, docType.version);
             deletedCount++;
           }
-          this.clearDatabaseStatus.set(`Cleared ${documentTypes.data.length} Document Types...`);
+          this.clearDatabaseStatus.set(`Cleared ${result.data.length} Document Types...`);
         }
       } catch (error: any) {
         errors.push(`Document Types: ${error.message || 'Unknown error'}`);

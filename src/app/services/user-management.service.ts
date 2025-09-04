@@ -1,11 +1,13 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
+import { VersionedDataService } from './versioned-data.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserManagementService {
+  private versionedDataService = inject(VersionedDataService);
   
   /**
    * Ensures a user entry exists in the User table for the authenticated user.
@@ -76,10 +78,14 @@ export class UserManagementService {
    */
   private async findUserByCognitoId(client: any, cognitoUserId: string): Promise<Schema['User']['type'] | null> {
     try {
-      const { data: users } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      
+      if (!result.success || !result.data) {
+        return null;
+      }
       
       // Look for a user with the matching Cognito user ID
-      const existingUser = users.find((user: Schema['User']['type']) => 
+      const existingUser = result.data.find((user: Schema['User']['type']) => 
         user.cognitoUserId === cognitoUserId
       );
       
@@ -94,10 +100,14 @@ export class UserManagementService {
    */
   private async findUserByEmail(client: any, email: string): Promise<Schema['User']['type'] | null> {
     try {
-      const { data: users } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      
+      if (!result.success || !result.data) {
+        return null;
+      }
       
       // Look for a user with matching email (typically invitation records)
-      const existingUser = users.find((user: Schema['User']['type']) => 
+      const existingUser = result.data.find((user: Schema['User']['type']) => 
         user.email && user.email.toLowerCase() === email.toLowerCase() &&
         user.status === 'invited'
       );
@@ -133,11 +143,14 @@ export class UserManagementService {
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
       lastLoginAt: new Date().toISOString(),
-      createdAt: invitationRecord.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: invitationRecord.createdAt || new Date().toISOString()
     };
     
-    const { data: newUser } = await client.models.User.create(newUserData);
+    const result = await this.versionedDataService.createVersionedRecord('User', { data: newUserData });
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    const newUser = result.data;
     
     if (isFirst && userType === 'admin') {
     }
@@ -150,7 +163,11 @@ export class UserManagementService {
    */
   private async removeOldInvitationRecord(client: any, recordId: string): Promise<void> {
     try {
-      await client.models.User.delete({ id: recordId });
+      // Find the invitation record to get its version
+      const result = await this.versionedDataService.getLatestVersion('User', recordId);
+      if (result.success && result.data) {
+        await this.versionedDataService.deleteVersionedRecord('User', recordId, result.data.version);
+      }
     } catch (error) {
       // Don't throw - this is cleanup, main flow should continue
     }
@@ -180,11 +197,14 @@ export class UserManagementService {
       invitedBy: null,
       invitedAt: null,
       lastLoginAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
     
-    const { data: newUser } = await client.models.User.create(newUserData);
+    const result = await this.versionedDataService.createVersionedRecord('User', { data: newUserData });
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    const newUser = result.data;
     
     if (userType === 'admin') {
     }
@@ -198,11 +218,15 @@ export class UserManagementService {
    */
   private async isFirstUser(client: any): Promise<boolean> {
     try {
-      const { data: users } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      
+      if (!result.success || !result.data) {
+        return true; // No users found, so this would be the first
+      }
       
       // Count users who have status 'active' and are linked to Cognito accounts
       // This ensures we only count real registered users, not invitation records
-      const activeUsers = users.filter((user: Schema['User']['type']) => 
+      const activeUsers = result.data.filter((user: Schema['User']['type']) => 
         user.status === 'active' && user.cognitoUserId
       );
       
@@ -226,10 +250,8 @@ export class UserManagementService {
       const user = await this.findUserByCognitoId(client, cognitoUserId);
       
       if (user) {
-        await client.models.User.update({
-          id: user.id,
-          lastLoginAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+        await this.versionedDataService.updateVersionedRecord('User', user.id, {
+          lastLoginAt: new Date().toISOString()
         });
       }
     } catch (error) {
@@ -244,7 +266,11 @@ export class UserManagementService {
   private async cleanupNonCognitoRecords(client: any, email: string, currentCognitoUserId: string): Promise<void> {
     try {
       
-      const { data: users } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      if (!result.success || !result.data) {
+        return;
+      }
+      const users = result.data;
       
       // Find records to delete: same email BUT wrong cognitoUserId (including null/undefined)
       const recordsToDelete = users.filter((user: Schema['User']['type']) => {
@@ -257,10 +283,10 @@ export class UserManagementService {
         return shouldDelete;
       });
       
-      // Delete each record
+      // Delete each record (all versions)
       for (const record of recordsToDelete) {
         try {
-          const deleteResult = await client.models.User.delete({ id: record.id });
+          await this.versionedDataService.deleteVersionedRecord('User', record.id, record.version);
         } catch (deleteError: any) {
           // Continue with other deletions even if one fails
         }
@@ -286,17 +312,17 @@ export class UserManagementService {
    */
   async createTestDuplicateUser(email: string): Promise<void> {
     try {
-      const client = generateClient<Schema>();
-      const duplicateUser = await client.models.User.create({
-        email: email,
-        firstName: 'Test',
-        lastName: 'Duplicate',
-        userType: 'client',
-        interestedDocumentTypes: [],
-        status: 'active',
-        cognitoUserId: null, // No cognito ID - this should be cleaned up
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: email,
+          firstName: 'Test',
+          lastName: 'Duplicate',
+          userType: 'client',
+          interestedDocumentTypes: [],
+          status: 'active',
+          cognitoUserId: null, // No cognito ID - this should be cleaned up
+          createdAt: new Date().toISOString()
+        }
       });
     } catch (error) {
     }
@@ -307,10 +333,13 @@ export class UserManagementService {
    */
   async debugUsersByEmail(email: string): Promise<any[]> {
     try {
-      const client = generateClient<Schema>();
-      const { data: users } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
       
-      const matchingUsers = users.filter(user => 
+      if (!result.success || !result.data) {
+        return [];
+      }
+      
+      const matchingUsers = result.data.filter(user => 
         user.email && user.email.toLowerCase() === email.toLowerCase()
       );
       
