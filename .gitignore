@@ -20,10 +20,11 @@ yarn-error.log
 .settings/
 
 # Test reports and artifacts
-cypress/report/
-cypress/videos/
-cypress/screenshots/
-test-reports/
+tests/cypress/report/
+tests/cypress/videos/
+tests/cypress/screenshots/
+tests/test-reports/
+tests/coverage/
 *.log
 test-*.png
 auth-redirect-test-report.json
@@ -41,7 +42,6 @@ auth-redirect-test-report.json
 /.angular/cache
 .sass-cache/
 /connect.lock
-/coverage
 /libpeerconnection.log
 testem.log
 /typings

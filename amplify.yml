@@ -44,14 +44,16 @@ test:
         - 'echo "📊 Generating comprehensive test reports..."'
         - 'npm run test:report || echo "⚠️  Report generation failed"'
         - 'echo "📁 Listing generated artifacts..."'
-        - 'ls -la test-reports/final-report/ || echo "⚠️  No test reports found"'
-        - 'ls -la coverage/docflow4/ || echo "⚠️  No coverage reports found"'
+        - 'ls -la tests/test-reports/final-report/ || echo "⚠️  No test reports found"'
+        - 'ls -la tests/coverage/docflow4/ || echo "⚠️  No coverage reports found"'
         - 'echo "✅ Comprehensive testing and reporting complete"'
     postTest:
       commands:
         - 'echo "🧹 Cleanup..."'
         - pm2 kill || echo "⚠️  PM2 kill failed"
   artifacts:
+    baseDirectory: tests
+    configFilePath: '**/mochawesome.json'
     files:
       - '**/*.log'
       - 'test-reports/final-report/**/*'

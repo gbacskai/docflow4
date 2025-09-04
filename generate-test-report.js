@@ -11,9 +11,9 @@ const { execSync } = require('child_process');
 
 // Configuration matching the required format
 const config = {
-  reportDir: 'cypress/report/mochawesome-report',
-  finalReportDir: 'test-reports/final-report',
-  coverageDir: 'coverage/docflow4',
+  reportDir: 'tests/cypress/report/mochawesome-report',
+  finalReportDir: 'tests/test-reports/final-report',
+  coverageDir: 'tests/coverage/docflow4',
   overwrite: false,
   html: true,
   json: true,
