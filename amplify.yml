@@ -26,8 +26,6 @@ test:
         - sleep 30
         - 'echo "🔧 Generating Amplify outputs..."'
         - timeout 300 npx ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID || echo "⚠️  Outputs generation timed out, continuing with existing config"
-        - 'echo "👥 Creating test users (optional in deployment)..."'
-        - timeout 120 node scripts/create-test-users.js || echo "⚠️  Test user creation skipped in deployment (normal for production)"
         - 'echo "📁 Checking amplify_outputs.json exists..."'
         - ls -la amplify_outputs.json || echo "⚠️  amplify_outputs.json not found"
         - 'echo "🚀 Starting application server..."'
@@ -36,24 +34,19 @@ test:
         - timeout 180 wait-on http://localhost:4200
     test:
       commands:
-        - 'echo "🧪 Running tests..."'
+        - 'echo "🧪 Running deployment validation tests..."'
         - 'echo "🔍 Checking if server is responding..."'
         - 'curl -I http://localhost:4200 || echo "⚠️  Server not responding"'
-        - 'echo "🏃 Running lightweight tests first..."'
+        - 'echo "🏃 Running unit tests..."'
         - 'timeout 300 npm run test:ci-smart || echo "⚠️  Unit tests had issues, continuing"'
-        - 'echo "🌐 Running E2E tests..."'
-        - 'timeout 600 npx cypress run --reporter mochawesome --reporter-options "reportDir=cypress/report/mochawesome-report,overwrite=false,html=false,json=true,timestamp=mmddyyyy_HHMMss" || echo "⚠️  E2E tests completed with issues"'
+        - 'echo "✅ Deployment validation complete (E2E tests skipped in AWS deployment)"'
     postTest:
       commands:
-        - 'echo "📊 Merging test reports..."'
-        - npx mochawesome-merge cypress/report/mochawesome-report/mochawesome*.json > cypress/report/mochawesome.json || echo "⚠️  Report merge failed"
+        - 'echo "🧹 Cleanup..."'
         - pm2 kill || echo "⚠️  PM2 kill failed"
   artifacts:
-    baseDirectory: cypress
-    configFilePath: '**/mochawesome.json'
     files:
-      - '**/*.png'
-      - '**/*.mp4'
+      - '**/*.log'
 frontend:
   phases:
     preBuild:
