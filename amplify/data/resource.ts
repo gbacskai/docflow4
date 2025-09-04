@@ -193,6 +193,36 @@ const schema = a.schema({
     })
   )
   .authorization((allow) => allow.publicApiKey()),
+
+  // Email duplication check
+  checkEmailDuplicate: a.query()
+    .arguments({
+      email: a.string().required()
+    })
+    .returns(
+      a.customType({
+        isDuplicate: a.boolean(),
+        message: a.string(),
+        existingUserId: a.string()
+      })
+    )
+    .handler(a.handler.function('checkEmailDuplicateFunction'))
+    .authorization((allow) => allow.publicApiKey()),
+
+  // Delete all Cognito users (admin function) - temporarily disabled
+  // deleteAllCognitoUsers: a.query()
+  //   .arguments({
+  //     confirmDeletion: a.boolean().required()
+  //   })
+  //   .returns(
+  //     a.customType({
+  //       success: a.boolean(),
+  //       deletedCount: a.integer(),
+  //       error: a.string()
+  //     })
+  //   )
+  //   .handler(a.handler.function('deleteAllCognitoUsersFunction'))
+  //   .authorization((allow) => allow.publicApiKey()),
     
   // Custom query to initialize sample data will be added via backend.ts
     

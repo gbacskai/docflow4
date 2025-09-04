@@ -893,8 +893,9 @@ export class Admin implements OnInit {
       '• Documents (all versions)\n' +
       '• Chat Rooms (all versions)\n' +
       '• Chat Messages (all versions)\n' +
-      '• Users (all versions)\n\n' +
-      'This operation will delete EVERY version of EVERY record and cannot be undone. Are you absolutely sure you want to proceed?'
+      '• Users (all versions)\n' +
+      '• Cognito user accounts (ALL users including admins)\n\n' +
+      'This operation will delete EVERY version of EVERY record AND all user accounts and cannot be undone. Are you absolutely sure you want to proceed?'
     );
 
     if (!confirmClear) {
@@ -1002,7 +1003,7 @@ export class Admin implements OnInit {
         errors.push(`Chat Rooms: ${error.message || 'Unknown error'}`);
       }
 
-      // Clear Users (keeping this for completeness, though usually admin users might want to keep user accounts)
+      // Clear Users (DynamoDB records and Cognito accounts)
       this.clearDatabaseStatus.set('Clearing Users (all versions)...');
       try {
         const result = await this.versionedDataService.deleteAllVersionsAllRecords('User');
@@ -1016,15 +1017,22 @@ export class Admin implements OnInit {
         errors.push(`Users: ${error.message || 'Unknown error'}`);
       }
 
+      // Note: Cognito users require manual deletion from AWS Console
+      this.clearDatabaseStatus.set('Note: Cognito user accounts require manual deletion from AWS Console...');
+
       // Show results
       if (errors.length > 0) {
         this.clearDatabaseStatus.set(
-          `⚠️ Database clear completed with warnings. ${deletedCount} records deleted. ` +
-          `${errors.length} errors occurred:\n\n${errors.join('\n')}`
+          `⚠️ Database clear completed with warnings. ${deletedCount} DynamoDB records deleted. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}\n\n` +
+          `⚠️ IMPORTANT: Cognito user accounts must be manually deleted from AWS Console.`
         );
       } else {
-        this.clearDatabaseStatus.set(`✅ Database cleared successfully! ${deletedCount} records deleted.`);
-        this.successMessage.set('Database cleared successfully - all data has been removed');
+        this.clearDatabaseStatus.set(
+          `✅ Database cleared successfully! ${deletedCount} DynamoDB records deleted.\n\n` +
+          `⚠️ IMPORTANT: Cognito user accounts must be manually deleted from AWS Console.`
+        );
+        this.successMessage.set('Database cleared successfully - DynamoDB data removed');
       }
       
     } catch (error) {

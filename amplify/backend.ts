@@ -1,9 +1,12 @@
 import { defineBackend } from '@aws-amplify/backend';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
 import { createTestUsersFunction } from './functions/create-test-users/resource';
 import { activeRecordProcessorFunction } from './functions/active-record-processor/resource';
+import { checkEmailDuplicateFunction } from './functions/check-email-duplicate/resource';
+// import { deleteAllCognitoUsersFunction } from './functions/delete-all-cognito-users/resource';
 import { configureStreamTriggers } from './functions/active-record-processor/stream-config';
 // TODO: Re-enable stream handler once CDK integration is resolved
 // import { chatStreamHandler } from './functions/chat-stream-handler/resource';
@@ -13,7 +16,8 @@ const backend = defineBackend({
   data,
   storage,
   createTestUsersFunction,
-  activeRecordProcessorFunction
+  activeRecordProcessorFunction,
+  checkEmailDuplicateFunction
   // TODO: Re-enable stream handler
   // chatStreamHandler
 });
@@ -31,6 +35,29 @@ configureStreamTriggers(
   backend.activeRecordProcessorFunction.resources.lambda,
   backend.data.resources.tables
 );
+
+// Configure permissions and environment for checkEmailDuplicateFunction
+backend.checkEmailDuplicateFunction.resources.lambda.addToRolePolicy(
+  new PolicyStatement({
+    effect: Effect.ALLOW,
+    actions: ['dynamodb:Scan', 'dynamodb:Query'],
+    resources: [backend.data.resources.tables['User'].tableArn]
+  })
+);
+
+// Add Users table name as environment variable
+backend.checkEmailDuplicateFunction.addEnvironment('AMPLIFY_DATA_USER_TABLE_NAME', backend.data.resources.tables['User'].tableName);
+
+// Configure permissions and environment for deleteAllCognitoUsersFunction
+// backend.deleteAllCognitoUsersFunction.resources.lambda.addToRolePolicy(
+//   new PolicyStatement({
+//     effect: Effect.ALLOW,
+//     actions: ['cognito-idp:ListUsers', 'cognito-idp:AdminDeleteUser'],
+//     resources: [backend.auth.resources.userPool.userPoolArn]
+//   })
+// );
+
+// backend.deleteAllCognitoUsersFunction.addEnvironment('AMPLIFY_AUTH_USERPOOL_ID', backend.auth.resources.userPool.userPoolId);
 
 // Sample data initialization will be handled via direct GraphQL mutations
 

@@ -480,6 +480,9 @@ export class Users implements OnInit, OnDestroy {
         throw new Error('No authenticated user found. Please log in to create users.');
       }
       
+      // Check for email duplication before creating user
+      await this.userManagementService.validateEmailForCreation(userData.email);
+      
       // TODO: In a real application, you would use AWS Cognito AdminCreateUser API
       // For now, we'll create the user in our database with unverified email
       const userResult = await this.versionedDataService.createVersionedRecord('User', {

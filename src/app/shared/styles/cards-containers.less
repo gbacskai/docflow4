@@ -1,0 +1,137 @@
+@import '../../../styles.less';
+
+// Enhanced card with accent border
+.card-accented {
+  .card;
+  border-left: 4px solid @primary-color;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  &.inactive {
+    opacity: 0.7;
+    border-left-color: @dark-gray;
+  }
+  
+  &.editing {
+    border-left-color: #f39c12;
+    background: linear-gradient(135deg, rgba(243, 156, 18, 0.02) 0%, rgba(243, 156, 18, 0.05) 100%);
+  }
+}
+
+// Card headers with close buttons
+.card-header-with-close {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  
+  h2, h3 {
+    color: @black-color;
+    margin: 0;
+    font-weight: @font-weight-semi;
+  }
+  
+  // Optional bottom border for inline forms
+  &.with-border {
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+  }
+}
+
+// Content containers with meta information
+.content-with-meta {
+  .content-main { flex: 1; }
+  
+  .content-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    flex-wrap: wrap;
+    
+    .usage-count { color: @primary-color; font-weight: @font-weight-semi; }
+    .workflow-count { color: #27ae60; font-weight: @font-weight-semi; }
+    .template-count { color: @purple; font-weight: @font-weight-semi; }
+    .category { color: @warning-color; font-weight: @font-weight-semi; }
+  }
+}
+
+// Selection display containers
+.selection-display {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: #f8f9fa;
+  
+  h4 {
+    margin: 0 0 1rem 0;
+    color: #2c3e50;
+    font-size: 1rem;
+    font-weight: 500;
+  }
+  
+  .selected-item {
+    padding: 0.75rem;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    border-left: 4px solid #3498db;
+    margin-bottom: 0.75rem;
+    
+    &:last-child { margin-bottom: 0; }
+    
+    .item-name {
+      font-weight: 500;
+      color: #2c3e50;
+      margin-bottom: 0.25rem;
+    }
+    
+    .item-description {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+  }
+  
+  .selection-count {
+    color: #27ae60;
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 0.5rem;
+    background: #d4edda;
+    border-radius: 4px;
+  }
+  
+  .no-selection-message {
+    text-align: center;
+    border: 1px dashed #ddd;
+    border-radius: 6px;
+    background: #f8f9fa;
+    padding: 1rem;
+    
+    small {
+      color: #7f8c8d;
+      font-style: italic;
+    }
+  }
+}
+
+// List containers
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: none;
+}
+
+// Page width override for editing
+.page-full-width-edit {
+  max-width: none !important;
+  width: 100% !important;
+  padding: 0 15px !important;
+}

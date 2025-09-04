@@ -348,4 +348,56 @@ export class UserManagementService {
       return [];
     }
   }
+
+  /**
+   * Check if email address already exists in the Users table
+   * Uses Lambda function for efficient DynamoDB query
+   */
+  async checkEmailDuplicate(email: string): Promise<{ isDuplicate: boolean; error?: string }> {
+    try {
+      const client = generateClient<Schema>();
+      
+      const result = await client.queries.checkEmailDuplicate({
+        email: email.toLowerCase().trim()
+      });
+
+      if (result.errors && result.errors.length > 0) {
+        const errorMessage = result.errors[0].message;
+        console.error('GraphQL error checking email duplication:', errorMessage);
+        return { 
+          isDuplicate: false, 
+          error: errorMessage 
+        };
+      }
+
+      const data = result.data;
+      return { 
+        isDuplicate: data?.isDuplicate || false,
+        error: data?.isDuplicate ? (data.message || undefined) : undefined
+      };
+      
+    } catch (error) {
+      console.error('Error checking email duplication:', error);
+      return { 
+        isDuplicate: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      };
+    }
+  }
+
+  /**
+   * Validate email before creating user - throws error if duplicate exists
+   */
+  async validateEmailForCreation(email: string): Promise<void> {
+    const result = await this.checkEmailDuplicate(email);
+    
+    if (result.isDuplicate) {
+      throw new Error(result.error || 'Email address already exists in the system');
+    }
+    
+    if (result.error) {
+      console.warn('Email duplication check failed:', result.error);
+      // Continue with creation if check failed (graceful degradation)
+    }
+  }
 }

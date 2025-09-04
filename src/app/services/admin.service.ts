@@ -315,6 +315,43 @@ export class AdminService {
   }
 
   /**
+   * Delete all Cognito users from the user pool
+   * WARNING: This will delete ALL user accounts including admins
+   */
+  async deleteAllCognitoUsers(): Promise<{ success: boolean; deletedCount?: number; error?: string }> {
+    try {
+      const client = generateClient<Schema>();
+      
+      const result = await client.queries.deleteAllCognitoUsers({
+        confirmDeletion: true
+      });
+
+      if (result.errors && result.errors.length > 0) {
+        const errorMessage = result.errors[0].message;
+        console.error('GraphQL error deleting Cognito users:', errorMessage);
+        return { 
+          success: false, 
+          error: errorMessage 
+        };
+      }
+
+      const data = result.data;
+      return { 
+        success: data?.success || false,
+        deletedCount: data?.deletedCount || 0,
+        error: data?.success ? undefined : (data?.error || 'Unknown error')
+      };
+      
+    } catch (error: any) {
+      console.error('Error deleting Cognito users:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete Cognito users' 
+      };
+    }
+  }
+
+  /**
    * Get system statistics for admin dashboard
    */
   async getSystemStats(): Promise<{ success: boolean; stats?: any; error?: string }> {

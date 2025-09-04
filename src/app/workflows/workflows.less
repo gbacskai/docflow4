@@ -26,49 +26,9 @@
       align-items: center;
       gap: 1rem;
 
-      .search-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-
-        .search-input {
-          width: 300px;
-          padding: 0.75rem 1rem;
-          padding-right: 2.5rem;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 0.9rem;
-          transition: border-color 0.3s ease, box-shadow 0.3s ease;
-
-          &:focus {
-            outline: none;
-            border-color: @primary-color;
-            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
-          }
-
-          &::placeholder {
-            color: #7f8c8d;
-          }
-        }
-
-        .clear-search-btn {
-          position: absolute;
-          right: 0.5rem;
-          background: #95a5a6;
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 24px;
-          height: 24px;
-          cursor: pointer;
-          font-size: 0.8rem;
-          line-height: 1;
-          transition: background-color 0.3s ease;
-
-          &:hover {
-            background: #7f8c8d;
-          }
-        }
+      .search-wrapper { position: relative; display: flex; align-items: center;
+        .search-input { width: 300px; padding: 0.75rem 1rem 0.75rem 1rem; padding-right: 2.5rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; &:focus { outline: none; border-color: @primary-color; box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1); } &::placeholder { color: #7f8c8d; } }
+        .clear-search-btn { position: absolute; right: 0.5rem; background: #95a5a6; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 0.8rem; &:hover { background: #7f8c8d; } }
       }
 
       .add-button {
@@ -114,42 +74,12 @@
       }
     }
 
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-
-      label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: @black-color;
-        font-weight: @font-weight-semi;
-      }
-
-      input, textarea, select {
-        .form-control;
-      }
-
-      textarea {
-        resize: vertical;
-        min-height: 80px;
-      }
-
-      .error-message {
-        color: @danger-color;
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
-        padding: 0.5rem;
-        background-color: #ffeaea;
-        border: 1px solid @danger-color;
-        border-radius: 4px;
-        font-weight: 500;
-      }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .form-group { margin-bottom: 1rem; 
+      label { display: block; margin-bottom: 0.5rem; color: @black-color; font-weight: @font-weight-semi; }
+      input, textarea, select { .form-control; }
+      textarea { resize: vertical; min-height: 80px; }
+      .error-message { color: @danger-color; font-size: 0.9rem; margin-top: 0.25rem; padding: 0.5rem; background-color: #ffeaea; border: 1px solid @danger-color; border-radius: 4px; font-weight: 500; }
     }
 
     .flowchart-section {
@@ -625,27 +555,9 @@
       }
     }
 
-    .form-actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: flex-end;
-      margin-top: 2rem;
-      padding-top: 2rem;
-      border-top: 1px solid @light-gray;
-      
-      .btn-cancel {
-        .btn;
-        .btn-default;
-        padding: 0.75rem 2rem;
-        font-weight: @font-weight-semi;
-      }
-      
-      .btn-submit {
-        .btn;
-        .btn-primary;
-        padding: 0.75rem 2rem;
-        font-weight: @font-weight-semi;
-      }
+    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid @light-gray;
+      .btn-cancel { .btn; .btn-default; padding: 0.75rem 2rem; font-weight: @font-weight-semi; }
+      .btn-submit { .btn; .btn-primary; padding: 0.75rem 2rem; font-weight: @font-weight-semi; }
     }
 
     // View Mode Styles
