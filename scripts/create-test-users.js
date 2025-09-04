@@ -43,14 +43,16 @@ const region = amplifyOutputs.auth.aws_region;
 
 console.log(`Using User Pool: ${userPoolId} in region: ${region}`);
 
-  // Determine if we're in local development, AWS deployment, or Amplify build
-  const isLocalDevelopment = process.env.AWS_PROFILE || process.env.NODE_ENV !== 'production';
+  // Determine if we're in AWS Amplify deployment environment
   const isAmplifyBuild = process.env.AWS_APP_ID && process.env.AWS_BRANCH;
+  const hasAmplifyRole = process.env.AWS_EXECUTION_ENV || process.env.CODEBUILD_BUILD_ID;
+  const isLocalDevelopment = process.env.AWS_PROFILE && !isAmplifyBuild && !hasAmplifyRole;
   
-  if (isAmplifyBuild && !isLocalDevelopment) {
+  if (isAmplifyBuild || hasAmplifyRole || !isLocalDevelopment) {
     console.log('🏗️  Running in AWS Amplify deployment environment');
     console.log('⚠️  Test user creation requires additional IAM permissions in production');
     console.log('✅ Skipping test user creation (normal for deployment)');
+    console.log('📝 Users can register through the application or via AWS Console');
     process.exit(0);
   }
   
