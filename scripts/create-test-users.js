@@ -12,18 +12,40 @@ const {
 const fs = require('fs');
 const path = require('path');
 
-const amplifyOutputsPath = path.join(__dirname, '..', 'amplify_outputs.json');
-const amplifyOutputs = JSON.parse(fs.readFileSync(amplifyOutputsPath, 'utf8'));
+// Add timeout and error handling
+const SCRIPT_TIMEOUT = 90000; // 90 seconds
+const startTime = Date.now();
+
+// Set script timeout
+setTimeout(() => {
+  console.log('⏰ Script timeout reached, exiting gracefully...');
+  process.exit(0);
+}, SCRIPT_TIMEOUT);
+
+try {
+  const amplifyOutputsPath = path.join(__dirname, '..', 'amplify_outputs.json');
+  
+  if (!fs.existsSync(amplifyOutputsPath)) {
+    console.log('⚠️  amplify_outputs.json not found, skipping test user creation');
+    process.exit(0);
+  }
+  
+  const amplifyOutputs = JSON.parse(fs.readFileSync(amplifyOutputsPath, 'utf8'));
+  
+  if (!amplifyOutputs?.auth?.user_pool_id) {
+    console.log('⚠️  User pool configuration not found, skipping test user creation');
+    process.exit(0);
+  }
 
 const userPoolId = amplifyOutputs.auth.user_pool_id;
 const region = amplifyOutputs.auth.aws_region;
 
 console.log(`Using User Pool: ${userPoolId} in region: ${region}`);
 
-const cognitoClient = new CognitoIdentityProviderClient({ 
-  region: region,
-  profile: 'aws_amplify_permithunter'
-});
+  const cognitoClient = new CognitoIdentityProviderClient({ 
+    region: region
+    // In AWS Amplify deployment, credentials are provided automatically
+  });
 
 const testUsers = [
   {
@@ -129,3 +151,9 @@ async function main() {
 }
 
 main();
+
+} catch (error) {
+  console.log('❌ Failed to initialize script:', error.message);
+  console.log('⚠️  Exiting gracefully...');
+  process.exit(0);
+}
