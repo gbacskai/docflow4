@@ -215,19 +215,21 @@ backend.data.addDynamoDbDataSource('ExternalWorkflowTableDataSource', customWork
 backend.data.addDynamoDbDataSource('ExternalChatRoomTableDataSource', customChatRoomTable);
 backend.data.addDynamoDbDataSource('ExternalChatMessageTableDataSource', customChatMessageTable);
 
-console.log(`🔗 External data sources added for custom tables`);
+// Override the auto-generated table data sources to point to our custom tables
+// This prevents the creation of -NONE tables while keeping TypeScript compatibility
+backend.data.resources.tables['Project'] = customProjectTable;
+backend.data.resources.tables['Document'] = customDocumentTable;
+backend.data.resources.tables['User'] = customUserTable;
+backend.data.resources.tables['DocumentType'] = customDocumentTypeTable;
+backend.data.resources.tables['Workflow'] = customWorkflowTable;
+backend.data.resources.tables['ChatRoom'] = customChatRoomTable;
+backend.data.resources.tables['ChatMessage'] = customChatMessageTable;
+
+console.log(`🔗 External data sources added and auto-generated tables overridden`);
 
 // Configure DynamoDB streams and permissions for active record processor  
-// Use our custom tables directly instead of auto-generated ones
-const allTables = {
-  'Project': customProjectTable,
-  'Document': customDocumentTable,
-  'User': customUserTable,
-  'DocumentType': customDocumentTypeTable,
-  'Workflow': customWorkflowTable,
-  'ChatRoom': customChatRoomTable,
-  'ChatMessage': customChatMessageTable
-};
+// Now backend.data.resources.tables points to our custom tables
+const allTables = backend.data.resources.tables;
 
 // Configure DynamoDB stream triggers for active record processing
 configureStreamTriggers(
