@@ -6,6 +6,10 @@ import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from '../services/auth.service';
 import { VersionedDataService } from '../services/versioned-data.service';
 import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.service';
+import { DynamoDBClient, ListTablesCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import outputs from '../../../amplify_outputs.json';
 
 @Component({
   selector: 'app-admin',
@@ -75,15 +79,20 @@ export class Admin implements OnInit {
   // Current user
   currentUser = this.authService.currentUser;
   
-  // DynamoDB table names
+  // AWS Resources
   tableNames = signal<{[key: string]: string}>({});
+  awsResources = signal<{[key: string]: string}>({});
+  lambdaFunctions = signal<string[]>([]);
+  tablesLoading = signal<boolean>(false);
   
   constructor() {
-    this.loadTableNames();
+    this.loadAwsResources();
+    this.loadLambdaFunctions();
   }
 
   async ngOnInit() {
     await this.loadExports();
+    await this.loadTableNames();
   }
   
 
@@ -381,50 +390,205 @@ export class Admin implements OnInit {
     this.importStatus.set('');
   }
 
-  loadTableNames() {
-    // Get environment name - consistent with backend naming logic
-    const envName = 'dev001'; // This should match your current environment
+  async loadTableNames() {
+    this.tablesLoading.set(true);
+    
+    try {
+      // Get current branch/environment from various sources
+      const envName = this.getCurrentEnvironmentName();
+      console.log('🎯 Using environment name for table filtering:', envName);
+      
+      // Get AWS credentials from Amplify
+      const session = await fetchAuthSession();
+      const credentials = session.credentials;
+      
+      if (!credentials) {
+        console.error('No AWS credentials available');
+        this.setFallbackTableNames();
+        return;
+      }
+
+      // Create DynamoDB client with Amplify credentials
+      const dynamoClient = new DynamoDBClient({
+        region: 'ap-southeast-2',
+        credentials: {
+          accessKeyId: credentials.accessKeyId,
+          secretAccessKey: credentials.secretAccessKey,
+          sessionToken: credentials.sessionToken
+        }
+      });
+
+      // List all tables
+      const listTablesCommand = new ListTablesCommand({});
+      const tablesResult = await dynamoClient.send(listTablesCommand);
+      
+      if (!tablesResult.TableNames) {
+        console.warn('No tables returned from DynamoDB');
+        this.setFallbackTableNames();
+        return;
+      }
+
+      // Filter for DocFlow4 related tables with proper environment naming
+      const docflowTables = tablesResult.TableNames.filter(tableName => {
+        if (!tableName) return false;
+        const lowerName = tableName.toLowerCase();
+        
+        // Check for DocFlow4 model names
+        const isDocFlowModel = lowerName.includes('project') ||
+                              lowerName.includes('document') ||
+                              lowerName.includes('user') ||
+                              lowerName.includes('workflow') ||
+                              lowerName.includes('chatroom') ||
+                              lowerName.includes('chatmessage');
+        
+        // Check for DocFlow4 app name or environment
+        const isDocFlowApp = lowerName.includes('docflow') ||
+                            lowerName.includes(envName.toLowerCase());
+        
+        // Include tables that match our naming pattern or contain our models
+        return isDocFlowModel || isDocFlowApp;
+      });
+
+      const tableNamesMap: {[key: string]: string} = {};
+      
+      // Get details for each table
+      for (const tableName of docflowTables) {
+        if (!tableName) continue;
+        
+        try {
+          const describeCommand = new DescribeTableCommand({
+            TableName: tableName
+          });
+          const tableDetails = await dynamoClient.send(describeCommand);
+          
+          // Categorize tables based on name patterns (case-insensitive)
+          const lowerTableName = tableName.toLowerCase();
+          let category = 'Unknown';
+          if (lowerTableName.includes('project')) category = 'Project';
+          else if (lowerTableName.includes('document') && !lowerTableName.includes('documenttype')) category = 'Document';
+          else if (lowerTableName.includes('documenttype')) category = 'DocumentType';
+          else if (lowerTableName.includes('user')) category = 'User';
+          else if (lowerTableName.includes('chatroom')) category = 'ChatRoom';
+          else if (lowerTableName.includes('chatmessage')) category = 'ChatMessage';
+          else if (lowerTableName.includes('workflow')) category = 'Workflow';
+          else if (lowerTableName.includes('amplify')) category = 'Amplify Infrastructure';
+          
+          const itemCount = tableDetails.Table?.ItemCount ?? 0;
+          const status = tableDetails.Table?.TableStatus ?? 'Unknown';
+          
+          // Extract environment from table name if possible
+          let displayName = tableName;
+          const envSuffix = tableName.includes(envName) ? ` (${envName})` : '';
+          
+          tableNamesMap[`${category} (${status})`] = `${displayName}${envSuffix} [${itemCount} items]`;
+          
+        } catch (error) {
+          console.warn(`Could not describe table ${tableName}:`, error);
+          tableNamesMap[tableName] = tableName;
+        }
+      }
+      
+      // Add other AWS resources
+      tableNamesMap['S3 Storage'] = 'docflow4-dev001-storage';
+      
+      this.tableNames.set(tableNamesMap);
+      
+    } catch (error) {
+      console.error('Error loading DynamoDB tables:', error);
+      this.setFallbackTableNames();
+    } finally {
+      this.tablesLoading.set(false);
+    }
+  }
+
+  private setFallbackTableNames() {
+    // Fallback to hardcoded names if DynamoDB access fails
+    const envName = this.getCurrentEnvironmentName();
     const appName = 'docflow4';
     
-    // Custom DynamoDB tables (from all-tables.ts)
-    const customTables = [
-      'Project',
-      'Document', 
-      'User',
-      'DocumentType',
-      'ChatRoom',
-      'ChatMessage'
-    ];
-    
-    // GraphQL API tables (from data/resource.ts)
-    const graphQLTables = [
-      'Project',
-      'Document',
-      'User', 
-      'DocumentType',
-      'ChatRoom',
-      'ChatMessage'
+    const fallbackTables = [
+      'Project', 'Document', 'User', 'DocumentType', 
+      'Workflow', 'ChatRoom', 'ChatMessage'
     ];
     
     const tableNamesMap: {[key: string]: string} = {};
     
-    // Custom tables with docflow4-{TableName}-{Environment} pattern
-    customTables.forEach(tableName => {
-      const physicalName = `${appName}-${tableName}-${envName}`;
-      tableNamesMap[`Custom ${tableName}`] = physicalName;
+    fallbackTables.forEach(tableName => {
+      tableNamesMap[`${tableName} (Fallback)`] = `${appName}-${tableName}-${envName}`;
     });
     
-    // GraphQL tables with auto-generated Amplify naming
-    graphQLTables.forEach(tableName => {
-      // Amplify auto-generates table names like: [StackName]-[ModelName]-[UniqueId]
-      const physicalName = `${appName}-${tableName}-${envName}`;
-      tableNamesMap[`GraphQL ${tableName}`] = `${physicalName} (Amplify generated)`;
-    });
-    
-    // Storage bucket
-    tableNamesMap['S3 Bucket'] = `${appName}-${envName}`;
+    tableNamesMap['S3 Storage'] = `${appName}-${envName}-storage`;
+    tableNamesMap['⚠️ Note'] = `Could not connect to DynamoDB - showing expected names for ${envName}`;
     
     this.tableNames.set(tableNamesMap);
+  }
+
+  loadAwsResources() {
+    const envName = this.getCurrentEnvironmentName();
+    const appName = 'docflow4';
+    const region = 'ap-southeast-2';
+    
+    const resources: {[key: string]: string} = {};
+    
+    // AWS Cognito Resources
+    resources['Cognito User Pool ID'] = 'ap-southeast-2_8Nq1yjUAM';
+    resources['Cognito Identity Pool'] = `${appName}-${envName}-identity-pool`;
+    resources['Cognito App Client'] = `${appName}-${envName}-app-client`;
+    
+    // AppSync API
+    resources['AppSync API Endpoint'] = 'https://ndfwruoxnbeftcrlyijl3on3pu.appsync-api.ap-southeast-2.amazonaws.com/graphql';
+    resources['AppSync API Key'] = 'da2-**** (expires in 30 days)';
+    
+    // S3 Storage
+    resources['S3 Storage Bucket'] = `${appName}-${envName}-storage`;
+    
+    // AWS Region
+    resources['AWS Region'] = region;
+    resources['Environment'] = envName;
+    
+    this.awsResources.set(resources);
+  }
+
+  loadLambdaFunctions() {
+    // List all Lambda functions used in this project
+    const functions = [
+      // Active Lambda Functions
+      'active-record-processor-lambda - DynamoDB stream processor for managing active record states',
+      'create-test-users-lambda - Creates test users for development and testing',
+      
+      // AI/ML Functions  
+      'validateWorkflow - Claude 3 Sonnet AI function for intelligent workflow validation',
+      
+      // Temporarily Disabled Functions
+      'check-email-duplicate-lambda (DISABLED) - Email duplication check function',
+      'delete-all-cognito-users-lambda (DISABLED) - Cognito user pool cleanup function',
+      'chat-stream-handler-lambda (DISABLED) - Real-time chat message stream processor',
+      
+      // AWS Amplify Infrastructure Functions
+      'amplify-*-branch-linker - Amplify deployment branch management',
+      'amplify-*-bucket-deployment - S3 bucket deployment automation',
+      'amplify-*-table-manager - DynamoDB table lifecycle management'
+    ];
+    
+    this.lambdaFunctions.set(functions);
+  }
+
+  private getCurrentEnvironmentName(): string {
+    // Get environment name from Amplify outputs
+    try {
+      const environmentName = (outputs as any)?.custom?.environmentName;
+      if (environmentName) {
+        console.log('🎯 Found environment from Amplify outputs:', environmentName);
+        return environmentName;
+      }
+    } catch (error) {
+      console.log('Error reading environment from Amplify outputs:', error);
+    }
+    
+    // Default fallback - should match backend default
+    const defaultEnv = 'dev001';
+    console.log('🔧 Using default environment:', defaultEnv);
+    return defaultEnv;
   }
 
   async initializeSampleData() {

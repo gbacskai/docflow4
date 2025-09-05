@@ -88,4 +88,3 @@ env:
     _LIVE_UPDATES: '[{"name":"Amplify CLI","pkg":"@aws-amplify/cli","type":"npm","version":"latest"}]'
     ENV: $AWS_BRANCH
     AMPLIFY_BRANCH: $AWS_BRANCH
-    AMPLIFY_ENVIRONMENT_NAME: $AWS_BRANCH

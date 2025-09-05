@@ -22,12 +22,8 @@ const backend = defineBackend({
   // chatStreamHandler
 });
 
-// Get environment name from various sources
-const envName = process.env['AMPLIFY_ENVIRONMENT_NAME'] ||
-                process.env['AMPLIFY_BRANCH'] || 
-                process.env['AWS_BRANCH'] || 
-                backend.stack.node.tryGetContext('amplify-environment-name') ||
-                'dev001';
+// Get environment name using only out-of-the-box AWS_BRANCH variable
+const envName = process.env['AWS_BRANCH'] || 'dev001';
 console.log(`🎯 Using environment name: ${envName}`);
 
 // Configure DynamoDB streams and permissions for active record processor
@@ -59,6 +55,21 @@ configureStreamTriggers(
 // );
 
 // backend.deleteAllCognitoUsersFunction.addEnvironment('AMPLIFY_AUTH_USERPOOL_ID', backend.auth.resources.userPool.userPoolId);
+
+// Add DynamoDB permissions for authenticated users (admin page functionality)
+backend.auth.resources.authenticatedUserIamRole.addToPrincipalPolicy(
+  new PolicyStatement({
+    effect: Effect.ALLOW,
+    actions: [
+      'dynamodb:ListTables',
+      'dynamodb:DescribeTable',
+      'dynamodb:GetItem',
+      'dynamodb:Query',
+      'dynamodb:Scan'
+    ],
+    resources: ['*'] // Allow access to all DynamoDB resources
+  })
+);
 
 // Sample data initialization will be handled via direct GraphQL mutations
 
