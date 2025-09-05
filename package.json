@@ -25,7 +25,8 @@
     "purge:analyze": "purgecss --config purgecss.config.js --output dist/purged/",
     "css:analyze": "echo 'Analyzing CSS bundle sizes...' && find src -name '*.less' -exec wc -c {} + | sort -n",
     "css:optimize": "node optimize-css.js",
-    "css:restore": "find src -name '*.backup' -exec sh -c 'mv \"$1\" \"${1%.backup}\"' _ {} \\;"
+    "css:restore": "find src -name '*.backup' -exec sh -c 'mv \"$1\" \"${1%.backup}\"' _ {} \\;",
+    "sandbox": "ENV=sandbox npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00003"
   },
   "prettier": {
     "printWidth": 100,

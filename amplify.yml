@@ -3,11 +3,14 @@ backend:
   phases:
     preBuild:
       commands:
-        - set ENV=$AWS_BRANCH
         - 'echo "🔄 Pulling latest backend environment configuration..."'
+        - 'export ENV=$AWS_BRANCH'
+        - 'echo "🎯 Current ENV: $ENV"'
         - 'echo "🎯 Current AWS_BRANCH: $AWS_BRANCH"'
     build:
       commands:
+        - 'export ENV=$AWS_BRANCH'
+        - 'echo "🎯 Current ENV: $ENV"'
         - nvm install 24.5.0 --no-progress
         - nvm use 24.5.0
         - npm ci --cache .npm --prefer-offline
