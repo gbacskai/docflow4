@@ -28,36 +28,55 @@ const backend = defineBackend({
 const baseEnvName = process.env['AWS_BRANCH'] || 'dev';
 const appName = 'docflow4';
 
-// For sandbox environments, we need to detect if we're running in sandbox mode
-// During synthesis, env vars aren't always available, so we'll use a different approach
-// Check if the current directory or process indicates sandbox mode
-const isLikelySandbox = process.argv.some(arg => arg.includes('sandbox')) ||
-                       process.cwd().includes('sandbox') ||
-                       process.env['AWS_STACK_NAME']?.includes('sandbox') ||
-                       baseEnvName === 'sandbox';
+// Detect environment type and naming strategy
+// In AWS deployment, we should use the AWS_BRANCH directly without sandbox detection
+// Only use sandbox naming for local development
 
-// Extract sandbox ID from command line args or environment
-const sandboxIdFromArgs = process.argv.find(arg => arg.startsWith('--identifier'))?.split('=')[1] ||
-                         process.argv[process.argv.indexOf('--identifier') + 1];
+// Check if we're in a local sandbox environment (not AWS deployment)
+const isLocalSandbox = process.argv.some(arg => arg.includes('sandbox')) && 
+                       !process.env['AWS_EXECUTION_ENV'] && // Not in AWS Lambda/CodeBuild
+                       !process.env['CODEBUILD_BUILD_ID']; // Not in AWS CodeBuild
 
-const sandboxId = process.env['AMPLIFY_SANDBOX_ID'] || 
-                  process.env['SANDBOX_ID'] ||
-                  sandboxIdFromArgs ||
-                  '00004'; // Default fallback
+let envName = baseEnvName;
 
-// If we detect sandbox indicators, use sandbox naming
-const isSandbox = isLikelySandbox || sandboxIdFromArgs;
-const envName = isSandbox ? `sandbox-${sandboxId}` : baseEnvName;
+if (isLocalSandbox) {
+  // Local sandbox - extract identifier from command line
+  let sandboxIdFromArgs = null;
+  const identifierIndex = process.argv.indexOf('--identifier');
+  if (identifierIndex !== -1 && identifierIndex + 1 < process.argv.length) {
+    const nextArg = process.argv[identifierIndex + 1];
+    // Only use if it's a valid 5-digit identifier, not a file path
+    if (nextArg && /^\d{5}$/.test(nextArg)) {
+      sandboxIdFromArgs = nextArg;
+    }
+  }
 
-console.log(`🎯 Using environment name: ${envName}${isSandbox ? ` (sandbox with ID: ${sandboxId})` : ''}`);
+  // Also check for --identifier=00006 format
+  if (!sandboxIdFromArgs) {
+    const identifierArg = process.argv.find(arg => arg.startsWith('--identifier='));
+    if (identifierArg) {
+      const value = identifierArg.split('=')[1];
+      if (value && /^\d{5}$/.test(value)) {
+        sandboxIdFromArgs = value;
+      }
+    }
+  }
+
+  const sandboxId = sandboxIdFromArgs || '00006';
+  envName = `sandbox-${sandboxId}`;
+} else {
+  // AWS deployment - use AWS_BRANCH directly
+  envName = baseEnvName;
+}
+
+console.log(`🎯 Using environment name: ${envName}${isLocalSandbox ? ` (local sandbox)` : ' (AWS deployment)'}`);
 console.log(`📋 Detection details:`, {
   AWS_BRANCH: process.env['AWS_BRANCH'],
-  AWS_STACK_NAME: process.env['AWS_STACK_NAME'],
-  AMPLIFY_SANDBOX_ID: process.env['AMPLIFY_SANDBOX_ID'],
-  sandboxIdFromArgs: sandboxIdFromArgs,
-  isLikelySandbox: isLikelySandbox,
-  isSandbox: isSandbox,
-  sandboxId: sandboxId,
+  AWS_EXECUTION_ENV: process.env['AWS_EXECUTION_ENV'],
+  CODEBUILD_BUILD_ID: process.env['CODEBUILD_BUILD_ID'],
+  isLocalSandbox: isLocalSandbox,
+  baseEnvName: baseEnvName,
+  envName: envName,
   processArgs: process.argv.filter(arg => arg.includes('sandbox') || arg.includes('identifier'))
 });
 
