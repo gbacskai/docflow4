@@ -354,26 +354,25 @@ export class UserManagementService {
    * Uses Lambda function for efficient DynamoDB query
    */
   async checkEmailDuplicate(email: string): Promise<{ isDuplicate: boolean; error?: string }> {
+    // TODO: Re-implement when Lambda function is enabled
+    console.warn('checkEmailDuplicate is temporarily disabled');
+    
+    // For now, perform a simple client-side check
     try {
       const client = generateClient<Schema>();
-      
-      const result = await client.queries.checkEmailDuplicate({
-        email: email.toLowerCase().trim()
+      const result = await client.models.User.list({
+        filter: {
+          email: { eq: email.toLowerCase().trim() }
+        }
       });
-
-      if (result.errors && result.errors.length > 0) {
-        const errorMessage = result.errors[0].message;
-        console.error('GraphQL error checking email duplication:', errorMessage);
-        return { 
-          isDuplicate: false, 
-          error: errorMessage 
-        };
-      }
-
-      const data = result.data;
+      
+      // Get only the active version of each user (filter by active=true)
+      const activeUsers = result.data?.filter(user => user.active === true) || [];
+      const isDuplicate = activeUsers.length > 0;
+      
       return { 
-        isDuplicate: data?.isDuplicate || false,
-        error: data?.isDuplicate ? (data.message || undefined) : undefined
+        isDuplicate,
+        error: undefined
       };
       
     } catch (error) {
