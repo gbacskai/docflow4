@@ -1,185 +1,147 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 
-
+// Define custom types that match our DynamoDB table structure
 const schema = a.schema({
-  Project: a.model({
-      id: a.string().required(),
-      version: a.datetime().required(),
-      name: a.string().required(),
-      identifier: a.string(),
-      description: a.string().required(),
-      ownerId: a.string().required(),
-      adminUsers: a.string().array(),
-      workflowId: a.string(),
-      status: a.enum(['active', 'completed', 'archived']),
-      active: a.boolean().default(true),
-      createdAt: a.datetime(),
-      updatedAt: a.datetime()
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read', 'update', 'delete'])
-    ]),
-  Document: a.model({
-      id: a.string().required(),
-      version: a.datetime().required(),
-      projectId: a.string().required(),
-      documentType: a.string().required(),
-      formData: a.string(),
-      active: a.boolean().default(true),
-      createdAt: a.datetime(),
-      updatedAt: a.datetime()
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
-  User: a.model({
-      id: a.string().required(),
-      version: a.datetime().required(),
-      email: a.string().required(),
-      userType: a.enum(['admin', 'client', 'provider']),
-      firstName: a.string(),
-      lastName: a.string(),
-      interestedDocumentTypes: a.string().array(),
-      status: a.enum(['invited', 'active', 'inactive', 'archived']),
-      emailVerified: a.boolean(), // Email verification status
-      cognitoUserId: a.string(), // Cognito user ID for linking authenticated users
-      invitedBy: a.string(),
-      createdBy: a.string(),
-      invitedAt: a.datetime(),
-      lastLoginAt: a.datetime(),
-      active: a.boolean().default(true),
-      createdAt: a.datetime(),
-      updatedAt: a.datetime()
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
-  DocumentType: a.model({
-      id: a.string().required(),
-      version: a.datetime().required(),
-      name: a.string().required(),
-      identifier: a.string(),
-      description: a.string(),
-      definition: a.string().required(),
-      validationRules: a.string(),
-      category: a.string(),
-      fields: a.string().array(),
-      isActive: a.boolean(),
-      active: a.boolean().default(true),
-      usageCount: a.integer(),
-      templateCount: a.integer(),
-      createdAt: a.datetime(),
-      updatedAt: a.datetime()
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
-  Workflow: a.model({
-      id: a.string().required(),
-      version: a.datetime().required(),
-      name: a.string().required(),
-      identifier: a.string(),
-      description: a.string(),
-      rules: a.json().array(),
-      actors: a.string().array(),
-      isActive: a.boolean().default(true),
-      active: a.boolean().default(true),
-      createdAt: a.datetime(),
-      updatedAt: a.datetime()
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
-  ChatRoom: a.model({
-      // Primary key fields
-      id: a.string().required(),
-      version: a.datetime().required(),
-      
-      // Project/Document association
-      projectId: a.string(),
-      projectName: a.string(),
-      documentId: a.string(),
-      documentType: a.string(),
-      roomType: a.enum(['project', 'document']),
-      
-      // Room details
-      title: a.string().required(),
-      description: a.string(),
-      
-      // Participants management
-      participants: a.string().array(), // Combined list of all participants
-      adminUsers: a.string().array(), // Project admins
-      providerUsers: a.string().array(), // Document providers
-      
-      // Room status and metadata
-      lastMessage: a.string(),
-      lastMessageTime: a.datetime(),
-      lastMessageSender: a.string(),
-      messageCount: a.integer().default(0), // Total message count
-      unreadCount: a.integer().default(0), // Unread messages count
-      isActive: a.boolean().default(true),
-      active: a.boolean().default(true),
-      isArchived: a.boolean().default(false),
-      
-      // Room settings
-      allowFileSharing: a.boolean().default(true),
-      maxParticipants: a.integer().default(50),
-      
-      // Timestamps
-      createdAt: a.datetime(),
-      updatedAt: a.datetime(),
-      lastActivityAt: a.datetime()
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
-      allow.authenticated().to(['create', 'read', 'update', 'delete'])
-    ]),
-  ChatMessage: a.model({
-      // Primary key fields
-      id: a.string().required(),
-      version: a.datetime().required(),
-      
-      // Reference to ChatRoom - this creates the relationship
-      chatRoomId: a.string().required(),
-      
-      // Message sender information
-      senderId: a.string().required(),
-      senderName: a.string().required(),
-      senderEmail: a.string(),
-      senderType: a.enum(['admin', 'provider']),
-      
-      // Message content and metadata
-      message: a.string().required(),
-      messageType: a.enum(['text', 'system', 'file']),
-      attachmentUrl: a.string(), // For file messages
-      fileSize: a.integer(), // File size in bytes
-      fileName: a.string(), // Original file name
-      
-      // Context references
-      projectId: a.string(),
-      documentId: a.string(),
-      
-      // Message status tracking
-      isRead: a.boolean().default(false),
-      readBy: a.string().array(), // Array of user IDs who have read this message
-      readAt: a.datetime(), // When message was first read
-      deliveredAt: a.datetime(), // When message was delivered
-      
-      // Message threading (for replies)
-      replyToMessageId: a.string(),
-      threadId: a.string(),
-      
-      // General status
-      active: a.boolean().default(true),
-      
-      // Timestamps
-      createdAt: a.datetime(),
-      updatedAt: a.datetime(),
-      editedAt: a.datetime() // If message was edited
-    })
-    .identifier(['id', 'version'])
-    .authorization(allow => [
-      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
-      allow.authenticated().to(['create', 'read', 'update', 'delete'])
-    ]),
+  // Custom types for external DynamoDB tables
+  ExternalProject: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    name: a.string().required(),
+    identifier: a.string(),
+    description: a.string().required(),
+    ownerId: a.string().required(),
+    adminUsers: a.string().array(),
+    workflowId: a.string(),
+    status: a.string(),
+    active: a.boolean(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime()
+  }),
+  
+  ExternalUser: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    email: a.string().required(),
+    userType: a.string(),
+    firstName: a.string(),
+    lastName: a.string(),
+    interestedDocumentTypes: a.string().array(),
+    status: a.string(),
+    emailVerified: a.boolean(),
+    cognitoUserId: a.string(),
+    invitedBy: a.string(),
+    createdBy: a.string(),
+    invitedAt: a.datetime(),
+    lastLoginAt: a.datetime(),
+    active: a.boolean(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime()
+  }),
+  
+  ExternalDocument: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    projectId: a.string().required(),
+    documentType: a.string().required(),
+    formData: a.string(),
+    active: a.boolean(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime()
+  }),
+  
+  ExternalDocumentType: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    name: a.string().required(),
+    identifier: a.string(),
+    description: a.string(),
+    definition: a.string().required(),
+    validationRules: a.string(),
+    category: a.string(),
+    fields: a.string().array(),
+    isActive: a.boolean(),
+    active: a.boolean(),
+    usageCount: a.integer(),
+    templateCount: a.integer(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime()
+  }),
+  
+  ExternalWorkflow: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    name: a.string().required(),
+    identifier: a.string(),
+    description: a.string(),
+    rules: a.json().array(),
+    actors: a.string().array(),
+    isActive: a.boolean(),
+    active: a.boolean(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime()
+  }),
+  
+  ExternalChatRoom: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    projectId: a.string(),
+    projectName: a.string(),
+    documentId: a.string(),
+    documentType: a.string(),
+    roomType: a.string(),
+    title: a.string().required(),
+    description: a.string(),
+    participants: a.string().array(),
+    adminUsers: a.string().array(),
+    providerUsers: a.string().array(),
+    lastMessage: a.string(),
+    lastMessageTime: a.datetime(),
+    lastMessageSender: a.string(),
+    messageCount: a.integer(),
+    unreadCount: a.integer(),
+    isActive: a.boolean(),
+    active: a.boolean(),
+    isArchived: a.boolean(),
+    allowFileSharing: a.boolean(),
+    maxParticipants: a.integer(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime(),
+    lastActivityAt: a.datetime()
+  }),
+  
+  ExternalChatMessage: a.customType({
+    id: a.string().required(),
+    version: a.datetime().required(),
+    chatRoomId: a.string().required(),
+    senderId: a.string().required(),
+    senderName: a.string().required(),
+    senderEmail: a.string(),
+    senderType: a.string(),
+    message: a.string().required(),
+    messageType: a.string(),
+    attachmentUrl: a.string(),
+    fileSize: a.integer(),
+    fileName: a.string(),
+    projectId: a.string(),
+    documentId: a.string(),
+    isRead: a.boolean(),
+    readBy: a.string().array(),
+    readAt: a.datetime(),
+    deliveredAt: a.datetime(),
+    replyToMessageId: a.string(),
+    threadId: a.string(),
+    active: a.boolean(),
+    createdAt: a.datetime(),
+    updatedAt: a.datetime(),
+    editedAt: a.datetime()
+  }),
+  
+  // Temporarily disable external operations to fix deployment
+  // TODO: Re-enable external operations once resolver issues are resolved
+
+  // Model definitions removed - we use only external data sources with custom tables
+  // This prevents creation of -NONE auto-generated tables
+
   // AI-powered workflow validation
   validateWorkflow: a.generation({
     aiModel: a.ai.model('Claude 3 Sonnet'),

@@ -13,6 +13,7 @@ import {
   type SignUpOutput 
 } from 'aws-amplify/auth';
 import { UserManagementService } from './user-management.service';
+import { ExternalUserService } from './external-user.service';
 
 export interface AuthUser {
   userId: string;
@@ -41,6 +42,7 @@ export class AuthService {
   private _isAuthenticated = signal<boolean>(false);
   private _testMode = signal<boolean>(false);
   private userManagementService = inject(UserManagementService);
+  private externalUserService = inject(ExternalUserService);
 
   // Public readonly signals
   currentUser = this._currentUser.asReadonly();
@@ -67,14 +69,23 @@ export class AuthService {
         }
         
         if (email) {
-          // Ensure user entry exists in User table and handle invitation merging
+          // Ensure user entry exists in external User table (custom tables)
+          await this.externalUserService.ensureUserEntry(
+            user.userId, 
+            email, 
+            user.username
+          );
+          
+          // Update last login time in external table
+          await this.externalUserService.updateLastLogin(user.userId);
+          
+          // Also maintain compatibility with existing GraphQL tables
           await this.userManagementService.ensureUserEntry(
             user.userId, 
             email, 
             user.username
           );
           
-          // Update last login time
           await this.userManagementService.updateLastLogin(user.userId);
         }
         

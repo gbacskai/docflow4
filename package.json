@@ -26,7 +26,7 @@
     "css:analyze": "echo 'Analyzing CSS bundle sizes...' && find src -name '*.less' -exec wc -c {} + | sort -n",
     "css:optimize": "node optimize-css.js",
     "css:restore": "find src -name '*.backup' -exec sh -c 'mv \"$1\" \"${1%.backup}\"' _ {} \\;",
-    "sandbox": "export AWS_BRANCH=sandbox; npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00003"
+    "sandbox": "export AWS_BRANCH=sandbox; npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00009"
   },
   "prettier": {
     "printWidth": 100,

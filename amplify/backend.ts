@@ -25,9 +25,41 @@ const backend = defineBackend({
 });
 
 // Get environment name using only out-of-the-box AWS_BRANCH variable
-const envName = process.env['AWS_BRANCH'] || 'dev';
+const baseEnvName = process.env['AWS_BRANCH'] || 'dev';
 const appName = 'docflow4';
-console.log(`🎯 Using environment name: ${envName}`);
+
+// For sandbox environments, we need to detect if we're running in sandbox mode
+// During synthesis, env vars aren't always available, so we'll use a different approach
+// Check if the current directory or process indicates sandbox mode
+const isLikelySandbox = process.argv.some(arg => arg.includes('sandbox')) ||
+                       process.cwd().includes('sandbox') ||
+                       process.env['AWS_STACK_NAME']?.includes('sandbox') ||
+                       baseEnvName === 'sandbox';
+
+// Extract sandbox ID from command line args or environment
+const sandboxIdFromArgs = process.argv.find(arg => arg.startsWith('--identifier'))?.split('=')[1] ||
+                         process.argv[process.argv.indexOf('--identifier') + 1];
+
+const sandboxId = process.env['AMPLIFY_SANDBOX_ID'] || 
+                  process.env['SANDBOX_ID'] ||
+                  sandboxIdFromArgs ||
+                  '00004'; // Default fallback
+
+// If we detect sandbox indicators, use sandbox naming
+const isSandbox = isLikelySandbox || sandboxIdFromArgs;
+const envName = isSandbox ? `sandbox-${sandboxId}` : baseEnvName;
+
+console.log(`🎯 Using environment name: ${envName}${isSandbox ? ` (sandbox with ID: ${sandboxId})` : ''}`);
+console.log(`📋 Detection details:`, {
+  AWS_BRANCH: process.env['AWS_BRANCH'],
+  AWS_STACK_NAME: process.env['AWS_STACK_NAME'],
+  AMPLIFY_SANDBOX_ID: process.env['AMPLIFY_SANDBOX_ID'],
+  sandboxIdFromArgs: sandboxIdFromArgs,
+  isLikelySandbox: isLikelySandbox,
+  isSandbox: isSandbox,
+  sandboxId: sandboxId,
+  processArgs: process.argv.filter(arg => arg.includes('sandbox') || arg.includes('identifier'))
+});
 
 // Create custom tables with the desired naming for all models
 console.log(`🏗️  Creating custom tables with naming: ${appName}-TableName-${envName}`);
@@ -155,19 +187,30 @@ customChatMessageTable.addGlobalSecondaryIndex({
 
 console.log(`✅ All custom tables created with naming: ${appName}-TableName-${envName}`);
 
-// Configure DynamoDB streams and permissions for active record processor
-// Include both the original GraphQL tables and our custom tables
+// Add custom tables as external data sources for GraphQL API
+backend.data.addDynamoDbDataSource('ExternalUserTableDataSource', customUserTable);
+backend.data.addDynamoDbDataSource('ExternalProjectTableDataSource', customProjectTable);
+backend.data.addDynamoDbDataSource('ExternalDocumentTableDataSource', customDocumentTable);
+backend.data.addDynamoDbDataSource('ExternalDocumentTypeTableDataSource', customDocumentTypeTable);
+backend.data.addDynamoDbDataSource('ExternalWorkflowTableDataSource', customWorkflowTable);
+backend.data.addDynamoDbDataSource('ExternalChatRoomTableDataSource', customChatRoomTable);
+backend.data.addDynamoDbDataSource('ExternalChatMessageTableDataSource', customChatMessageTable);
+
+console.log(`🔗 External data sources added for custom tables`);
+
+// Configure DynamoDB streams and permissions for active record processor  
+// Use our custom tables directly instead of auto-generated ones
 const allTables = {
-  ...backend.data.resources.tables,
-  CustomProject: customProjectTable,
-  CustomDocument: customDocumentTable,
-  CustomUser: customUserTable,
-  CustomDocumentType: customDocumentTypeTable,
-  CustomWorkflow: customWorkflowTable,
-  CustomChatRoom: customChatRoomTable,
-  CustomChatMessage: customChatMessageTable
+  'Project': customProjectTable,
+  'Document': customDocumentTable,
+  'User': customUserTable,
+  'DocumentType': customDocumentTypeTable,
+  'Workflow': customWorkflowTable,
+  'ChatRoom': customChatRoomTable,
+  'ChatMessage': customChatMessageTable
 };
 
+// Configure DynamoDB stream triggers for active record processing
 configureStreamTriggers(
   backend.stack, 
   backend.activeRecordProcessorFunction.resources.lambda,
