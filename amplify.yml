@@ -3,6 +3,7 @@ backend:
   phases:
     preBuild:
       commands:
+        - set ENV=$AWS_BRANCH
         - 'echo "🔄 Pulling latest backend environment configuration..."'
         - 'echo "🎯 Current AWS_BRANCH: $AWS_BRANCH"'
     build:
@@ -10,7 +11,7 @@ backend:
         - nvm install 24.5.0 --no-progress
         - nvm use 24.5.0
         - npm ci --cache .npm --prefer-offline
-        - 'echo "🏗️ Building with AMPLIFY_BRANCH=$AMPLIFY_BRANCH"'
+        - 'echo "🏗️ Building with AWS_BRANCH=$AWS_BRANCH"'
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
 test:
   phases:
@@ -87,4 +88,3 @@ env:
     NODE_VERSION: 24.5.0
     _LIVE_UPDATES: '[{"name":"Amplify CLI","pkg":"@aws-amplify/cli","type":"npm","version":"latest"}]'
     ENV: $AWS_BRANCH
-    AMPLIFY_BRANCH: $AWS_BRANCH

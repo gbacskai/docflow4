@@ -5,9 +5,6 @@ This directory contains utility scripts for development environment setup and co
 ## Purpose
 Provides automation scripts for consistent development environment configuration and AWS Amplify setup.
 
-## Files
-- `setup-env.js` - Environment configuration script for consistent Amplify table naming
-
 ## Key Scripts
 
 ### Environment Setup (`setup-env.js`)
@@ -15,15 +12,6 @@ Provides automation scripts for consistent development environment configuration
 - **Branch Detection**: Automatically detects current git branch for environment naming
 - **Table Naming**: Ensures consistent naming pattern `docflow4-{ResourceType}-{Branch}`
 - **AWS Configuration**: Sets up Amplify-specific environment variables
-
-### Generated Configuration
-Creates `.env` file with:
-```bash
-AMPLIFY_BRANCH=dev001
-CDK_DEFAULT_ENV=dev001
-AWS_BRANCH=dev001
-APP_NAME=docflow4
-```
 
 ## Usage Patterns
 - **Development Setup**: Run `node scripts/setup-env.js` before Amplify operations

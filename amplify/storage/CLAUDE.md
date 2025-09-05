@@ -12,7 +12,7 @@ Configures AWS S3 bucket for document uploads, attachments, and file storage wit
 
 ### Bucket Naming
 - **Pattern**: `docflow4-{environmentName}` (e.g., `docflow4-dev001`)
-- **Environment**: Determined by `AMPLIFY_BRANCH` or defaults to `dev`
+- **Environment**: Determined by `AWS_BRANCH` or defaults to `dev`
 
 ### Access Patterns
 - **documents/*** - Private storage for authenticated users only

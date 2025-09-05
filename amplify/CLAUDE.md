@@ -25,7 +25,7 @@ Defines the complete AWS infrastructure including authentication, data layer, st
 
 ## Environment Variables
 Backend uses branch-based naming:
-- `AMPLIFY_BRANCH` or git branch determines environment suffix
+- `AWS_BRANCH` determines environment suffix
 - Resources automatically prefixed with `docflow4-`
 - Supports multiple environments (dev, staging, prod)
 

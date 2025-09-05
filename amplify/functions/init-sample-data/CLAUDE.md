@@ -29,7 +29,7 @@ Provides RESTful endpoint to initialize DocumentTypes and Workflows with realist
 - Graceful handling of existing data with skip counting
 
 ### Environment Awareness
-- Automatically detects environment name from `AMPLIFY_BRANCH` or `AWS_BRANCH`
+- Automatically detects environment name from `AWS_BRANCH`
 - Uses proper table naming convention: `docflow4-{ResourceType}-{environmentName}`
 
 ### Response Format

@@ -1,5 +1,6 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 
+
 const schema = a.schema({
   Project: a.model({
       id: a.string().required(),

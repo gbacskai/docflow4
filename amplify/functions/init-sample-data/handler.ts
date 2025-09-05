@@ -6,7 +6,7 @@ const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 // Get environment name for table names
-const envName = process.env.AMPLIFY_BRANCH || process.env.AWS_BRANCH || 'dev';
+const envName = process.env.AWS_BRANCH || 'dev';
 
 // Table names based on the naming convention
 const DOCUMENT_TYPES_TABLE = `docflow4-DocumentType-${envName}`;
