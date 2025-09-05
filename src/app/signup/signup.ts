@@ -16,8 +16,10 @@ export class SignUp {
   private router = inject(Router);
 
   processing = signal(false);
-  errorMessage = signal('');
-  successMessage = signal('');
+  
+  // Use service-based error and success messages (persistent across component recreations)
+  errorMessage = this.authService.authError;
+  successMessage = this.authService.authSuccess;
 
   signupForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -44,8 +46,7 @@ export class SignUp {
   }
 
   private clearMessages() {
-    this.errorMessage.set('');
-    this.successMessage.set('');
+    this.authService.clearAuthMessages();
   }
 
   async onSignup() {
@@ -59,7 +60,7 @@ export class SignUp {
 
     if (result.success) {
       if (result.confirmationRequired) {
-        this.successMessage.set('Account created! We have sent a verification code to your email.');
+        this.authService.setAuthSuccess('Account created! We have sent a verification code to your email.');
         // Navigate to verify page with email
         setTimeout(() => {
           this.router.navigate(['/verify'], { 
@@ -67,7 +68,7 @@ export class SignUp {
           });
         }, 2000);
       } else {
-        this.successMessage.set('Account created! You can now log in.');
+        this.authService.setAuthSuccess('Account created! You can now log in.');
         setTimeout(() => {
           this.router.navigate(['/auth']);
         }, 2000);
@@ -75,9 +76,9 @@ export class SignUp {
       this.signupForm.reset();
     } else {
       if (result.error?.includes('already exists')) {
-        this.errorMessage.set('This email is already registered. Please sign in instead.');
+        this.authService.setAuthError('This email is already registered. Please sign in instead.');
       } else {
-        this.errorMessage.set(result.error || 'Sign up failed');
+        this.authService.setAuthError(result.error || 'Sign up failed');
       }
     }
 

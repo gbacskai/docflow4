@@ -82,16 +82,16 @@ export class ExternalUserService {
    */
   private async findUserByCognitoId(cognitoUserId: string): Promise<ExternalUser | null> {
     try {
-      const result = await this.client.queries.listExternalUsers();
+      const result = await this.client.models.User.list();
       
       if (!result.data) {
         return null;
       }
       
-      const users = result.data as ExternalUser[];
+      const users = result.data;
       const user = users.find(user => user.cognitoUserId === cognitoUserId);
       
-      return user || null;
+      return user ? user as ExternalUser : null;
     } catch (error) {
       console.error('Error finding user by Cognito ID:', error);
       return null;
@@ -103,19 +103,19 @@ export class ExternalUserService {
    */
   private async findUserByEmail(email: string): Promise<ExternalUser | null> {
     try {
-      const result = await this.client.queries.listExternalUsers();
+      const result = await this.client.models.User.list();
       
       if (!result.data) {
         return null;
       }
       
-      const users = result.data as ExternalUser[];
+      const users = result.data;
       const user = users.find(user => 
         user.email && user.email.toLowerCase() === email.toLowerCase() &&
         user.status === 'invited'
       );
       
-      return user || null;
+      return user ? user as ExternalUser : null;
     } catch (error) {
       console.error('Error finding user by email:', error);
       return null;
@@ -135,7 +135,8 @@ export class ExternalUserService {
     const isFirst = await this.isFirstUser();
     const userType = isFirst ? 'admin' : (invitationRecord.userType || 'client');
     
-    const result = await this.client.mutations.createExternalUser({
+    const result = await this.client.models.User.create({
+      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       email: invitationRecord.email,
       firstName: invitationRecord.firstName || '',
       lastName: invitationRecord.lastName || '',
@@ -145,7 +146,8 @@ export class ExternalUserService {
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
-      lastLoginAt: new Date().toISOString()
+      lastLoginAt: new Date().toISOString(),
+      version: new Date().toISOString()
     });
     
     if (!result.data) {
@@ -169,7 +171,8 @@ export class ExternalUserService {
     // Check if this is the first user - if so, make them an admin
     const userType = await this.isFirstUser() ? 'admin' : 'client';
     
-    const result = await this.client.mutations.createExternalUser({
+    const result = await this.client.models.User.create({
+      id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       email: email,
       firstName: '',
       lastName: '',
@@ -177,7 +180,8 @@ export class ExternalUserService {
       interestedDocumentTypes: [],
       status: 'active',
       cognitoUserId: cognitoUserId, // Link to Cognito user
-      lastLoginAt: new Date().toISOString()
+      lastLoginAt: new Date().toISOString(),
+      version: new Date().toISOString()
     });
     
     if (!result.data) {
@@ -194,13 +198,13 @@ export class ExternalUserService {
    */
   private async isFirstUser(): Promise<boolean> {
     try {
-      const result = await this.client.queries.listExternalUsers();
+      const result = await this.client.models.User.list();
       
       if (!result.data) {
         return true; // No users found, so this would be the first
       }
       
-      const users = result.data as ExternalUser[];
+      const users = result.data;
       
       // Count users who have status 'active' and are linked to Cognito accounts
       const activeUsers = users.filter(user => 
@@ -225,8 +229,9 @@ export class ExternalUserService {
       const user = await this.findUserByCognitoId(cognitoUserId);
       
       if (user) {
-        await this.client.mutations.updateExternalUser({
+        await this.client.models.User.update({
           id: user.id,
+          version: user.version,
           lastLoginAt: new Date().toISOString()
         });
         console.log('✅ Updated last login time for user:', user.id);
@@ -244,12 +249,12 @@ export class ExternalUserService {
     try {
       console.log('🧹 Cleaning up non-Cognito records for:', email);
       
-      const result = await this.client.queries.listExternalUsers();
+      const result = await this.client.models.User.list();
       if (!result.data) {
         return;
       }
       
-      const users = result.data as ExternalUser[];
+      const users = result.data;
       
       // Find records to delete: same email BUT wrong cognitoUserId (including null/undefined)
       const recordsToDelete = users.filter(user => {

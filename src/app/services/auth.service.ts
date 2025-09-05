@@ -41,6 +41,8 @@ export class AuthService {
   private _isLoading = signal<boolean>(false);
   private _isAuthenticated = signal<boolean>(false);
   private _testMode = signal<boolean>(false);
+  private _authError = signal<string>('');
+  private _authSuccess = signal<string>('');
   private userManagementService = inject(UserManagementService);
   private externalUserService = inject(ExternalUserService);
 
@@ -48,6 +50,8 @@ export class AuthService {
   currentUser = this._currentUser.asReadonly();
   isLoading = this._isLoading.asReadonly();
   isAuthenticated = this._isAuthenticated.asReadonly();
+  authError = this._authError.asReadonly();
+  authSuccess = this._authSuccess.asReadonly();
 
   constructor() {
     this.initializeAuth();
@@ -248,12 +252,15 @@ export class AuthService {
       });
 
       if (isSignedIn) {
+        this.clearAuthMessages();
         await this.initializeAuth(); // This will handle user entry management
         return { success: true };
       } else {
+        const errorMsg = 'Sign in incomplete - additional steps required';
+        this.setAuthError(errorMsg);
         return { 
           success: false, 
-          error: 'Sign in incomplete - additional steps required' 
+          error: errorMsg 
         };
       }
     } catch (error: any) {
@@ -272,9 +279,11 @@ export class AuthService {
           await signOut();
           this._currentUser.set(null);
           this._isAuthenticated.set(false);
+          const errorMsg = 'Session conflict detected. Please try signing in again.';
+          this.setAuthError(errorMsg);
           return { 
             success: false, 
-            error: 'Session conflict detected. Please try signing in again.' 
+            error: errorMsg 
           };
         } catch (signOutError) {
           console.error('SignOut Error:', signOutError);
@@ -294,6 +303,7 @@ export class AuthService {
         errorMessage = 'User not found. Please check your email address.';
       }
       
+      this.setAuthError(errorMessage);
       return { 
         success: false, 
         error: errorMessage 
@@ -365,6 +375,22 @@ export class AuthService {
 
   getUsername(): string | undefined {
     return this._currentUser()?.username;
+  }
+
+  // Error and success message management
+  setAuthError(message: string): void {
+    this._authError.set(message);
+    this._authSuccess.set(''); // Clear success message
+  }
+
+  setAuthSuccess(message: string): void {
+    this._authSuccess.set(message);
+    this._authError.set(''); // Clear error message
+  }
+
+  clearAuthMessages(): void {
+    this._authError.set('');
+    this._authSuccess.set('');
   }
 
 

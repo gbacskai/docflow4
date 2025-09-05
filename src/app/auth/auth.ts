@@ -17,10 +17,12 @@ export class Auth {
 
   currentMode = signal<'login' | 'signup' | 'verify' | 'reset'>('login');
   processing = signal(false);
-  errorMessage = signal('');
-  successMessage = signal('');
   pendingEmail = signal('');
   resetCodeSent = signal(false);
+  
+  // Use service-based error and success messages (persistent across component recreations)
+  errorMessage = this.authService.authError;
+  successMessage = this.authService.authSuccess;
 
 
   loginForm: FormGroup = this.fb.group({
@@ -126,8 +128,7 @@ export class Auth {
   }
 
   private clearMessages() {
-    this.errorMessage.set('');
-    this.successMessage.set('');
+    this.authService.clearAuthMessages();
   }
 
   async onLogin() {
@@ -137,21 +138,15 @@ export class Auth {
     this.clearMessages();
 
     const { email, password } = this.loginForm.value;
-    console.log('Attempting login with:', { email, password: password ? '***' : 'empty' });
     
     const result = await this.authService.signIn({ email, password });
-    console.log('Login result:', result);
 
     if (result.success) {
-      this.successMessage.set('Login successful!');
+      this.authService.setAuthSuccess('Login successful!');
       this.loginForm.reset();
       this.router.navigate(['/dashboard']);
-    } else {
-      const errorMsg = result.error || 'Login failed';
-      console.log('Setting error message:', errorMsg);
-      this.errorMessage.set(errorMsg);
-      console.log('Error message signal value:', this.errorMessage());
     }
+    // Error is already set by AuthService, no need for additional handling
 
     this.processing.set(false);
   }
@@ -169,17 +164,17 @@ export class Auth {
       if (result.confirmationRequired) {
         this.pendingEmail.set(email);
         this.switchToVerify();
-        this.successMessage.set('Account created! We have sent a verification code to your email.');
+        this.authService.setAuthSuccess('Account created! We have sent a verification code to your email.');
       } else {
-        this.successMessage.set('Account created! You can now log in.');
+        this.authService.setAuthSuccess('Account created! You can now log in.');
         this.switchToLogin();
       }
       this.signupForm.reset();
     } else {
       if (result.error?.includes('already exists')) {
-        this.errorMessage.set('This email is already registered. Please sign in instead.');
+        this.authService.setAuthError('This email is already registered. Please sign in instead.');
       } else {
-        this.errorMessage.set(result.error || 'Sign up failed');
+        this.authService.setAuthError(result.error || 'Sign up failed');
       }
     }
 
@@ -196,14 +191,14 @@ export class Auth {
     const result = await this.authService.confirmSignUp(email, confirmationCode);
 
     if (result.success) {
-      this.successMessage.set('Email verified! Please log in to continue.');
+      this.authService.setAuthSuccess('Email verified! Please log in to continue.');
       this.pendingEmail.set('');
       this.verifyForm.reset();
       setTimeout(() => {
         this.switchToLogin();
       }, 2000);
     } else {
-      this.errorMessage.set(result.error || 'Verification failed');
+      this.authService.setAuthError(result.error || 'Verification failed');
       this.verifyForm.patchValue({ confirmationCode: '' });
     }
 
@@ -213,7 +208,7 @@ export class Auth {
   async resendVerificationCode() {
     const email = this.verifyForm.get('email')?.value;
     if (!email) {
-      this.errorMessage.set('Please enter your email address first');
+      this.authService.setAuthError('Please enter your email address first');
       return;
     }
 
@@ -223,21 +218,18 @@ export class Auth {
     const result = await this.authService.resendConfirmationCode(email);
 
     if (result.success) {
-      this.successMessage.set('We have sent a code if you are registered.');
+      this.authService.setAuthSuccess('We have sent a code if you are registered.');
     } else {
-      this.successMessage.set('We have sent a code if you are registered.');
+      this.authService.setAuthSuccess('We have sent a code if you are registered.');
     }
 
     this.processing.set(false);
-    
-    // Ensure we stay in verify mode
-    console.log('🔐 Resend verification completed, staying in verify mode');
   }
 
   async onResetRequest() {
     const email = this.resetForm.get('email')?.value;
     if (!email) {
-      this.errorMessage.set('Please enter your email address');
+      this.authService.setAuthError('Please enter your email address');
       return;
     }
 
@@ -248,15 +240,12 @@ export class Auth {
 
     if (result.success) {
       this.resetCodeSent.set(true);
-      this.successMessage.set('Reset code sent to your email. Please check your email and enter the code below.');
+      this.authService.setAuthSuccess('Reset code sent to your email. Please check your email and enter the code below.');
     } else {
-      this.errorMessage.set(result.error || 'Failed to send reset code');
+      this.authService.setAuthError(result.error || 'Failed to send reset code');
     }
 
     this.processing.set(false);
-    
-    // Ensure we stay in reset mode
-    console.log('🔐 Reset password request completed, staying in reset mode');
   }
 
   onResetFormSubmit() {
@@ -275,14 +264,14 @@ export class Auth {
     const result = await this.authService.confirmResetPassword(email, confirmationCode, newPassword);
 
     if (result.success) {
-      this.successMessage.set('Password reset successful! You can now log in with your new password.');
+      this.authService.setAuthSuccess('Password reset successful! You can now log in with your new password.');
       this.resetForm.reset();
       this.resetCodeSent.set(false);
       setTimeout(() => {
         this.switchToLogin();
       }, 2000);
     } else {
-      this.errorMessage.set(result.error || 'Password reset failed');
+      this.authService.setAuthError(result.error || 'Password reset failed');
       this.resetForm.patchValue({ 
         confirmationCode: '',
         newPassword: '',
