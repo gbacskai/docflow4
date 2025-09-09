@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, signal, inject, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject, ViewChild, ElementRef, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormControl, FormsModule } from '@angular/forms';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
@@ -42,6 +42,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
   @ViewChild('searchInput') searchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
+  private cdr = inject(ChangeDetectorRef);
   dynamicFormService = inject(DynamicFormService);
   private versionedDataService = inject(VersionedDataService);
   private docTypeSearchTimeout: any = null;
@@ -122,6 +123,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
       return null; // Skip validation if empty or too short
     }
     
+    
     const currentEditingId = this.selectedDocumentType()?.id;
     
     // First check against locally loaded document types to avoid unnecessary API calls
@@ -160,7 +162,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
   
   documentTypeForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
-    identifier: ['', [Validators.minLength(2), this.identifierValidator.bind(this)], [this.uniqueIdentifierValidator.bind(this)]],
+    identifier: ['', [Validators.minLength(2), this.identifierValidator.bind(this)]],
     definition: [`{
   "fields": [
     {"key": "applicantName", "type": "text", "label": "Full Name", "required": true, "placeholder": "Enter your full name"},
@@ -371,25 +373,33 @@ export class DocumentTypes implements OnInit, OnDestroy {
   }
 
   openEditForm(docType: Schema['DocumentType']['type']) {
-    // Close any existing inline edit
+    // Check if we're already editing this same document type
+    if (this.editingInlineId() === docType.id) {
+      // Already editing this item, no need to do anything
+      return;
+    }
+    
+    // Close any existing inline edit first
     if (this.editingInlineId()) {
       this.cancelInlineEdit();
     }
     
-    // Set up inline editing
+    // Set up the new inline edit immediately
     this.editingInlineId.set(docType.id);
     this.currentMode.set('edit');
     this.selectedDocumentType.set(docType);
+    this.isTestMode.set(true); // Always enable test mode for inline edit
+    this.formTestData.set(null);
     
-    // Clear any pending validation timeouts to prevent API calls during form initialization
+    // Clear any pending timeouts
     if (this.identifierValidationTimeout) {
       clearTimeout(this.identifierValidationTimeout);
     }
     
-    // Generate identifier if it doesn't exist (for legacy records)
+    // Generate identifier if it doesn't exist
     const identifier = docType.identifier || this.generateIdentifier(docType.name || '');
     
-    // Use setValue with emitEvent: false to prevent triggering validation during initialization
+    // Patch form values without triggering validation
     this.documentTypeForm.patchValue({
       name: docType.name,
       identifier: identifier,
@@ -398,29 +408,23 @@ export class DocumentTypes implements OnInit, OnDestroy {
       isActive: docType.isActive ?? true
     }, { emitEvent: false });
     
-    // Re-enable events after a brief delay and generate dynamic form
-    setTimeout(() => {
-      this.documentTypeForm.get('identifier')?.updateValueAndValidity({ onlySelf: true, emitEvent: false });
-      
-      // Manually trigger form generation for the definition since we used emitEvent: false
-      const definition = this.documentTypeForm.get('definition')?.value;
-      if (definition) {
-        this.dynamicFormService.generateDynamicFormSchema(definition);
-      }
-      
-      // Also load workflow rules for validation
-      this.loadWorkflowRules();
-    }, 100);
+    // Generate dynamic form immediately
+    const definition = this.documentTypeForm.get('definition')?.value;
+    if (definition) {
+      this.dynamicFormService.generateDynamicFormSchema(definition);
+      console.log('✅ Dynamic form regenerated for:', docType.name);
+    }
     
-    // Don't show the top form anymore - we'll show inline
-    // this.showForm.set(true);
+    // Load workflow rules
+    this.loadWorkflowRules();
   }
 
   cancelInlineEdit() {
     this.editingInlineId.set(null);
     this.selectedDocumentType.set(null);
     this.currentMode.set('create');
-    this.documentTypeForm.reset();
+    this.isTestMode.set(false);
+    this.formTestData.set(null);
     this.dynamicFormService.resetForm();
   }
 
@@ -483,14 +487,16 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
   async createDocumentType(docType: Omit<Schema['DocumentType']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt' | 'usageCount' | 'templateCount' | 'fields'>) {
     try {
-      // Double-check uniqueness before creating
-      const existingDocTypes = this.documentTypes();
-      const isDuplicate = existingDocTypes.some(existing => 
-        existing && existing.identifier === docType.identifier
-      );
-      
-      if (isDuplicate) {
-        throw new Error(`A document type with identifier "${docType.identifier}" already exists`);
+      // Check uniqueness before creating - use API call for accurate check
+      const checkResult = await this.versionedDataService.getAllLatestVersions('DocumentType');
+      if (checkResult.success && checkResult.data) {
+        const isDuplicate = checkResult.data.some(existing => 
+          existing && existing.identifier === docType.identifier
+        );
+        
+        if (isDuplicate) {
+          throw new Error(`A document type with identifier "${docType.identifier}" already exists`);
+        }
       }
 
       const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
@@ -513,15 +519,17 @@ export class DocumentTypes implements OnInit, OnDestroy {
 
   async updateDocumentType(id: string, updates: Partial<Schema['DocumentType']['type']>) {
     try {
-      // Double-check uniqueness before updating (if identifier is being changed)
+      // Check uniqueness before updating (if identifier is being changed)
       if (updates.identifier) {
-        const existingDocTypes = this.documentTypes();
-        const isDuplicate = existingDocTypes.some(existing => 
-          existing && existing.identifier === updates.identifier && existing.id !== id
-        );
-        
-        if (isDuplicate) {
-          throw new Error(`A document type with identifier "${updates.identifier}" already exists`);
+        const checkResult = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        if (checkResult.success && checkResult.data) {
+          const isDuplicate = checkResult.data.some(existing => 
+            existing && existing.identifier === updates.identifier && existing.id !== id
+          );
+          
+          if (isDuplicate) {
+            throw new Error(`A document type with identifier "${updates.identifier}" already exists`);
+          }
         }
       }
 
