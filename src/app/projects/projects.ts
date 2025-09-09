@@ -954,11 +954,13 @@ export class Projects implements OnInit, OnDestroy {
   }
 
   /**
-   * Ensure all required documents exist for a project based on its workflow
+   * Ensure all required documents exist for a project based on its workflow.
+   * This method ONLY ADDS missing documents and NEVER updates existing ones.
    */
   async ensureProjectDocuments(project: Schema['Project']['type']) {
     try {
       console.log('📋 Ensuring documents for project:', project.name);
+      console.log('📋 This operation will ONLY ADD missing documents, never update existing ones');
       
       // Get workflow-specific document types
       const selectedWorkflow = this.workflows().find(w => w.id === project.workflowId);
@@ -980,19 +982,21 @@ export class Projects implements OnInit, OnDestroy {
       // Find missing document types  
       const existingDocumentTypes = new Set(existingDocuments.map((doc: any) => doc.documentType));
       const missingDocumentTypes = requiredDocumentTypes.filter(docType => 
-        !existingDocumentTypes.has(docType.name)
+        !existingDocumentTypes.has(docType.id)
       );
 
       console.log('📋 Missing document types:', missingDocumentTypes.map(dt => dt.name));
 
       if (missingDocumentTypes.length === 0) {
-        console.log('📋 All required documents already exist');
+        console.log('📋 All required documents already exist - no new documents will be created');
         return;
       }
 
-      // Create missing documents
+      // Create ONLY the missing documents (existing documents are left untouched)
+      console.log(`📋 Will create ${missingDocumentTypes.length} new documents (${existingDocuments.length} existing documents will remain unchanged)`);
+      
       const documentPromises = missingDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
-        console.log(`📋 Creating missing document for type: ${docType.name}`);
+        console.log(`📋 Creating NEW document for type: ${docType.name}`);
         
         try {
           // Parse document type definition to create initial form data
@@ -1069,7 +1073,10 @@ export class Projects implements OnInit, OnDestroy {
         failed: createdDocuments.length - successfullyCreated.length
       });
       
-      console.log(`📋 Successfully created ${successfullyCreated.length} missing documents for project: ${project.name}`);
+      console.log(`📋 Document operation completed for project: ${project.name}`);
+      console.log(`📋 ✅ Created: ${successfullyCreated.length} new documents`);
+      console.log(`📋 🔒 Preserved: ${existingDocuments.length} existing documents (untouched)`);
+      console.log(`📋 Summary: Only new documents were added, existing documents remain unchanged`);
       
       // No need to reload documents in projects component
       // Documents will be automatically available when the documents component loads

@@ -56,6 +56,10 @@ export class Admin implements OnInit {
   clearDatabaseLoading = signal(false);
   clearDatabaseStatus = signal<string>('');
   
+  // Individual table clearing functionality
+  clearTableLoading = signal<{[key: string]: boolean}>({});
+  clearTableStatus = signal<{[key: string]: string}>({});
+  
   backupOptions = {
     documentTypes: true,
     workflows: true,
@@ -1212,6 +1216,100 @@ export class Admin implements OnInit {
     this.clearDatabaseStatus.set('');
   }
 
+  /**
+   * Clear a specific table by name
+   */
+  async clearTable(tableName: 'DocumentType' | 'Workflow' | 'Project' | 'Document' | 'User') {
+    const tableDisplayNames: {[key: string]: string} = {
+      'DocumentType': 'Document Types',
+      'Workflow': 'Workflows', 
+      'Project': 'Projects',
+      'Document': 'Documents',
+      'User': 'Users'
+    };
+
+    const displayName = tableDisplayNames[tableName] || tableName;
+    
+    const confirmClear = confirm(
+      `This will permanently delete ALL ${displayName} from the database.\n\n` +
+      `This includes:\n` +
+      `• All current records\n` +
+      `• All version history\n` +
+      `• This operation cannot be undone\n\n` +
+      `Are you sure you want to proceed?`
+    );
+
+    if (!confirmClear) {
+      return;
+    }
+
+    // Set loading state
+    const currentLoading = this.clearTableLoading();
+    currentLoading[tableName] = true;
+    this.clearTableLoading.set({...currentLoading});
+
+    // Set initial status
+    const currentStatus = this.clearTableStatus();
+    currentStatus[tableName] = `Starting deletion of ${displayName}...`;
+    this.clearTableStatus.set({...currentStatus});
+
+    this.errorMessage.set('');
+
+    try {
+      currentStatus[tableName] = `Deleting all ${displayName} (all versions)...`;
+      this.clearTableStatus.set({...currentStatus});
+
+      const result = await this.versionedDataService.deleteAllVersionsAllRecords(tableName);
+      
+      if (result.success) {
+        const deletedCount = result.deletedCount || 0;
+        currentStatus[tableName] = `✅ Successfully deleted ${deletedCount} ${displayName} records (all versions)`;
+        this.clearTableStatus.set({...currentStatus});
+        this.successMessage.set(`${displayName} cleared successfully - ${deletedCount} records deleted`);
+      } else {
+        const errorMsg = result.error || 'Unknown error occurred';
+        currentStatus[tableName] = `❌ Failed to delete ${displayName}: ${errorMsg}`;
+        this.clearTableStatus.set({...currentStatus});
+        this.errorMessage.set(`Failed to clear ${displayName}: ${errorMsg}`);
+      }
+      
+    } catch (error) {
+      console.error(`Clear ${tableName} failed:`, error);
+      const errorMsg = (error as Error).message;
+      currentStatus[tableName] = `❌ Error deleting ${displayName}: ${errorMsg}`;
+      this.clearTableStatus.set({...currentStatus});
+      this.errorMessage.set(`Error clearing ${displayName}: ${errorMsg}`);
+    } finally {
+      // Clear loading state
+      const updatedLoading = this.clearTableLoading();
+      updatedLoading[tableName] = false;
+      this.clearTableLoading.set({...updatedLoading});
+    }
+  }
+
+  /**
+   * Clear status message for a specific table
+   */
+  clearSingleTableStatus(tableName: string) {
+    const currentStatus = this.clearTableStatus();
+    delete currentStatus[tableName];
+    this.clearTableStatus.set({...currentStatus});
+  }
+
+  /**
+   * Check if a specific table is currently being cleared
+   */
+  isTableClearing(tableName: string): boolean {
+    return this.clearTableLoading()[tableName] || false;
+  }
+
+  /**
+   * Get status message for a specific table
+   */
+  getTableStatus(tableName: string): string {
+    return this.clearTableStatus()[tableName] || '';
+  }
+
   // 🧹 ACTIVE FLAG CLEANUP PROCESS
   activeCleanupLoading = signal(false);
   activeCleanupStatus = signal<string>('');
@@ -1219,7 +1317,7 @@ export class Admin implements OnInit {
   /**
    * 🧹 Cleanup Process: Load all data for every table and ensure proper active flag management
    * - Latest record per ID gets active = true
-   * - Old records have active key removed entirely
+   * - Old records get active = false
    */
   async cleanupActiveFlagsAllTables() {
     if (!confirm('This will cleanup active flags across ALL tables. This process may take several minutes. Continue?')) {
@@ -1243,7 +1341,11 @@ export class Admin implements OnInit {
           totalProcessed += result.totalRecords;
           totalCleaned += result.cleanedRecords;
           
-          this.activeCleanupStatus.set(`✅ ${modelName}: ${result.cleanedRecords} records cleaned out of ${result.totalRecords} processed`);
+          if (result.cleanedRecords > 0) {
+            this.activeCleanupStatus.set(`✅ ${modelName}: ${result.cleanedRecords} records cleaned out of ${result.totalRecords} processed`);
+          } else {
+            this.activeCleanupStatus.set(`✅ ${modelName}: All ${result.totalRecords} records already properly configured`);
+          }
           
           // Small delay to show progress
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -1262,12 +1364,15 @@ export class Admin implements OnInit {
           `${errors.length} errors occurred:\n\n${errors.join('\n')}`
         );
       } else {
+        const alreadyClean = totalProcessed - totalCleaned;
         this.activeCleanupStatus.set(
           `🎯 Active flag cleanup completed successfully!\n\n` +
           `📊 Summary:\n` +
           `• Total records processed: ${totalProcessed}\n` +
-          `• Records cleaned: ${totalCleaned}\n` +
+          `• Records that needed cleaning: ${totalCleaned}\n` +
+          `• Records already correct: ${alreadyClean}\n` +
           `• Tables processed: ${modelNames.length}\n\n` +
+          `${totalCleaned > 0 ? '🔧 Fixed data inconsistencies!' : '✨ All data was already properly configured!'}\n` +
           `✅ All tables now have proper active flag management!`
         );
         this.successMessage.set(`Active flag cleanup completed: ${totalCleaned} records cleaned`);
@@ -1328,21 +1433,28 @@ export class Admin implements OnInit {
         const latestRecord = sortedVersions[0];
         const oldRecords = sortedVersions.slice(1);
 
-        console.log(`🔄 ${modelName} ID ${id}: ${recordsArray.length} versions, latest: ${latestRecord.version}`);
+        console.log(`🔄 ${modelName} ID ${id}: ${recordsArray.length} versions, latest: ${latestRecord.version}, latestActive: ${latestRecord.active}`);
 
         // Step 4: Ensure latest record has active = true
         if (latestRecord.active !== true) {
-          console.log(`🎯 ${modelName} ID ${id}: Setting latest version to active = true`);
+          console.log(`🎯 ${modelName} ID ${id}: Setting latest version to active = true (was: ${latestRecord.active})`);
           await this.updateRecordActiveFlag(modelName, latestRecord.id, latestRecord.version, true);
           cleanedRecords++;
+          console.log(`📊 ${modelName}: cleanedRecords incremented to ${cleanedRecords} (latest record fix)`);
+        } else {
+          console.log(`✅ ${modelName} ID ${id}: Latest version already has active = true`);
         }
 
-        // Step 5: Remove active key from old records
+        // Step 5: Ensure old records have active = false (not undefined or true)
         for (const oldRecord of oldRecords) {
-          if (oldRecord.active !== undefined) {
-            console.log(`🚫 ${modelName} ID ${id}: Removing active key from version ${oldRecord.version}`);
-            await this.removeActiveKeyFromRecord(modelName, oldRecord.id, oldRecord.version);
+          console.log(`🔍 ${modelName} ID ${id}: Checking old record ${oldRecord.version}, active: ${oldRecord.active} (type: ${typeof oldRecord.active})`);
+          if (oldRecord.active !== false) {
+            console.log(`🚫 ${modelName} ID ${id}: Setting active = false for version ${oldRecord.version} (was: ${oldRecord.active})`);
+            await this.updateRecordActiveFlag(modelName, oldRecord.id, oldRecord.version, false);
             cleanedRecords++;
+            console.log(`📊 ${modelName}: cleanedRecords incremented to ${cleanedRecords} (old record cleanup)`);
+          } else {
+            console.log(`✅ ${modelName} ID ${id}: Version ${oldRecord.version} already has active = false`);
           }
         }
 
@@ -1352,7 +1464,8 @@ export class Admin implements OnInit {
       }
     }
 
-    console.log(`✅ ${modelName} cleanup completed: ${cleanedRecords} records cleaned`);
+    console.log(`✅ ${modelName} cleanup completed: ${cleanedRecords} records cleaned out of ${allRecords.length} total`);
+    console.log(`📊 ${modelName} FINAL RESULT: totalRecords=${allRecords.length}, cleanedRecords=${cleanedRecords}`);
     return { totalRecords: allRecords.length, cleanedRecords };
   }
 
@@ -1396,46 +1509,6 @@ export class Admin implements OnInit {
     }
   }
 
-  /**
-   * Remove the active key entirely from a record
-   */
-  private async removeActiveKeyFromRecord(modelName: string, id: string, version: string): Promise<void> {
-    const client = generateClient<Schema>();
-    
-    // Create update data WITHOUT active field to remove it
-    const updateData: any = {
-      id,
-      version,
-      updatedAt: new Date().toISOString()
-      // NOTE: Deliberately omitting 'active' field to remove it
-    };
-
-    switch (modelName) {
-      case 'Project':
-        await client.models.Project.update(updateData);
-        break;
-      case 'Document':
-        await client.models.Document.update(updateData);
-        break;
-      case 'User':
-        await client.models.User.update(updateData);
-        break;
-      case 'DocumentType':
-        await client.models.DocumentType.update(updateData);
-        break;
-      case 'Workflow':
-        await client.models.Workflow.update(updateData);
-        break;
-      case 'ChatRoom':
-        await client.models.ChatRoom.update(updateData);
-        break;
-      case 'ChatMessage':
-        await client.models.ChatMessage.update(updateData);
-        break;
-      default:
-        throw new Error(`Unknown model: ${modelName}`);
-    }
-  }
 
   clearActiveCleanupStatus() {
     this.activeCleanupStatus.set('');

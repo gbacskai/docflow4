@@ -452,8 +452,8 @@
   <!-- Clear Database Section -->
   <div class="admin-section">
     <div class="section-header">
-      <h2>🗑️ Clear Database</h2>
-      <p>Permanently delete all data from the database (Document Types, Workflows, Projects, Documents)</p>
+      <h2>🗑️ Clear Database Tables</h2>
+      <p>Permanently delete data from individual database tables or all at once</p>
     </div>
     
     <div class="action-panel">
@@ -461,44 +461,175 @@
         <div class="info-item">
           <strong>⚠️ Warning:</strong>
           <p style="color: #e74c3c; font-weight: 600; margin: 0.5rem 0;">
-            This operation will permanently delete ALL data from the database. This includes:
+            These operations will permanently delete data from the selected tables. Each operation includes:
           </p>
           <ul style="color: #e74c3c;">
-            <li>All Document Types</li>
-            <li>All Workflows</li>
-            <li>All Projects</li>
-            <li>All Documents</li>
+            <li>All current records</li>
+            <li>All version history</li>
+            <li>This operation cannot be undone</li>
           </ul>
         </div>
         <div class="info-item">
-          <strong>Note:</strong> This operation cannot be undone. Make sure to create a backup first if needed.
+          <strong>Note:</strong> Make sure to create a backup first if needed. You can clear individual tables or all tables at once.
         </div>
       </div>
       
-      <div class="action-controls">
-        <button 
-          class="btn-secondary" 
-          style="background: #e74c3c; border-color: #e74c3c;"
-          (click)="clearDatabase()" 
-          [disabled]="clearDatabaseLoading()"
-        >
-          @if (clearDatabaseLoading()) {
-            <span class="loading-spinner"></span>
-            Clearing Database...
-          } @else {
-            🗑️ Clear All Data
-          }
-        </button>
-
-        @if (clearDatabaseStatus()) {
-          <div class="status-message">
+      <div class="table-clear-controls">
+        <h3>Clear Individual Tables:</h3>
+        <div class="table-buttons-grid">
+          <!-- Document Types -->
+          <div class="table-clear-item">
             <button 
-              class="clear-status-btn" 
-              (click)="clearClearDatabaseStatus()"
-              title="Clear status">✕</button>
-            <pre>{{ clearDatabaseStatus() }}</pre>
+              class="btn-table-clear" 
+              (click)="clearTable('DocumentType')" 
+              [disabled]="isTableClearing('DocumentType')"
+            >
+              @if (isTableClearing('DocumentType')) {
+                <span class="loading-spinner"></span>
+                Clearing...
+              } @else {
+                🗑️ Clear Document Types
+              }
+            </button>
+            @if (getTableStatus('DocumentType')) {
+              <div class="table-status-message">
+                <button 
+                  class="clear-status-btn" 
+                  (click)="clearSingleTableStatus('DocumentType')"
+                  title="Clear status">✕</button>
+                <pre>{{ getTableStatus('DocumentType') }}</pre>
+              </div>
+            }
           </div>
-        }
+
+          <!-- Workflows -->
+          <div class="table-clear-item">
+            <button 
+              class="btn-table-clear" 
+              (click)="clearTable('Workflow')" 
+              [disabled]="isTableClearing('Workflow')"
+            >
+              @if (isTableClearing('Workflow')) {
+                <span class="loading-spinner"></span>
+                Clearing...
+              } @else {
+                🗑️ Clear Workflows
+              }
+            </button>
+            @if (getTableStatus('Workflow')) {
+              <div class="table-status-message">
+                <button 
+                  class="clear-status-btn" 
+                  (click)="clearSingleTableStatus('Workflow')"
+                  title="Clear status">✕</button>
+                <pre>{{ getTableStatus('Workflow') }}</pre>
+              </div>
+            }
+          </div>
+
+          <!-- Projects -->
+          <div class="table-clear-item">
+            <button 
+              class="btn-table-clear" 
+              (click)="clearTable('Project')" 
+              [disabled]="isTableClearing('Project')"
+            >
+              @if (isTableClearing('Project')) {
+                <span class="loading-spinner"></span>
+                Clearing...
+              } @else {
+                🗑️ Clear Projects
+              }
+            </button>
+            @if (getTableStatus('Project')) {
+              <div class="table-status-message">
+                <button 
+                  class="clear-status-btn" 
+                  (click)="clearSingleTableStatus('Project')"
+                  title="Clear status">✕</button>
+                <pre>{{ getTableStatus('Project') }}</pre>
+              </div>
+            }
+          </div>
+
+          <!-- Documents -->
+          <div class="table-clear-item">
+            <button 
+              class="btn-table-clear" 
+              (click)="clearTable('Document')" 
+              [disabled]="isTableClearing('Document')"
+            >
+              @if (isTableClearing('Document')) {
+                <span class="loading-spinner"></span>
+                Clearing...
+              } @else {
+                🗑️ Clear Documents
+              }
+            </button>
+            @if (getTableStatus('Document')) {
+              <div class="table-status-message">
+                <button 
+                  class="clear-status-btn" 
+                  (click)="clearSingleTableStatus('Document')"
+                  title="Clear status">✕</button>
+                <pre>{{ getTableStatus('Document') }}</pre>
+              </div>
+            }
+          </div>
+
+          <!-- Users -->
+          <div class="table-clear-item">
+            <button 
+              class="btn-table-clear" 
+              (click)="clearTable('User')" 
+              [disabled]="isTableClearing('User')"
+            >
+              @if (isTableClearing('User')) {
+                <span class="loading-spinner"></span>
+                Clearing...
+              } @else {
+                🗑️ Clear Users
+              }
+            </button>
+            @if (getTableStatus('User')) {
+              <div class="table-status-message">
+                <button 
+                  class="clear-status-btn" 
+                  (click)="clearSingleTableStatus('User')"
+                  title="Clear status">✕</button>
+                <pre>{{ getTableStatus('User') }}</pre>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="clear-all-section">
+          <h3>Clear All Tables:</h3>
+          <div class="action-controls">
+            <button 
+              class="btn-secondary clear-all-btn" 
+              (click)="clearDatabase()" 
+              [disabled]="clearDatabaseLoading()"
+            >
+              @if (clearDatabaseLoading()) {
+                <span class="loading-spinner"></span>
+                Clearing All Data...
+              } @else {
+                🗑️ Clear ALL Tables
+              }
+            </button>
+
+            @if (clearDatabaseStatus()) {
+              <div class="status-message">
+                <button 
+                  class="clear-status-btn" 
+                  (click)="clearClearDatabaseStatus()"
+                  title="Clear status">✕</button>
+                <pre>{{ clearDatabaseStatus() }}</pre>
+              </div>
+            }
+          </div>
+        </div>
       </div>
     </div>
   </div>
