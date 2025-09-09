@@ -1,9 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { AuthService } from './auth.service';
 import { UserDataService } from './user-data.service';
+import { VersionedDataService } from './versioned-data.service';
 import { ChatMessage, ChatRoom } from '../chat/chat';
 import { generateClient } from 'aws-amplify/data';
-import { type Schema } from '../../../amplify/data/resource';
+import type { Schema } from '../../../amplify/data/resource';
 
 export interface SendMessageRequest {
   chatRoomId: string;
@@ -29,6 +30,7 @@ export interface CreateChatRoomRequest {
 export class ChatService {
   private authService = inject(AuthService);
   private userDataService = inject(UserDataService);
+  private versionedDataService = inject(VersionedDataService);
   
   // Amplify Data client
   private client = generateClient<Schema>();
@@ -170,8 +172,12 @@ export class ChatService {
       console.log('📋 Fetching chat rooms for user:', currentUserData.id);
       console.log('📋 Full current user data object:', currentUserData);
       
-      // Query ChatRoom using Amplify Data
-      const { data: rooms } = await this.client.models.ChatRoom.list();
+      // Query ChatRoom using latest versions
+      const roomsResult = await this.versionedDataService.getAllLatestVersions('ChatRoom');
+      if (!roomsResult.success || !roomsResult.data) {
+        throw new Error(roomsResult.error || 'Failed to fetch chat rooms');
+      }
+      const rooms = roomsResult.data;
       console.log('📋 Raw rooms from Amplify:', rooms);
       console.log('📋 Number of raw rooms:', rooms.length);
       
@@ -301,17 +307,33 @@ export class ChatService {
         messageType: 'text'
       });
       
-      const { data: newMessage } = await this.client.models.ChatMessage.create({
-        chatRoomId: request.chatRoomId,
-        senderId: currentUserData.id,
-        senderName: currentUserData.firstName && currentUserData.lastName 
-          ? `${currentUserData.firstName} ${currentUserData.lastName}` 
-          : currentUserData.email || 'Unknown User',
-        senderType: request.senderType,
-        message: request.message,
-        messageType: 'text',
-        isRead: false
+      // Get the latest version of the chat room to reference it properly
+      const roomResult = await this.versionedDataService.getLatestVersion('ChatRoom', request.chatRoomId);
+      if (!roomResult.success || !roomResult.data) {
+        throw new Error('Chat room not found');
+      }
+      
+      const messageResult = await this.versionedDataService.createVersionedRecord('ChatMessage', {
+        data: {
+          chatRoomId: request.chatRoomId,
+          chatRoomVersion: roomResult.data.version,
+          senderId: currentUserData.id,
+          senderName: currentUserData.firstName && currentUserData.lastName 
+            ? `${currentUserData.firstName} ${currentUserData.lastName}` 
+            : currentUserData.email || 'Unknown User',
+          senderType: request.senderType,
+          message: request.message,
+          messageType: 'text',
+          isRead: false,
+          readBy: [],
+          createdAt: new Date().toISOString()
+        }
       });
+
+      if (!messageResult.success) {
+        throw new Error(messageResult.error || 'Failed to create message');
+      }
+      const newMessage = messageResult.data;
 
       console.log('✅ Message created with Amplify Data successfully');
       console.log('✅ Created message data:', newMessage);
@@ -351,14 +373,13 @@ export class ChatService {
 
   private async updateRoomLastMessage(chatRoomId: string, message: ChatMessage): Promise<void> {
     try {
-      await this.client.models.ChatRoom.update({
-        id: chatRoomId,
+      await this.versionedDataService.updateVersionedRecord('ChatRoom', chatRoomId, {
         lastMessage: message.message,
         lastMessageTime: message.timestamp,
         lastMessageSender: message.senderName,
         lastActivityAt: new Date().toISOString()
       });
-      console.log('✅ Updated room last message with Amplify Data');
+      console.log('✅ Updated room last message with versioned data');
     } catch (error) {
       console.error('❌ Error updating room last message:', error);
     }
@@ -377,16 +398,14 @@ export class ChatService {
     try {
       console.log('🔍 Searching for existing chat room for project:', projectId);
       
-      const { data: rooms } = await this.client.models.ChatRoom.list({
-        filter: {
-          projectId: {
-            eq: projectId
-          },
-          roomType: {
-            eq: 'project'
-          }
-        }
-      });
+      const roomsResult = await this.versionedDataService.getAllLatestVersions('ChatRoom');
+      if (!roomsResult.success || !roomsResult.data) {
+        throw new Error(roomsResult.error || 'Failed to fetch chat rooms');
+      }
+      
+      const rooms = roomsResult.data.filter(room => 
+        room.projectId === projectId && room.roomType === 'project'
+      );
 
       console.log('🔍 Found existing rooms for project:', rooms.length);
       
@@ -409,16 +428,14 @@ export class ChatService {
     try {
       console.log('🔍 Searching for existing chat room for document:', documentId);
       
-      const { data: rooms } = await this.client.models.ChatRoom.list({
-        filter: {
-          documentId: {
-            eq: documentId
-          },
-          roomType: {
-            eq: 'document'
-          }
-        }
-      });
+      const roomsResult = await this.versionedDataService.getAllLatestVersions('ChatRoom');
+      if (!roomsResult.success || !roomsResult.data) {
+        throw new Error(roomsResult.error || 'Failed to fetch chat rooms');
+      }
+      
+      const rooms = roomsResult.data.filter(room => 
+        room.documentId === documentId && room.roomType === 'document'
+      );
 
       console.log('🔍 Found existing rooms for document:', rooms.length);
       
@@ -455,8 +472,7 @@ export class ChatService {
       // Update the chat room with new participants list
       const updatedParticipants = [...new Set([...chatRoom.participants, currentUserData.id])];
       
-      await this.client.models.ChatRoom.update({
-        id: chatRoom.id,
+      await this.versionedDataService.updateVersionedRecord('ChatRoom', chatRoom.id, {
         participants: updatedParticipants,
         adminUsers: participants.filter(p => p !== null), // Update admin users as well
         lastActivityAt: new Date().toISOString()
@@ -480,31 +496,34 @@ export class ChatService {
 
       const now = new Date().toISOString();
       
-      // Create room using Amplify Data
-      const { data: newRoom } = await this.client.models.ChatRoom.create({
-        projectId: request.projectId,
-        projectName: request.projectName || request.title,
-        roomType: 'project',
-        title: request.title,
-        description: request.description,
-        participants: [...(request.adminUsers || []), ...(request.providerUsers || [])],
-        adminUsers: request.adminUsers,
-        providerUsers: request.providerUsers,
-        lastMessage: `Welcome to ${request.title}!`,
-        lastMessageTime: now,
-        lastMessageSender: 'System',
-        messageCount: 0,
-        unreadCount: 0,
-        isActive: true,
-        allowFileSharing: true,
-        lastActivityAt: now
+      // Create room using versioned data service
+      const roomResult = await this.versionedDataService.createVersionedRecord('ChatRoom', {
+        data: {
+          projectId: request.projectId,
+          projectName: request.projectName || request.title,
+          roomType: 'project',
+          title: request.title,
+          description: request.description,
+          participants: [...(request.adminUsers || []), ...(request.providerUsers || [])],
+          adminUsers: request.adminUsers || [],
+          providerUsers: request.providerUsers || [],
+          lastMessage: `Welcome to ${request.title}!`,
+          lastMessageTime: now,
+          lastMessageSender: 'System',
+          messageCount: 0,
+          unreadCount: 0,
+          isActive: true,
+          allowFileSharing: true,
+          lastActivityAt: now,
+          createdAt: now
+        }
       });
 
-      if (!newRoom) {
-        throw new Error('Failed to create chat room');
+      if (!roomResult.success) {
+        throw new Error(roomResult.error || 'Failed to create chat room');
       }
 
-      const transformedRoom = this.transformToLocalChatRoom(newRoom);
+      const transformedRoom = this.transformToLocalChatRoom(roomResult.data);
 
       console.log('✅ Project chat room created with Amplify Data successfully');
       return transformedRoom;
@@ -521,33 +540,36 @@ export class ChatService {
 
       const now = new Date().toISOString();
       
-      // Create room using Amplify Data
-      const { data: newRoom } = await this.client.models.ChatRoom.create({
-        projectId: request.projectId,
-        documentId: request.documentId,
-        documentType: request.documentType,
-        projectName: request.projectName || `${request.documentType} - ${request.title}`,
-        roomType: 'document',
-        title: request.title,
-        description: request.description,
-        participants: [...(request.adminUsers || []), ...(request.providerUsers || [])],
-        adminUsers: request.adminUsers,
-        providerUsers: request.providerUsers,
-        lastMessage: `Welcome to the ${request.documentType} document chat!`,
-        lastMessageTime: now,
-        lastMessageSender: 'System',
-        messageCount: 0,
-        unreadCount: 0,
-        isActive: true,
-        allowFileSharing: true,
-        lastActivityAt: now
+      // Create room using versioned data service
+      const roomResult = await this.versionedDataService.createVersionedRecord('ChatRoom', {
+        data: {
+          projectId: request.projectId,
+          documentId: request.documentId,
+          documentType: request.documentType,
+          projectName: request.projectName || `${request.documentType} - ${request.title}`,
+          roomType: 'document',
+          title: request.title,
+          description: request.description,
+          participants: [...(request.adminUsers || []), ...(request.providerUsers || [])],
+          adminUsers: request.adminUsers || [],
+          providerUsers: request.providerUsers || [],
+          lastMessage: `Welcome to the ${request.documentType} document chat!`,
+          lastMessageTime: now,
+          lastMessageSender: 'System',
+          messageCount: 0,
+          unreadCount: 0,
+          isActive: true,
+          allowFileSharing: true,
+          lastActivityAt: now,
+          createdAt: now
+        }
       });
 
-      if (!newRoom) {
-        throw new Error('Failed to create document chat room');
+      if (!roomResult.success) {
+        throw new Error(roomResult.error || 'Failed to create document chat room');
       }
 
-      const transformedRoom = this.transformToLocalChatRoom(newRoom);
+      const transformedRoom = this.transformToLocalChatRoom(roomResult.data);
 
       console.log('✅ Document chat room created with Amplify Data successfully');
       return transformedRoom;

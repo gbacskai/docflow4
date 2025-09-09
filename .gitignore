@@ -20,9 +20,11 @@ yarn-error.log
 .settings/
 
 # Test reports and artifacts
-cypress/report/
-cypress/videos/
-cypress/screenshots/
+tests/cypress/report/
+tests/cypress/videos/
+tests/cypress/screenshots/
+tests/test-reports/
+tests/coverage/
 *.log
 test-*.png
 auth-redirect-test-report.json
@@ -40,7 +42,6 @@ auth-redirect-test-report.json
 /.angular/cache
 .sass-cache/
 /connect.lock
-/coverage
 /libpeerconnection.log
 testem.log
 /typings
@@ -48,6 +49,11 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# PAC (Product as Code) temporary files
+.pac/tmp/
+.pac/cache/
+*.pac.lock
 
 # AWS Amplify
 
@@ -74,5 +80,5 @@ amplifytools.xcconfig
 
 amplify_outputs.json
 .amplify
-.claude
 .opencode
+*.png

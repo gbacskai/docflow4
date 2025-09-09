@@ -6,291 +6,58 @@
     </div>
   </header>
 
-  <!-- Database Statistics -->
-  <div class="stats-section">
-    <h2>Database Overview</h2>
-    <div class="stats-grid">
-      @for (stat of exportStats() | keyvalue; track stat.key) {
-        <div class="stat-card">
-          <div class="stat-number">{{ stat.value }}</div>
-          <div class="stat-label">{{ stat.key }}</div>
-        </div>
-      }
-    </div>
-  </div>
 
-  <!-- Serverless Database Export Section -->
+  <!-- Sample Data Initialization Section -->
   <div class="admin-section">
     <div class="section-header">
-      <h2>☁️ Serverless Database Export</h2>
-      <p>Trigger serverless DynamoDB backup to S3 bucket</p>
+      <h2>🌟 Initialize Sample Data</h2>
+      <p>Create sample document types for testing and development</p>
     </div>
     
     <div class="action-panel">
       <div class="export-info">
         <div class="info-item">
-          <strong>Export Options:</strong>
+          <strong>Sample Document Types:</strong>
           <ul>
-            <li><strong>User Data:</strong> Export only your data</li>
-            <li><strong>Full Database:</strong> Export entire database (Admin only)</li>
-            <li><strong>Project Data:</strong> Export specific project data</li>
+            <li>Building Permit Application</li>
+            <li>Environmental Impact Assessment</li>
+            <li>Business License Application</li>
+            <li>Health Department Permit</li>
           </ul>
         </div>
         <div class="info-item">
-          <strong>Storage:</strong> Exports saved to S3 bucket with versioning
-        </div>
-      </div>
-      
-      <div class="action-controls">
-        <div class="export-form">
-          <div class="form-group">
-            <label for="exportType">Export Type:</label>
-            <select id="exportType" [(ngModel)]="exportForm.exportType" name="exportType">
-              <option value="user">My Data Only</option>
-              <option value="full">Full Database (Admin)</option>
-              <option value="project">Specific Project</option>
-            </select>
-          </div>
-
-          @if (exportForm.exportType === 'project') {
-            <div class="form-group">
-              <label for="projectId">Project ID:</label>
-              <input 
-                type="text" 
-                id="projectId"
-                [(ngModel)]="exportForm.projectId" 
-                name="projectId"
-                placeholder="Enter project ID">
-            </div>
-          }
-
-          <button 
-            class="btn-primary large" 
-            (click)="triggerServerlessExport()" 
-            [disabled]="exportLoading()"
-          >
-            @if (exportLoading()) {
-              <span class="loading-spinner"></span>
-              Creating Export...
-            } @else {
-              ☁️ Create Serverless Export
-            }
-          </button>
-        </div>
-        
-        @if (exportStatus()) {
-          <div class="status-message" [class.success]="exportStatus().includes('✅')" [class.error]="exportStatus().includes('❌')">
-            {{ exportStatus() }}
-          </div>
-        }
-      </div>
-    </div>
-  </div>
-
-  <!-- Database Export Section -->
-  <div class="admin-section">
-    <div class="section-header">
-      <h2>📤 Local Database Export</h2>
-      <p>Export database tables to a local JSON file (mock data)</p>
-    </div>
-    
-    <div class="action-panel">
-      <div class="export-info">
-        <div class="info-item">
-          <strong>What gets exported:</strong>
-          <ul>
-            <li>All Projects data</li>
-            <li>All Domains data</li>
-            <li>All Document Types data</li>
-            <li>All Users data</li>
-            <li>All Documents metadata (file URLs excluded)</li>
-          </ul>
-        </div>
-        <div class="info-item">
-          <strong>Export format:</strong> JSON file with timestamp
+          <strong>Note:</strong> Existing records will not be duplicated
         </div>
       </div>
       
       <div class="action-controls">
         <button 
-          class="btn-secondary large" 
-          (click)="exportDatabase()" 
-          [disabled]="exportLoading()"
+          class="btn-primary large" 
+          (click)="initializeSampleData()" 
+          [disabled]="initSampleDataLoading()"
         >
-          @if (exportLoading()) {
+          @if (initSampleDataLoading()) {
             <span class="loading-spinner"></span>
-            Exporting...
+            Initializing...
           } @else {
-            📤 Export Local Database
+            🌟 Initialize Sample Data
           }
         </button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Exports List Section -->
-  <div class="admin-section">
-    <div class="section-header">
-      <div class="header-with-actions">
-        <div>
-          <h2>📋 Database Exports</h2>
-          <p>View and manage all database exports</p>
-        </div>
-        <button 
-          class="btn-default"
-          (click)="refreshExports()"
-          [disabled]="isLoading()">
-          🔄 Refresh
-        </button>
-      </div>
-    </div>
-    
-    <!-- Loading State -->
-    @if (isLoading()) {
-      <div class="loading-state">
-        <span class="loading-spinner"></span>
-        <p>{{ loadingMessage() }}</p>
-      </div>
-    }
-
-    <!-- Error Message -->
-    @if (errorMessage()) {
-      <div class="error-banner">
-        <span class="icon">⚠️</span>
-        {{ errorMessage() }}
-        <button class="close-btn" (click)="errorMessage.set('')">×</button>
-      </div>
-    }
-
-    <!-- Success Message -->
-    @if (successMessage()) {
-      <div class="success-banner">
-        <span class="icon">✅</span>
-        {{ successMessage() }}
-        <button class="close-btn" (click)="successMessage.set('')">×</button>
-      </div>
-    }
-    
-    @if (exports().length === 0 && !isLoading()) {
-      <div class="empty-state">
-        <p>No database exports found.</p>
-        <p>Create your first serverless export to get started.</p>
-      </div>
-    } @else {
-      <div class="exports-list">
-        @for (export of exports(); track export.id) {
-          <div class="export-card">
-            <div class="export-info">
-              <div class="export-header">
-                <h3>{{ export.fileName }}</h3>
-                <div class="export-badges">
-                  <span class="badge" [class]="'badge-' + export.exportType">
-                    {{ export.exportType | titlecase }}
-                  </span>
-                  @if (export.status) {
-                    <span class="badge" [class]="'badge-status-' + export.status">
-                      {{ export.status | titlecase }}
-                    </span>
-                  }
-                </div>
-              </div>
-              
-              <div class="export-details">
-                <div class="detail">
-                  <strong>Size:</strong> {{ formatFileSize(export.size) }}
-                </div>
-                <div class="detail">
-                  <strong>Created:</strong> {{ formatDate(export.lastModified) }}
-                </div>
-                @if (export.recordCount !== undefined) {
-                  <div class="detail">
-                    <strong>Records:</strong> {{ export.recordCount | number }}
-                  </div>
-                }
-                <div class="detail">
-                  <strong>User:</strong> {{ export.userId }}
-                </div>
-              </div>
-
-              @if (export.error) {
-                <div class="export-error">
-                  <strong>Error:</strong> {{ export.error }}
-                </div>
-              }
-            </div>
-
-            <div class="export-actions">
-              <button 
-                class="action-btn primary"
-                (click)="downloadExport(export)"
-                [disabled]="export.status === 'pending' || export.status === 'failed'"
-                title="Download Export">
-                ⬇️ Download
-              </button>
-              <button 
-                class="action-btn danger"
-                (click)="deleteExport(export)"
-                [disabled]="isLoading()"
-                title="Delete Export">
-                🗑️ Delete
-              </button>
-            </div>
-          </div>
-        }
-      </div>
-    }
-  </div>
-
-  <!-- Database Import Section -->
-  <div class="admin-section">
-    <div class="section-header">
-      <h2>📥 Database Import</h2>
-      <p>Import database from a previously exported JSON file</p>
-    </div>
-    
-    <div class="action-panel">
-      <div class="import-info">
-        <div class="info-item">
-          <strong>⚠️ Important warnings:</strong>
-          <ul>
-            <li>This will <strong>add</strong> records to existing data</li>
-            <li>Duplicate records may cause import errors</li>
-            <li>This operation cannot be undone</li>
-            <li>Always backup your data before importing</li>
-          </ul>
-        </div>
-        <div class="info-item">
-          <strong>Supported format:</strong> JSON files exported from this system
-        </div>
-      </div>
-      
-      <div class="action-controls">
-        <div class="file-input-wrapper">
-          <input 
-            type="file" 
-            accept=".json" 
-            (change)="onFileSelected($event)"
-            [disabled]="importLoading()"
-            id="import-file"
-          />
-          <label for="import-file" class="btn-secondary large">
-            @if (importLoading()) {
-              <span class="loading-spinner"></span>
-              Importing...
-            } @else {
-              📥 Select Import File
-            }
-          </label>
-        </div>
-        
-        @if (importStatus()) {
-          <div class="status-message" [class.success]="importStatus().includes('✅')" [class.error]="importStatus().includes('❌')" [class.warning]="importStatus().includes('⚠️')">
-            {{ importStatus() }}
+        @if (initSampleDataStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearInitSampleDataStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ initSampleDataStatus() }}</pre>
           </div>
         }
       </div>
     </div>
   </div>
+
+
 
   <!-- System Information -->
   <div class="admin-section">
@@ -317,6 +84,368 @@
           <div class="info-label">Access Level</div>
           <div class="info-value">Full Access</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AWS Resources -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>☁️ AWS Resources</h2>
+      <p>AWS infrastructure resources used by the application</p>
+    </div>
+    
+    <div class="resources-grid">
+      <!-- AWS Resource Information -->
+      <div class="resource-category">
+        <h3>🔐 Authentication & Identity</h3>
+        <div class="resource-items">
+          @for (resource of awsResources() | keyvalue; track resource.key) {
+            @if (resource.key.includes('Cognito') || resource.key.includes('Identity')) {
+              <div class="resource-item">
+                <div class="resource-type">{{ resource.key }}</div>
+                <div class="resource-value">{{ resource.value }}</div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- AppSync & Storage -->
+      <div class="resource-category">
+        <h3>🔗 API & Storage</h3>
+        <div class="resource-items">
+          @for (resource of awsResources() | keyvalue; track resource.key) {
+            @if (resource.key.includes('AppSync') || resource.key.includes('S3')) {
+              <div class="resource-item">
+                <div class="resource-type">{{ resource.key }}</div>
+                <div class="resource-value">{{ resource.value }}</div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- DynamoDB Tables -->
+      <div class="resource-category">
+        <h3>🗄️ DynamoDB Tables</h3>
+        <div class="resource-items">
+          @if (tablesLoading()) {
+            <div class="loading-item">
+              <span class="loading-spinner"></span>
+              <div class="loading-text">Loading tables from DynamoDB...</div>
+            </div>
+          } @else {
+            @for (table of tableNames() | keyvalue; track table.key) {
+              <div class="resource-item" 
+                   [class.warning]="table.key.includes('⚠️') || table.key.includes('Fallback')"
+                   [class.active-table]="table.key.includes('ACTIVE')"
+                   [class.infrastructure]="table.key.includes('Infrastructure')">
+                <div class="resource-type">{{ table.key }}</div>
+                <div class="resource-value">{{ table.value }}</div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Environment Info -->
+      <div class="resource-category">
+        <h3>🌍 Environment</h3>
+        <div class="resource-items">
+          @for (resource of awsResources() | keyvalue; track resource.key) {
+            @if (resource.key.includes('Region') || resource.key.includes('Environment')) {
+              <div class="resource-item">
+                <div class="resource-type">{{ resource.key }}</div>
+                <div class="resource-value">{{ resource.value }}</div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lambda Functions -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>⚡ Lambda Functions</h2>
+      <p>Serverless functions deployed in the project</p>
+    </div>
+    
+    <div class="lambda-functions-panel">
+      <div class="functions-list">
+        @for (func of lambdaFunctions(); track func) {
+          <div class="function-item" [class.disabled]="func.includes('DISABLED')">
+            @if (func.includes('DISABLED')) {
+              <span class="function-status disabled">🚫</span>
+            } @else {
+              <span class="function-status active">✅</span>
+            }
+            <div class="function-details">
+              <div class="function-name">{{ func.split(' - ')[0] }}</div>
+              @if (func.includes(' - ')) {
+                <div class="function-description">{{ func.split(' - ')[1] }}</div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Backup/Restore Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>💾 Backup & Restore</h2>
+      <p>Export and import Document Types, Workflows, and Projects</p>
+    </div>
+    
+    <div class="backup-restore-panel">
+      <div class="backup-section">
+        <h3>📤 Create Backup</h3>
+        <p>Export selected data types to a JSON file</p>
+        
+        <div class="backup-options">
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.documentTypes"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Document Types
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.workflows"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Workflows
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.projects"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Projects
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="backupOptions.documents"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Documents
+            </label>
+          </div>
+        </div>
+        
+        <button 
+          class="btn-primary" 
+          (click)="createBackup()" 
+          [disabled]="backupLoading() || !hasBackupSelection()"
+        >
+          @if (backupLoading()) {
+            <span class="loading-spinner"></span>
+            Creating Backup...
+          } @else {
+            💾 Create Backup
+          }
+        </button>
+        
+        @if (backupStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearBackupStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ backupStatus() }}</pre>
+          </div>
+        }
+      </div>
+
+      <div class="restore-section">
+        <h3>📥 Restore from Backup</h3>
+        <p>Import data from a previously created backup file</p>
+        
+        <div class="file-upload-area">
+          <input 
+            type="file" 
+            #fileInput
+            accept=".json"
+            (change)="onBackupFileSelected($event)"
+            class="file-input"
+            id="backup-file-input"
+          >
+          <label for="backup-file-input" class="file-upload-label">
+            📁 Choose Backup File
+          </label>
+          
+          @if (selectedBackupFile) {
+            <div class="selected-file">
+              <span class="file-name">{{ selectedBackupFile.name }}</span>
+              <button class="clear-file-btn" (click)="clearSelectedFile()">✕</button>
+            </div>
+          }
+        </div>
+        
+        @if (selectedBackupFile) {
+          <div class="restore-options">
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.documentTypes"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Document Types
+              </label>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.workflows"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Workflows
+              </label>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.projects"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Projects
+              </label>
+              <label class="checkbox-label">
+                <input 
+                  type="checkbox" 
+                  [(ngModel)]="restoreOptions.documents"
+                  class="checkbox-input"
+                >
+                <span class="checkmark"></span>
+                Restore Documents
+              </label>
+            </div>
+            
+            <div class="conflict-resolution">
+              <h4>Existing Objects Handling:</h4>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input 
+                    type="radio" 
+                    name="conflictResolution"
+                    value="ignore"
+                    [(ngModel)]="restoreOptions.conflictResolution"
+                    class="radio-input"
+                  >
+                  <span class="radio-mark"></span>
+                  Ignore existing objects (skip duplicates)
+                </label>
+                <label class="radio-label">
+                  <input 
+                    type="radio" 
+                    name="conflictResolution"
+                    value="update"
+                    [(ngModel)]="restoreOptions.conflictResolution"
+                    class="radio-input"
+                  >
+                  <span class="radio-mark"></span>
+                  Update existing objects (overwrite with backup data)
+                </label>
+              </div>
+              <div class="help-text">
+                Choose how to handle objects that already exist in the database
+              </div>
+            </div>
+            
+            <button 
+              class="btn-secondary" 
+              (click)="restoreFromBackup()" 
+              [disabled]="restoreLoading() || !hasRestoreSelection()"
+            >
+              @if (restoreLoading()) {
+                <span class="loading-spinner"></span>
+                Restoring...
+              } @else {
+                📥 Restore Data
+              }
+            </button>
+          </div>
+        }
+        
+        @if (restoreStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearRestoreStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ restoreStatus() }}</pre>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Database Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>🗑️ Clear Database</h2>
+      <p>Permanently delete all data from the database (Document Types, Workflows, Projects, Documents)</p>
+    </div>
+    
+    <div class="action-panel">
+      <div class="export-info">
+        <div class="info-item">
+          <strong>⚠️ Warning:</strong>
+          <p style="color: #e74c3c; font-weight: 600; margin: 0.5rem 0;">
+            This operation will permanently delete ALL data from the database. This includes:
+          </p>
+          <ul style="color: #e74c3c;">
+            <li>All Document Types</li>
+            <li>All Workflows</li>
+            <li>All Projects</li>
+            <li>All Documents</li>
+          </ul>
+        </div>
+        <div class="info-item">
+          <strong>Note:</strong> This operation cannot be undone. Make sure to create a backup first if needed.
+        </div>
+      </div>
+      
+      <div class="action-controls">
+        <button 
+          class="btn-secondary" 
+          style="background: #e74c3c; border-color: #e74c3c;"
+          (click)="clearDatabase()" 
+          [disabled]="clearDatabaseLoading()"
+        >
+          @if (clearDatabaseLoading()) {
+            <span class="loading-spinner"></span>
+            Clearing Database...
+          } @else {
+            🗑️ Clear All Data
+          }
+        </button>
+
+        @if (clearDatabaseStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearClearDatabaseStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ clearDatabaseStatus() }}</pre>
+          </div>
+        }
       </div>
     </div>
   </div>

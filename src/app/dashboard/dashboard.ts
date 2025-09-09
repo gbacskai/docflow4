@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 
@@ -13,6 +14,7 @@ import type { Schema } from '../../../amplify/data/resource';
 })
 export class Dashboard {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
 
   // Dashboard data signals
   loading = signal(false);
@@ -20,17 +22,12 @@ export class Dashboard {
   
   // Mock data for demonstration
   mockProjects = signal([
-    { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', updatedAt: '2024-01-20', defaultDomain: '1' },
-    { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', updatedAt: '2024-01-18', defaultDomain: '2' },
-    { id: '3', name: 'Documentation Update', status: 'completed', createdAt: '2024-01-05', updatedAt: '2024-01-15', defaultDomain: '1' },
-    { id: '4', name: 'API Integration', status: 'archived', createdAt: '2023-12-20', updatedAt: '2024-01-01', defaultDomain: '3' }
+    { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', updatedAt: '2024-01-20' },
+    { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', updatedAt: '2024-01-18' },
+    { id: '3', name: 'Documentation Update', status: 'completed', createdAt: '2024-01-05', updatedAt: '2024-01-15' },
+    { id: '4', name: 'API Integration', status: 'archived', createdAt: '2023-12-20', updatedAt: '2024-01-01' }
   ]);
   
-  mockDomains = signal([
-    { id: '1', name: 'Development' },
-    { id: '2', name: 'Marketing' },
-    { id: '3', name: 'Operations' }
-  ]);
   
   mockDocumentTypes = signal([
     { id: '1', name: 'Requirements' },
@@ -51,7 +48,6 @@ export class Dashboard {
   totalProjects = computed(() => this.mockProjects().length);
   activeProjects = computed(() => this.mockProjects().filter(p => p.status === 'active').length);
   completedProjects = computed(() => this.mockProjects().filter(p => p.status === 'completed').length);
-  totalDomains = computed(() => this.mockDomains().length);
   totalDocumentTypes = computed(() => this.mockDocumentTypes().length);
   totalUsers = computed(() => this.mockUsers().length);
 
@@ -109,10 +105,6 @@ export class Dashboard {
     }
   }
 
-  getDomainName(domainId: string): string {
-    const domain = this.mockDomains().find(d => d.id === domainId);
-    return domain?.name || 'Unknown Domain';
-  }
 
   formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString();

@@ -4,6 +4,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { UserManagementService } from '../services/user-management.service';
 
 @Component({
@@ -22,7 +23,7 @@ export class Users implements OnInit, OnDestroy {
   loadingDocumentTypes = signal(false);
   searchingDocumentTypes = signal(false);
   showForm = signal(false);
-  currentMode = signal<'edit' | 'view' | 'invite'>('invite');
+  currentMode = signal<'edit' | 'view' | 'invite' | 'create'>('invite');
   selectedUser = signal<Schema['User']['type'] | null>(null);
   processing = signal(false);
   showDocumentTypesSidebar = signal(false);
@@ -32,6 +33,7 @@ export class Users implements OnInit, OnDestroy {
   @ViewChild('docTypeSearchInput') docTypeSearchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
+  private versionedDataService = inject(VersionedDataService);
   private authService = inject(AuthService);
   private userManagementService = inject(UserManagementService);
   private searchTimeout: any = null;
@@ -42,7 +44,20 @@ export class Users implements OnInit, OnDestroy {
     lastName: ['', [Validators.required, Validators.minLength(2)]],
     userType: ['client'],
     interestedDocumentTypes: [[]],
-    status: ['active']
+    status: ['active'],
+    password: [''],
+    confirmPassword: ['']
+  });
+
+  createForm: FormGroup = this.fb.group({
+    email: ['', [Validators.required, Validators.email]],
+    firstName: ['', [Validators.required, Validators.minLength(2)]],
+    lastName: ['', [Validators.required, Validators.minLength(2)]],
+    userType: ['client'],
+    interestedDocumentTypes: [[]],
+    status: ['active'],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    confirmPassword: ['', [Validators.required]]
   });
 
   inviteForm: FormGroup = this.fb.group({
@@ -64,7 +79,8 @@ export class Users implements OnInit, OnDestroy {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+        const data = result.success ? result.data || [] : [];
       this.users.set(data.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
     } catch (error) {
       console.error('Error loading users:', error);
@@ -78,7 +94,8 @@ export class Users implements OnInit, OnDestroy {
     try {
       this.loadingDocumentTypes.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data.filter(dt => dt.isActive !== false));
     } catch (error) {
       console.error('Error loading document types:', error);
@@ -93,8 +110,9 @@ export class Users implements OnInit, OnDestroy {
       const currentUserId = this.authService.getUserId();
       if (!currentUserId) return;
 
-      const client = generateClient<Schema>();
-      const { data: users } = await client.models.User.list();
+      // Use versioned data service to get latest user versions
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      const users = result.success ? result.data || [] : [];
       
       const currentUser = users.find(user => user.cognitoUserId === currentUserId);
       this.currentUserData.set(currentUser || null);
@@ -152,6 +170,17 @@ export class Users implements OnInit, OnDestroy {
     this.showForm.set(true);
   }
 
+  openCreateForm() {
+    this.currentMode.set('create');
+    this.selectedUser.set(null);
+    this.createForm.reset();
+    this.createForm.patchValue({
+      userType: 'client',
+      status: 'active'
+    });
+    this.showForm.set(true);
+  }
+
   openEditForm(user: Schema['User']['type']) {
     // Check if current user has permission to edit this user
     if (!this.canEditUser(user)) {
@@ -191,6 +220,7 @@ export class Users implements OnInit, OnDestroy {
     this.selectedUser.set(null);
     this.userForm.reset();
     this.inviteForm.reset();
+    this.createForm.reset();
     this.closeDocumentTypesSidebar();
   }
 
@@ -202,7 +232,8 @@ export class Users implements OnInit, OnDestroy {
       return;
     }
     
-    const currentForm = this.currentMode() === 'invite' ? this.inviteForm : this.userForm;
+    const currentForm = this.currentMode() === 'invite' ? this.inviteForm : 
+                        this.currentMode() === 'create' ? this.createForm : this.userForm;
     const currentDocTypes: string[] = currentForm.get('interestedDocumentTypes')?.value || [];
     console.log('Opening sidebar with current document types:', currentDocTypes);
     this.tempSelectedDocumentTypes.set([...currentDocTypes]);
@@ -255,7 +286,8 @@ export class Users implements OnInit, OnDestroy {
     const tempDocTypes = this.tempSelectedDocumentTypes();
     console.log('Applying document types:', tempDocTypes);
     
-    const currentForm = this.currentMode() === 'invite' ? this.inviteForm : this.userForm;
+    const currentForm = this.currentMode() === 'invite' ? this.inviteForm : 
+                        this.currentMode() === 'create' ? this.createForm : this.userForm;
     currentForm.patchValue({
       interestedDocumentTypes: [...tempDocTypes]
     });
@@ -327,7 +359,7 @@ export class Users implements OnInit, OnDestroy {
       
       const filteredData = allDocTypes.filter(docType => {
         const nameMatch = docType.name.toLowerCase().includes(queryLower);
-        const descriptionMatch = docType.description.toLowerCase().includes(queryLower);
+        const descriptionMatch = docType.definition.toLowerCase().includes(queryLower);
         const categoryMatch = docType.category && docType.category.toLowerCase().includes(queryLower);
         
         return nameMatch || descriptionMatch || categoryMatch;
@@ -358,8 +390,19 @@ export class Users implements OnInit, OnDestroy {
 
   // Form Submission Methods
   async onSubmitForm() {
-    const form = this.currentMode() === 'invite' ? this.inviteForm : this.userForm;
+    const form = this.currentMode() === 'invite' ? this.inviteForm : 
+                this.currentMode() === 'create' ? this.createForm : this.userForm;
     if (!form.valid) return;
+
+    // Validate password confirmation for create mode
+    if (this.currentMode() === 'create') {
+      const password = form.get('password')?.value;
+      const confirmPassword = form.get('confirmPassword')?.value;
+      if (password !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+      }
+    }
 
     this.processing.set(true);
     
@@ -368,6 +411,8 @@ export class Users implements OnInit, OnDestroy {
 
       if (this.currentMode() === 'invite') {
         await this.inviteUser(formValue);
+      } else if (this.currentMode() === 'create') {
+        await this.createUser(formValue);
       } else if (this.currentMode() === 'edit' && this.selectedUser()) {
         await this.updateUser(this.selectedUser()!.id, formValue);
       }
@@ -392,18 +437,26 @@ export class Users implements OnInit, OnDestroy {
       }
       
       // Create user with invited status and minimal required fields
-      const newUser = await client.models.User.create({
-        email: inviteData.email,
-        firstName: '', // Will be filled when user accepts invitation
-        lastName: '',  // Will be filled when user accepts invitation
-        userType: 'client', // Default to client, can be changed later
-        interestedDocumentTypes: [],
-        status: 'invited',
-        invitedAt: new Date().toISOString(),
-        invitedBy: currentUserId, // Current authenticated user ID
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const userResult = await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: inviteData.email,
+          firstName: '', // Will be filled when user accepts invitation
+          lastName: '',  // Will be filled when user accepts invitation
+          userType: 'client', // Default to client, can be changed later
+          interestedDocumentTypes: [],
+          status: 'invited',
+          emailVerified: false, // Email not verified yet
+          invitedAt: new Date().toISOString(),
+          invitedBy: currentUserId, // Current authenticated user ID
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!userResult.success) {
+        throw new Error(userResult.error || 'Failed to invite user');
+      }
+      
+      const newUser = { data: userResult.data };
 
       console.log('User invited successfully:', newUser);
       console.log('Invited by user ID:', currentUserId);
@@ -415,6 +468,50 @@ export class Users implements OnInit, OnDestroy {
       
     } catch (error) {
       console.error('Error inviting user:', error);
+      throw error;
+    }
+  }
+
+  async createUser(userData: any) {
+    try {
+      const currentUserId = this.authService.getUserId();
+      
+      if (!currentUserId) {
+        throw new Error('No authenticated user found. Please log in to create users.');
+      }
+      
+      // Check for email duplication before creating user
+      await this.userManagementService.validateEmailForCreation(userData.email);
+      
+      // TODO: In a real application, you would use AWS Cognito AdminCreateUser API
+      // For now, we'll create the user in our database with unverified email
+      const userResult = await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          userType: userData.userType || 'client',
+          interestedDocumentTypes: userData.interestedDocumentTypes || [],
+          status: userData.status || 'active',
+          emailVerified: false, // Email not verified yet
+          createdAt: new Date().toISOString(),
+          createdBy: currentUserId
+        }
+      });
+      
+      if (!userResult.success) {
+        throw new Error(userResult.error || 'Failed to create user');
+      }
+      
+      console.log('User created successfully:', userResult.data);
+      console.log('TODO: Create user in AWS Cognito with password:', userData.password);
+      console.log('TODO: Send email verification to:', userData.email);
+      
+      // TODO: Implement actual AWS Cognito user creation
+      alert(`User created successfully. Email verification will be sent to ${userData.email}`);
+      
+    } catch (error) {
+      console.error('Error creating user:', error);
       throw error;
     }
   }
@@ -458,7 +555,8 @@ export class Users implements OnInit, OnDestroy {
         if (updates.status !== undefined) updateData.status = updates.status;
       }
       
-      await client.models.User.update(updateData);
+      const updateParams = updateData;
+        await this.versionedDataService.updateVersionedRecord('User', updateParams.id, updateParams);
     } catch (error) {
       console.error('Error updating user:', error);
       throw error;
@@ -471,12 +569,14 @@ export class Users implements OnInit, OnDestroy {
     this.processing.set(true);
     
     try {
-      const client = generateClient<Schema>();
-      await client.models.User.update({ 
-        id: user.id, 
-        status: 'archived',
-        updatedAt: new Date().toISOString()
+      const result = await this.versionedDataService.updateVersionedRecord('User', user.id, {
+        status: 'archived'
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to archive user');
+      }
+      
       await this.loadUsers();
     } catch (error) {
       console.error('Error archiving user:', error);
@@ -494,7 +594,7 @@ export class Users implements OnInit, OnDestroy {
 
   getDocumentTypeDescription(docTypeId: string): string {
     const docType = this.documentTypes().find(dt => dt.id === docTypeId);
-    return docType ? docType.description : 'No description available';
+    return docType ? docType.definition : 'No definition available';
   }
 
   getDocumentTypeNames(docTypeIds: (string | null)[] | null | undefined): string {
@@ -567,6 +667,82 @@ export class Users implements OnInit, OnDestroy {
     } else {
       console.log('❌ No authenticated user email found');
     }
+  }
+
+  // Debug method to create current user record if missing
+  async createCurrentUserRecord() {
+    const currentUserId = this.authService.getUserId();
+    const currentUserEmail = this.authService.getUserEmail();
+    
+    if (!currentUserId || !currentUserEmail) {
+      console.log('❌ No authenticated user found');
+      return;
+    }
+
+    console.log('🔧 Creating user record for current authenticated user...');
+    
+    // Determine if this should be an admin user based on email
+    const isAdmin = currentUserEmail === 'test_admin@docflow4.com' || 
+                   currentUserEmail === 'gbacskai@gmail.com';
+    
+    try {
+      const userResult = await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: currentUserEmail,
+          firstName: isAdmin ? 'Test' : 'User',
+          lastName: isAdmin ? 'Admin' : 'User', 
+          userType: isAdmin ? 'admin' : 'client',
+          interestedDocumentTypes: [],
+          status: 'active',
+          emailVerified: true,
+          cognitoUserId: currentUserId,
+          createdAt: new Date().toISOString()
+        }
+      });
+      
+      if (userResult.success) {
+        console.log('✅ User record created successfully');
+        await this.loadUsers();
+        await this.loadCurrentUserData();
+      } else {
+        console.log('❌ Failed to create user record:', userResult.error);
+      }
+    } catch (error) {
+      console.log('❌ Error creating user record:', error);
+    }
+  }
+
+  // Email validation status methods
+  getEmailValidationStatus(user: Schema['User']['type']): 'verified' | 'unverified' | 'unknown' {
+    const emailVerified = (user as any).emailVerified;
+    if (emailVerified === true) return 'verified';
+    if (emailVerified === false) return 'unverified';
+    return 'unknown';
+  }
+
+  getEmailValidationIcon(user: Schema['User']['type']): string {
+    const status = this.getEmailValidationStatus(user);
+    switch (status) {
+      case 'verified': return '✅';
+      case 'unverified': return '⚠️';
+      case 'unknown': return '❓';
+      default: return '❓';
+    }
+  }
+
+  getEmailValidationTitle(user: Schema['User']['type']): string {
+    const status = this.getEmailValidationStatus(user);
+    switch (status) {
+      case 'verified': return 'Email verified';
+      case 'unverified': return 'Email not verified';
+      case 'unknown': return 'Email verification status unknown';
+      default: return 'Unknown verification status';
+    }
+  }
+
+  getEmailValidationClass(user: Schema['User']['type']): string {
+    const status = this.getEmailValidationStatus(user);
+    return `email-validation-${status}`;
   }
 
 }

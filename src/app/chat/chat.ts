@@ -27,6 +27,7 @@ export interface ChatMessage {
   threadId?: string;
   projectId?: string;
   documentId?: string;
+  active?: boolean;
   editedAt?: string;
 }
 
@@ -48,6 +49,7 @@ export interface ChatRoom {
   messageCount?: number;
   unreadCount: number;
   isActive: boolean;
+  active?: boolean;
   isArchived?: boolean;
   allowFileSharing?: boolean;
   maxParticipants?: number;

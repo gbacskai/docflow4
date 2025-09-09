@@ -1,0 +1,614 @@
+<div class="workflows-page">
+  <header class="page-header">
+    <h1>Workflows</h1>
+    <div class="header-actions">
+      <div class="search-wrapper">
+        <input 
+          type="text"
+          class="search-input"
+          placeholder="Search workflows..."
+          [value]="workflowSearchQuery()"
+          (input)="onWorkflowSearchInputChange($event)"
+        />
+        @if (workflowSearchQuery()) {
+          <button class="clear-search-btn" (click)="clearWorkflowSearch()">✕</button>
+        }
+      </div>
+      <button class="add-button" (click)="openCreateForm()">
+        + New Workflow
+      </button>
+    </div>
+  </header>
+
+  <!-- Left Sidebar for Document Types -->
+  @if (showLeftSidebar()) {
+    <div class="left-sidebar-overlay" (click)="closeLeftSidebar()">
+      <div class="left-sidebar" (click)="$event.stopPropagation()">
+        <div class="sidebar-header">
+          <h3>Document Types</h3>
+          <button class="close-sidebar-btn" (click)="closeLeftSidebar()">✕</button>
+        </div>
+
+        <div class="sidebar-content">
+          <!-- Document Types List -->
+          <div class="document-types-section">
+            <h4>Available Document Types</h4>
+            <div class="document-types-list">
+              @for (docType of documentTypes(); track docType.id || $index) {
+                <div class="doc-type-item" (click)="openDocumentTypePreview(docType)" 
+                     [class.selected]="selectedDocumentTypeForPreview()?.id === docType.id">
+                  <div class="doc-type-name">{{ docType.name }}</div>
+                  @if (docType.identifier) {
+                    <div class="doc-type-identifier">{{ docType.identifier }}</div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Document Type Form Preview -->
+          @if (selectedDocumentTypeForPreview() && parsedFormFields().length > 0) {
+            <div class="form-preview-section">
+              <h4>{{ selectedDocumentTypeForPreview()?.name }} Fields</h4>
+              <div class="draggable-fields">
+                @for (field of parsedFormFields(); track field.key) {
+                  <div class="draggable-field" 
+                       draggable="true"
+                       (dragstart)="onDragStart($event, field, 'document')">
+                    <div class="field-info">
+                      <span class="field-name">{{ field.label || field.key }}</span>
+                      <span class="field-type">{{ field.type }}</span>
+                    </div>
+                    <div class="drag-hint">📌 Drag to Validation/Action</div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Create/Edit/View Form -->
+  @if (showForm()) {
+    <div class="workflow-form">
+      @if (currentMode() === 'view') {
+        <!-- View Mode -->
+        <div class="view-mode">
+          <div class="form-header">
+            <h2>{{ selectedWorkflow()?.name }}</h2>
+            <button class="close-btn" (click)="closeForm()">✕</button>
+          </div>
+          
+          <div class="view-content">
+            <div class="view-section">
+              <div class="view-details">
+                @if (selectedWorkflow()?.description) {
+                  <p class="description preserve-whitespace">{{ selectedWorkflow()?.description }}</p>
+                }
+                <div class="view-meta">
+                  <span class="status" [class]="selectedWorkflow()?.isActive ? 'active' : 'inactive'">
+                    {{ selectedWorkflow()?.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                  <span class="rule-count">{{ getRuleCount(selectedWorkflow()!) }} rules</span>
+                  <span class="doc-type-count">{{ getDocumentTypeCount(selectedWorkflow()!) }} document types</span>
+                  <span class="project-count">{{ getProjectCount(selectedWorkflow()!) }} projects</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Actors Display -->
+            @if (selectedWorkflow()?.actors && selectedWorkflow()!.actors!.length > 0) {
+              <div class="actors-display">
+                <h3>Project Actors</h3>
+                <div class="actors-view-list">
+                  @for (actor of selectedWorkflow()!.actors!; track $index) {
+                    <div class="actor-view-item">
+                      {{ $index + 1 }}. {{ actor }}
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Rules Display -->
+            @if (selectedWorkflow()?.rules && selectedWorkflow()!.rules!.length > 0) {
+              <div class="rules-display">
+                <h3>Workflow Rules</h3>
+                <div class="rules-list">
+                  @for (rule of getWorkflowRules(selectedWorkflow()!); track $index) {
+                    <div class="rule-item">
+                      <div class="rule-number">{{ $index + 1 }}</div>
+                      <div class="rule-content">
+                        <div class="rule-validation">
+                          <label>Validation:</label>
+                          <div class="rule-text">{{ rule.validation || '' }}</div>
+                        </div>
+                        <div class="rule-arrow">→</div>
+                        <div class="rule-action">
+                          <label>Action:</label>
+                          <div class="rule-text">{{ rule.action || '' }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          
+          <div class="view-actions">
+            <button class="btn-edit" (click)="openEditForm(selectedWorkflow()!)">Edit</button>
+            <button class="btn-close" (click)="closeForm()">Close</button>
+          </div>
+        </div>
+      } @else {
+        <!-- Create/Edit Form -->
+        <div class="form-header">
+          <h2>{{ currentMode() === 'create' ? 'Create New Workflow' : 'Edit Workflow' }}</h2>
+          <button class="close-btn" (click)="closeForm()">✕</button>
+        </div>
+
+        <form [formGroup]="workflowForm" (ngSubmit)="onSubmitForm()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Name *</label>
+              <input 
+                id="name" 
+                type="text" 
+                formControlName="name" 
+                placeholder="Enter workflow name"
+                [class.error]="workflowForm.get('name')?.invalid && workflowForm.get('name')?.touched"
+              />
+              @if (workflowForm.get('name')?.invalid && workflowForm.get('name')?.touched) {
+                <div class="error-message">Name is required (min 3 characters)</div>
+              }
+            </div>
+            <div class="form-group">
+              <label for="isActive">Status *</label>
+              <select id="isActive" formControlName="isActive">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea 
+              id="description" 
+              formControlName="description" 
+              placeholder="Enter workflow description"
+              rows="2"
+            ></textarea>
+          </div>
+
+          <!-- Flowchart Canvas -->
+          @if (flowchartNodes().length > 0) {
+            <div class="flowchart-section">
+              <div class="flowchart-header">
+                <h3>Workflow Visualization</h3>
+                <div class="flowchart-controls">
+                  <button type="button" class="zoom-btn" (click)="zoomIn()" title="Zoom In">
+                    🔍+
+                  </button>
+                  <button type="button" class="zoom-btn" (click)="zoomOut()" title="Zoom Out">
+                    🔍-
+                  </button>
+                  <button type="button" class="zoom-btn" (click)="resetZoom()" title="Reset Zoom">
+                    ⌂
+                  </button>
+                  <button type="button" class="zoom-btn" (click)="fitToScreen()" title="Fit to Screen">
+                    ⤢
+                  </button>
+                  <span class="zoom-level">{{ (zoomLevel() * 100).toFixed(0) }}%</span>
+                </div>
+              </div>
+              <div class="flowchart-container" 
+                   [style.overflow]="'auto'"
+                   [style.height]="'400px'"
+                   (wheel)="onFlowchartWheel($event)"
+                   (mousedown)="onFlowchartMouseDown($event)">
+                <div class="flowchart-wrapper" 
+                     [style.transform]="'scale(' + zoomLevel() + ') translate(' + panX() + 'px, ' + panY() + 'px)'"
+                     [style.transform-origin]="'0 0'">
+                  <svg class="flowchart-svg" 
+                       [attr.viewBox]="flowchartViewBox()" 
+                       [attr.width]="flowchartViewBox().split(' ')[2]"
+                       [attr.height]="flowchartViewBox().split(' ')[3]"
+                       preserveAspectRatio="xMinYMin meet">
+                  @for (node of flowchartNodes(); track node.id) {
+                    <g class="node-group" [attr.transform]="'translate(' + node.position.x + ',' + node.position.y + ')'">
+                      <rect 
+                        class="flow-node"
+                        [class.start-node]="node.data.type === 'start'"
+                        [class.middle-node]="node.data.type === 'middle'"
+                        [class.end-node]="node.data.type === 'end'"
+                        [class.invalid-node]="node.data.isInvalid"
+                        width="140" 
+                        [attr.height]="node.data.height || 60" 
+                        rx="8">
+                      </rect>
+                      @if (node.data.wrappedText.length === 1) {
+                        <text 
+                          class="node-text" 
+                          x="70" 
+                          y="35" 
+                          text-anchor="middle" 
+                          dominant-baseline="middle">
+                          {{ node.data.wrappedText[0] }}
+                        </text>
+                      } @else {
+                        @for (line of node.data.wrappedText; track $index; let lineIndex = $index) {
+                          <text 
+                            class="node-text" 
+                            x="70" 
+                            [attr.y]="(node.data.height / 2) - ((node.data.wrappedText.length - 1) * 6) + (lineIndex * 12)" 
+                            text-anchor="middle" 
+                            dominant-baseline="middle">
+                            {{ line }}
+                          </text>
+                        }
+                      }
+                    </g>
+                  }
+                  @for (connection of flowchartConnections(); track connection.id) {
+                    <line 
+                      class="connection-line clickable-arrow"
+                      [attr.x1]="getNodeRightEdge(connection.fOutputId).x"
+                      [attr.y1]="getNodeRightEdge(connection.fOutputId).y"
+                      [attr.x2]="getNodeLeftEdge(connection.fInputId).x"
+                      [attr.y2]="getNodeLeftEdge(connection.fInputId).y"
+                      marker-end="url(#arrowhead)"
+                      (click)="highlightAndScrollToRule(connection.ruleIndex)"
+                      [attr.title]="'Click to view Rule ' + (connection.ruleIndex + 1)">
+                    </line>
+                  }
+                  <!-- Arrow marker definition -->
+                  <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                            refX="9" refY="3.5" orient="auto">
+                      <polygon points="0 0, 10 3.5, 0 7" fill="#3498db" />
+                    </marker>
+                  </defs>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Actors Section -->
+          <div class="actors-section">
+            <div class="actors-header">
+              <h3>Project Actors</h3>
+            </div>
+            
+            <div class="actors-content">
+              <div class="actors-list">
+                @for (actor of actors(); track $index; let i = $index) {
+                  <div class="actor-item">
+                    <span class="actor-name">{{ i + 1 }}. {{ actor }}</span>
+                    <button type="button" class="remove-actor-btn" (click)="removeActor(i)" title="Remove actor">
+                      ✕
+                    </button>
+                  </div>
+                }
+              </div>
+              
+              <div class="add-actor-form">
+                <input 
+                  type="text" 
+                  class="actor-input"
+                  placeholder="Enter new actor name..."
+                  [value]="newActorName()"
+                  (input)="newActorName.set($any($event.target).value)"
+                  (keydown)="onActorInputKeyDown($event)"
+                />
+                <button type="button" class="add-actor-btn" (click)="addActor()" [disabled]="!newActorName().trim()">
+                  + Add Actor
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Type Permissions Matrix -->
+          <div class="permissions-matrix-section">
+            <div class="permissions-header">
+              <h3>Document Type Permissions</h3>
+              <p>Configure actor permissions for each document type. Click cells to cycle: X (no access) → R (read) → W (write)</p>
+            </div>
+            
+            @if (extractDocumentTypesFromRules().length > 0 && actors().length > 0) {
+              <div class="permissions-table-container">
+                <table class="permissions-table">
+                  <thead>
+                    <tr>
+                      <th class="doc-type-header">Document Type</th>
+                      @for (actor of actors(); track actor) {
+                        <th class="actor-header">{{ actor | titlecase }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (docType of extractDocumentTypesFromRules(); track docType.id) {
+                      <tr class="permission-row">
+                        <td class="doc-type-name">{{ docType.name }}</td>
+                        @for (actor of actors(); track actor) {
+                          <td class="permission-cell">
+                            <button 
+                              type="button"
+                              class="permission-btn permission-{{ getPermission(docType.id, actor).toLowerCase() }}"
+                              (click)="togglePermission(docType.id, actor)"
+                              title="Click to cycle: X → R → W → X"
+                            >
+                              {{ getPermission(docType.id, actor) }}
+                            </button>
+                          </td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="permissions-empty-state">
+                @if (extractDocumentTypesFromRules().length === 0) {
+                  <p>No document types found in workflow rules. Add validation or action rules that reference document types (e.g., "SoilTest.status = completed").</p>
+                }
+                @if (actors().length === 0) {
+                  <p>No actors available. Add actors above to configure permissions.</p>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Rules Section -->
+          <div class="rules-section">
+            <div class="rules-header">
+              <h3>Workflow Rules</h3>
+              <div class="rules-header-actions">
+                <button type="button" class="test-rules-btn" (click)="testWorkflowValidation()" title="Test workflow rules with mock data">
+                  🧪 Test Rules
+                </button>
+                <button type="button" class="add-rule-btn" (click)="addRule()">
+                  + Add Rule
+                </button>
+              </div>
+            </div>
+
+            <div formArrayName="rules" class="rules-container">
+              @for (ruleControl of rulesFormArray.controls; track ruleControl.get('_id')?.value; let i = $index) {
+                <div class="rule-form-item" 
+                     [formGroupName]="i" 
+                     [id]="'rule-' + i" 
+                     [class.highlighted]="highlightedRuleIndex() === i">
+                  <div class="rule-header">
+                    <div class="rule-title-section">
+                      <span class="rule-number">Rule {{ i + 1 }}</span>
+                    </div>
+                    <div class="rule-actions">
+                      <button type="button" class="clone-rule-btn" (click)="cloneRule(i); $event.stopPropagation()" title="Clone this rule (Rule {{ i + 1 }})">
+                        📋 Clone Rule {{ i + 1 }}
+                      </button>
+                      @if (rulesFormArray.length > 1) {
+                        <button type="button" class="remove-rule-btn" (click)="removeRule(i); $event.stopPropagation()">
+                          🗑️ Remove
+                        </button>
+                      }
+                    </div>
+                  </div>
+                  
+                  <div class="rule-fields">
+                    <div class="rule-validation">
+                      <div class="field-header">
+                        <label [for]="'validation_' + i">Validation *</label>
+                        <button type="button" class="doc-type-btn" (click)="openDocumentTypeSidebar(i, 'validation')">
+                          📄 Document Types
+                        </button>
+                      </div>
+                      <textarea 
+                        [id]="'validation_' + i"
+                        formControlName="validation" 
+                        placeholder="Enter validation condition (e.g., document.BuildingPermit.status in (&quot;completed&quot;,&quot;notrequired&quot;))"
+                        rows="4"
+                        [class.error]="ruleControl.get('validation')?.invalid && ruleControl.get('validation')?.touched"
+                        [class.invalid-doc-types]="hasInvalidDocumentTypes(ruleControl.get('validation')?.value || '')"
+                        (dragover)="onDragOver($event)"
+                        (dragleave)="onDragLeave($event)"
+                        (drop)="onDrop($event, i, 'validation')"
+                        class="droppable-textarea"
+                      ></textarea>
+                      @if (ruleControl.get('validation')?.invalid && ruleControl.get('validation')?.touched) {
+                        <div class="error-message">Validation is required (min 3 characters)</div>
+                      }
+                      @if (hasInvalidDocumentTypes(ruleControl.get('validation')?.value || '')) {
+                        <div class="error-message">⚠️ Contains non-existent document types</div>
+                      }
+                    </div>
+                    
+                    <div class="rule-arrow">→</div>
+                    
+                    <div class="rule-action">
+                      <div class="field-header">
+                        <label [for]="'action_' + i">Action *</label>
+                        <button type="button" class="doc-type-btn" (click)="openDocumentTypeSidebar(i, 'action')">
+                          📄 Document Types
+                        </button>
+                      </div>
+                      <textarea 
+                        [id]="'action_' + i"
+                        formControlName="action" 
+                        placeholder="Enter action to perform (e.g., process.BuildingPermit)"
+                        rows="2"
+                        [class.error]="ruleControl.get('action')?.invalid && ruleControl.get('action')?.touched"
+                        [class.invalid-doc-types]="hasInvalidDocumentTypes(ruleControl.get('action')?.value || '')"
+                        (dragover)="onDragOver($event)"
+                        (dragleave)="onDragLeave($event)"
+                        (drop)="onDrop($event, i, 'action')"
+                        class="droppable-textarea"
+                      ></textarea>
+                      @if (ruleControl.get('action')?.invalid && ruleControl.get('action')?.touched) {
+                        <div class="error-message">Action is required (min 3 characters)</div>
+                      }
+                      @if (hasInvalidDocumentTypes(ruleControl.get('action')?.value || '')) {
+                        <div class="error-message">⚠️ Contains non-existent document types</div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button 
+              type="button" 
+              class="btn-cancel" 
+              (click)="closeForm()"
+              [disabled]="processing()"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              class="btn-submit" 
+              [disabled]="!workflowForm.valid || processing()"
+              (click)="onSubmitButtonClick()"
+            >
+              {{ processing() ? 'Saving...' : (currentMode() === 'create' ? 'Create' : 'Update') }}
+            </button>
+          </div>
+        </form>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading workflows...</div>
+  }
+
+  <div class="workflows-list">
+    @if (filteredWorkflows().length === 0 && !loading()) {
+      <div class="empty-state">
+        @if (workflowSearchQuery()) {
+          <p>No workflows found matching "{{ workflowSearchQuery() }}". Try a different search term.</p>
+          <button class="btn-clear-search" (click)="clearWorkflowSearch()">Clear Search</button>
+        } @else {
+          <p>No workflows found. Create your first workflow to get started.</p>
+        }
+      </div>
+    }
+
+    @for (workflow of filteredWorkflows(); track trackWorkflowById($index, workflow)) {
+      <div class="workflow-card" [class.inactive]="!workflow.isActive">
+        <div class="workflow-content">
+          <h3>{{ workflow.name }}</h3>
+          @if (workflow.description) {
+            <p class="workflow-description">{{ workflow.description }}</p>
+          }
+          <div class="workflow-meta">
+            <span class="rule-count">{{ getRuleCount(workflow) }} rules</span>
+            <span class="doc-type-count">{{ getDocumentTypeCount(workflow) }} document types</span>
+            <span class="project-count">{{ getProjectCount(workflow) }} projects</span>
+            @if (!workflow.isActive) {
+              <span class="inactive-badge">Inactive</span>
+            }
+          </div>
+        </div>
+        <div class="workflow-actions">
+          <button class="action-btn" (click)="openViewMode(workflow)">View</button>
+          <button class="action-btn" (click)="openEditForm(workflow)">Edit</button>
+          <button class="action-btn danger" (click)="deleteWorkflow(workflow)" [disabled]="processing()">
+            {{ processing() ? '...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Document Type Sidebar -->
+  @if (showDocumentTypeSidebar()) {
+    <div class="document-type-sidebar-overlay">
+      <div class="document-type-sidebar" (click)="$event.stopPropagation()">
+        <div class="sidebar-header">
+          <h3>Select Document Type</h3>
+          <p class="sidebar-subtitle">
+            Choose a document type for {{ currentFieldType() === 'validation' ? 'validation condition' : 'action' }}
+          </p>
+          <button class="close-sidebar-btn" (click)="closeDocumentTypeSidebar()">✕</button>
+        </div>
+
+        <div class="sidebar-search">
+          <input 
+            type="text"
+            class="search-input"
+            placeholder="Search document types..."
+            [value]="documentTypeSearchQuery()"
+            (input)="onDocumentTypeSearchInputChange($event)"
+          />
+        </div>
+
+        <div class="sidebar-content">
+          @if (!selectedDocumentTypeForPreview()) {
+            <!-- Document Types List -->
+            @if (filteredDocumentTypes().length === 0) {
+              <div class="empty-state">
+                <p>No document types found.</p>
+              </div>
+            } @else {
+              <div class="document-types-list">
+                @for (docType of filteredDocumentTypes(); track docType.id || $index) {
+                  <div class="doc-type-item" 
+                       draggable="true"
+                       (dragstart)="onDocumentTypeDragStart($event, docType)"
+                       (click)="selectDocumentType(docType)">
+                    <div class="doc-type-name">{{ docType.name }}</div>
+                    @if (docType.identifier) {
+                      <div class="doc-type-identifier">{{ docType.identifier }}</div>
+                    }
+                    <div class="drag-hint">📌 Drag to Validation/Action</div>
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <!-- Document Type Form Fields -->
+            <div class="form-preview-section">
+              <div class="back-button-container">
+                <button class="back-btn" (click)="selectedDocumentTypeForPreview.set(null); parsedFormFields.set([])">
+                  ← Back to Document Types
+                </button>
+              </div>
+              
+              <h4>{{ selectedDocumentTypeForPreview()?.name }} Fields</h4>
+              @if (selectedDocumentTypeForPreview()?.identifier) {
+                <p class="doc-type-id">{{ selectedDocumentTypeForPreview()?.identifier }}</p>
+              }
+              
+              @if (parsedFormFields().length === 0) {
+                <div class="empty-state">
+                  <p>No form fields found in this document type.</p>
+                </div>
+              } @else {
+                <div class="draggable-fields">
+                  @for (field of parsedFormFields(); track field.key) {
+                    <div class="draggable-field" 
+                         draggable="true"
+                         (dragstart)="onDragStart($event, field, currentFieldType() === 'validation' ? 'document' : 'process')">
+                      <div class="field-info">
+                        <span class="field-name">{{ field.label || field.key }}</span>
+                        <span class="field-type">{{ field.type }}</span>
+                      </div>
+                      <div class="drag-hint">📌 Drag to {{ currentFieldType() === 'validation' ? 'Validation' : 'Action' }}</div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

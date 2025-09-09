@@ -1,0 +1,91 @@
+// Main shared components stylesheet - imports all shared style modules
+@import './buttons.less';
+@import './search-inputs.less';
+@import './form-controls.less';
+@import './modals-sidebars.less';
+@import './cards-containers.less';
+
+// Status badges
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  text-transform: capitalize;
+  font-size: 0.8rem;
+  
+  &.status-active {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  &.status-inactive, &.status-archived {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+// Field tags for form fields display
+.field-tag {
+  background: @light-gray;
+  color: @black-color;
+  padding: 6px 12px;
+  border-radius: @border-radius-base;
+  font-size: 13px;
+  font-weight: @font-weight-semi;
+  border: 1px solid @medium-gray;
+}
+
+// Page layouts
+.page-header-standard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 10px;
+  
+  h1 {
+    font-size: 2.5rem;
+    color: @black-color;
+    margin: 0;
+    font-weight: @font-weight-light;
+  }
+  
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    
+    .header-actions {
+      flex-direction: column;
+      gap: 1rem;
+    }
+  }
+}
+
+// Utility classes
+.preserve-whitespace { white-space: pre-line; }
+.text-monospace { 
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+.full-width-important {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 100% !important;
+}
+
+// Banner styles
+.banner-warning {
+  background: #fff3cd;
+  color: #856404;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid #ffeaa7;
+}

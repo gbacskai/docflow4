@@ -1,12 +1,24 @@
+// Polyfills required for AWS Amplify modules in test environment
+if (typeof (global as any) === 'undefined') {
+  (window as any).global = window;
+}
+if (typeof (process as any) === 'undefined') {
+  (window as any).process = { env: {} };
+}
+
 import { TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { ActivatedRoute, Router } from '@angular/router';
+import { FormBuilder } from '@angular/forms';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { AuthService, AuthUser } from './app/services/auth.service';
 import { AdminService } from './app/services/admin.service';
 import { UserDataService } from './app/services/user-data.service';
 import { UserManagementService } from './app/services/user-management.service';
+import { VersionedDataService } from './app/services/versioned-data.service';
+import { ChatService } from './app/services/chat.service';
+import { DynamicFormService } from './app/services/dynamic-form.service';
 import { Amplify } from 'aws-amplify';
 
 // Configure Amplify for tests using actual config
@@ -104,6 +116,34 @@ export class TestHelpers {
       updateLastLogin: jasmine.createSpy('updateLastLogin').and.returnValue(Promise.resolve({}))
     };
 
+    const mockVersionedDataService = {
+      getAllLatestVersions: jasmine.createSpy('getAllLatestVersions').and.returnValue(Promise.resolve({ success: true, data: [] })),
+      createVersionedRecord: jasmine.createSpy('createVersionedRecord').and.returnValue(Promise.resolve({ success: true, data: {} })),
+      updateVersionedRecord: jasmine.createSpy('updateVersionedRecord').and.returnValue(Promise.resolve({ success: true })),
+      deleteVersionedRecord: jasmine.createSpy('deleteVersionedRecord').and.returnValue(Promise.resolve({ success: true }))
+    };
+
+    const mockChatService = {
+      createChatRoomForProject: jasmine.createSpy('createChatRoomForProject').and.returnValue(Promise.resolve({ success: true })),
+      connect: jasmine.createSpy('connect').and.returnValue(Promise.resolve()),
+      disconnect: jasmine.createSpy('disconnect').and.returnValue(Promise.resolve())
+    };
+
+    const mockDynamicFormService = {
+      isFormValid: jasmine.createSpy('isFormValid').and.returnValue(true),
+      getFormValue: jasmine.createSpy('getFormValue').and.returnValue({}),
+      patchFormValue: jasmine.createSpy('patchFormValue'),
+      generateDynamicFormSchema: jasmine.createSpy('generateDynamicFormSchema'),
+      setupFormChangeListeners: jasmine.createSpy('setupFormChangeListeners'),
+      markAllFieldsAsTouched: jasmine.createSpy('markAllFieldsAsTouched'),
+      resetForm: jasmine.createSpy('resetForm'),
+      loadWorkflowRulesFromText: jasmine.createSpy('loadWorkflowRulesFromText'),
+      loadWorkflowRulesForDocumentType: jasmine.createSpy('loadWorkflowRulesForDocumentType'),
+      uploadFilesForDocument: jasmine.createSpy('uploadFilesForDocument').and.returnValue(Promise.resolve({})),
+      workflowRules: signal([]),
+      fileObjects: signal({})
+    };
+
     return {
       providers: [
         { provide: AuthService, useValue: mockAuthService },
@@ -111,7 +151,11 @@ export class TestHelpers {
         { provide: Router, useValue: mockRouter },
         { provide: AdminService, useValue: mockAdminService },
         { provide: UserDataService, useValue: mockUserDataService },
-        { provide: UserManagementService, useValue: mockUserManagementService }
+        { provide: UserManagementService, useValue: mockUserManagementService },
+        { provide: VersionedDataService, useValue: mockVersionedDataService },
+        { provide: ChatService, useValue: mockChatService },
+        { provide: DynamicFormService, useValue: mockDynamicFormService },
+        FormBuilder
       ],
       imports: [RouterTestingModule],
       mockAuthService,
@@ -119,7 +163,11 @@ export class TestHelpers {
       mockActivatedRoute,
       mockAdminService,
       mockUserDataService,
-      mockUserManagementService
+      mockUserManagementService,
+      mockVersionedDataService,
+      mockChatService,
+      mockDynamicFormService,
+      formBuilder: new FormBuilder()
     };
   }
 

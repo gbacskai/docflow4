@@ -39,13 +39,6 @@
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-icon">🏢</div>
-        <div class="kpi-content">
-          <div class="kpi-number">{{ totalDomains() }}</div>
-          <div class="kpi-label">Domains</div>
-        </div>
-      </div>
 
       <div class="kpi-card">
         <div class="kpi-icon">📄</div>
@@ -103,8 +96,8 @@
           <div class="stat-item">
             <div class="stat-icon">⚡</div>
             <div class="stat-content">
-              <div class="stat-value">{{ toFixed((totalDocumentTypes() / mathMax(totalDomains(), 1)), 1) }}</div>
-              <div class="stat-label">Avg Doc Types per Domain</div>
+              <div class="stat-value">{{ totalDocumentTypes() }}</div>
+              <div class="stat-label">Active Document Types</div>
             </div>
           </div>
           <div class="stat-item">
@@ -134,7 +127,6 @@
                 <div class="activity-content">
                   <div class="activity-title">{{ project.name }}</div>
                   <div class="activity-meta">
-                    <span class="activity-domain">{{ getDomainName(project.defaultDomain) }}</span>
                     <span class="activity-date">{{ formatDate(project.updatedAt || project.createdAt) }}</span>
                   </div>
                 </div>

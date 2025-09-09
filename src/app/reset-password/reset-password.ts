@@ -16,9 +16,11 @@ export class ResetPassword {
   private router = inject(Router);
 
   processing = signal(false);
-  errorMessage = signal('');
-  successMessage = signal('');
   resetCodeSent = signal(true); // Default to true to show all fields
+  
+  // Use service-based error and success messages (persistent across component recreations)
+  errorMessage = this.authService.authError;
+  successMessage = this.authService.authSuccess;
 
   resetForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -46,14 +48,13 @@ export class ResetPassword {
   }
 
   private clearMessages() {
-    this.errorMessage.set('');
-    this.successMessage.set('');
+    this.authService.clearAuthMessages();
   }
 
   async onResetRequest() {
     const email = this.resetForm.get('email')?.value;
     if (!email) {
-      this.errorMessage.set('Please enter your email address');
+      this.authService.setAuthError('Please enter your email address');
       return;
     }
 
@@ -64,15 +65,12 @@ export class ResetPassword {
 
     if (result.success) {
       this.resetCodeSent.set(true);
-      this.successMessage.set('Reset code sent to your email. Please check your email and enter the code below.');
+      this.authService.setAuthSuccess('Reset code sent to your email. Please check your email and enter the code below.');
     } else {
-      this.errorMessage.set(result.error || 'Failed to send reset code');
+      this.authService.setAuthError(result.error || 'Failed to send reset code');
     }
 
     this.processing.set(false);
-    
-    // Ensure we stay on reset page
-    console.log('🔐 Reset password request completed, staying on reset page');
   }
 
   async onResetConfirm() {
@@ -85,7 +83,7 @@ export class ResetPassword {
     const result = await this.authService.confirmResetPassword(email, confirmationCode, newPassword);
 
     if (result.success) {
-      this.successMessage.set('Password reset successful! Redirecting to sign in...');
+      this.authService.setAuthSuccess('Password reset successful! Redirecting to sign in...');
       this.resetForm.reset();
       this.resetCodeSent.set(false);
       setTimeout(() => {
@@ -94,7 +92,7 @@ export class ResetPassword {
         });
       }, 3000);
     } else {
-      this.errorMessage.set(result.error || 'Password reset failed');
+      this.authService.setAuthError(result.error || 'Password reset failed');
       this.resetForm.patchValue({ 
         confirmationCode: '',
         newPassword: '',

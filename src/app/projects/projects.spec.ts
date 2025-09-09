@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ReactiveFormsModule } from '@angular/forms';
 import { TestHelpers } from '../../test-helpers';
 
 import { Projects } from './projects';
@@ -9,12 +10,11 @@ describe('Projects', () => {
 
   beforeEach(async () => {
     const testConfig = TestHelpers.configureTestingModule();
-    
+
     await TestBed.configureTestingModule({
-      imports: [Projects, ...testConfig.imports],
+      imports: [Projects, ReactiveFormsModule, ...testConfig.imports],
       providers: testConfig.providers
-    })
-    .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(Projects);
     component = fixture.componentInstance;

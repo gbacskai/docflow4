@@ -1,0 +1,208 @@
+@import '../../../styles.less';
+
+// Enhanced form groups with validation
+.form-group-enhanced {
+  margin-bottom: 1rem;
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: @black-color;
+    font-weight: @font-weight-semi;
+  }
+  
+  input, textarea, select {
+    .form-control;
+    transition: all 0.3s ease;
+    
+    &:focus {
+      border-color: @primary-color;
+      box-shadow: 0 0 0 3px rgba(@primary-color, 0.1);
+      outline: none;
+    }
+    
+    &.error { border-color: #e74c3c; }
+  }
+  
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+    
+    &.definition-textarea {
+      min-height: 250px;
+      font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      width: 100% !important;
+      max-width: none !important;
+      box-sizing: border-box;
+    }
+    
+    &.validation-rules-input {
+      min-height: 80px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      
+      &.validation-error {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2) !important;
+        background-color: #fff5f5;
+      }
+    }
+  }
+  
+  .error-message {
+    color: @danger-color;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+    background-color: #ffeaea;
+    border: 1px solid @danger-color;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  
+  small, .help-text {
+    display: block;
+    margin-top: 0.25rem;
+    color: @dark-gray;
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+
+  // Full width form groups
+  &.full-width-group {
+    width: 100%;
+    max-width: none;
+    
+    textarea {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0;
+    }
+  }
+}
+
+// Form row layouts
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-row-flex {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+}
+
+// Form actions
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  
+  &.with-border {
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+  }
+  
+  button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: @font-weight-semi;
+    transition: all 0.3s ease;
+    
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+  
+  .btn-cancel {
+    background: #95a5a6;
+    color: white;
+    &:hover:not(:disabled) { background: #7f8c8d; }
+  }
+  
+  .btn-submit {
+    background: @primary-color;
+    color: white;
+    &:hover:not(:disabled) { background: darken(@primary-color, 10%); }
+  }
+}
+
+// Validation results display
+.validation-results {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+
+  .validation-result-item {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: 'Courier New', monospace;
+    background: #e9ecef;
+    color: #495057;
+    
+    &:last-child { margin-bottom: 0; }
+    
+    &.result-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    &.result-warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    
+    &.result-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      font-weight: 500;
+    }
+  }
+}
+
+// Validation help text
+.validation-help {
+  margin-top: 0.5rem;
+  
+  small {
+    display: block;
+    color: #6c757d;
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+    
+    code {
+      background: #f8f9fa;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      color: #e83e8c;
+    }
+  }
+}

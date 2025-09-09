@@ -13,6 +13,7 @@ import {
   type SignUpOutput 
 } from 'aws-amplify/auth';
 import { UserManagementService } from './user-management.service';
+import { ExternalUserService } from './external-user.service';
 
 export interface AuthUser {
   userId: string;
@@ -40,12 +41,17 @@ export class AuthService {
   private _isLoading = signal<boolean>(false);
   private _isAuthenticated = signal<boolean>(false);
   private _testMode = signal<boolean>(false);
+  private _authError = signal<string>('');
+  private _authSuccess = signal<string>('');
   private userManagementService = inject(UserManagementService);
+  private externalUserService = inject(ExternalUserService);
 
   // Public readonly signals
   currentUser = this._currentUser.asReadonly();
   isLoading = this._isLoading.asReadonly();
   isAuthenticated = this._isAuthenticated.asReadonly();
+  authError = this._authError.asReadonly();
+  authSuccess = this._authSuccess.asReadonly();
 
   constructor() {
     this.initializeAuth();
@@ -62,20 +68,28 @@ export class AuthService {
         
         // Validate session is still active and not expired
         if (!session.tokens.accessToken || this.isTokenExpired(session.tokens.accessToken.toString())) {
-          console.log('🔐 Session expired, clearing authentication state');
           await this.signOut();
           return;
         }
         
         if (email) {
-          // Ensure user entry exists in User table and handle invitation merging
+          // Ensure user entry exists in external User table (custom tables)
+          await this.externalUserService.ensureUserEntry(
+            user.userId, 
+            email, 
+            user.username
+          );
+          
+          // Update last login time in external table
+          await this.externalUserService.updateLastLogin(user.userId);
+          
+          // Also maintain compatibility with existing GraphQL tables
           await this.userManagementService.ensureUserEntry(
             user.userId, 
             email, 
             user.username
           );
           
-          // Update last login time
           await this.userManagementService.updateLastLogin(user.userId);
         }
         
@@ -85,15 +99,8 @@ export class AuthService {
           email: email
         });
         this._isAuthenticated.set(true);
-        
-        console.log('🔐 User authenticated successfully:', {
-          userId: user.userId,
-          username: user.username,
-          email: email
-        });
       }
     } catch (error) {
-      console.log('No authenticated user found:', error);
       this._currentUser.set(null);
       this._isAuthenticated.set(false);
     } finally {
@@ -107,7 +114,6 @@ export class AuthService {
       const currentTime = Math.floor(Date.now() / 1000);
       return tokenPayload.exp < currentTime;
     } catch (error) {
-      console.error('Error checking token expiration:', error);
       return true; // Assume expired if we can't parse
     }
   }
@@ -135,7 +141,6 @@ export class AuthService {
         };
       }
     } catch (error: any) {
-      console.error('Sign up error:', error);
       
       // Handle specific error cases
       let errorMessage = error.message || 'Sign up failed';
@@ -156,7 +161,6 @@ export class AuthService {
 
   async confirmSignUp(email: string, confirmationCode: string): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log('Auth service: Starting confirmSignUp, current auth state:', this._isAuthenticated());
       this._isLoading.set(true);
       
       await confirmSignUp({
@@ -164,13 +168,8 @@ export class AuthService {
         confirmationCode
       });
 
-      console.log('Auth service: confirmSignUp successful');
       return { success: true };
     } catch (error: any) {
-      console.error('Confirmation error:', error);
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-      console.log('Auth service: confirmSignUp failed, current auth state:', this._isAuthenticated());
       
       // Handle specific error cases
       let errorMessage = error.message || 'Confirmation failed';
@@ -190,7 +189,6 @@ export class AuthService {
       };
     } finally {
       this._isLoading.set(false);
-      console.log('Auth service: confirmSignUp finished, final auth state:', this._isAuthenticated(), 'loading:', this._isLoading());
     }
   }
 
@@ -202,15 +200,12 @@ export class AuthService {
         username: email
       });
 
-      console.log('🔐 Resend confirmation code sent successfully for:', email);
       return { success: true };
     } catch (error: any) {
-      console.error('Resend code error:', error);
       
       // Handle specific AWS Amplify errors that might cause redirects
       if (error.name === 'UserNotFoundException') {
         // Return success even for non-existent users (security best practice)
-        console.log('🔐 User not found, but returning success for security');
         return { success: true };
       }
       
@@ -229,7 +224,6 @@ export class AuthService {
       }
       
       // For any other error, return success (security best practice)
-      console.log('🔐 Unknown error, but returning success for security:', error.name);
       return { success: true };
     } finally {
       this._isLoading.set(false);
@@ -244,14 +238,12 @@ export class AuthService {
       try {
         const existingUser = await getCurrentUser();
         if (existingUser) {
-          console.log('🔐 Existing session found, signing out first');
           await signOut();
           this._currentUser.set(null);
           this._isAuthenticated.set(false);
         }
       } catch (error) {
         // No existing user, proceed with sign in
-        console.log('🔐 No existing session found');
       }
 
       const { isSignedIn, nextStep } = await signIn({
@@ -260,36 +252,61 @@ export class AuthService {
       });
 
       if (isSignedIn) {
+        this.clearAuthMessages();
         await this.initializeAuth(); // This will handle user entry management
         return { success: true };
       } else {
+        const errorMsg = 'Sign in incomplete - additional steps required';
+        this.setAuthError(errorMsg);
         return { 
           success: false, 
-          error: 'Sign in incomplete - additional steps required' 
+          error: errorMsg 
         };
       }
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      console.error('SignIn Error Details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        statusCode: error.$metadata?.httpStatusCode,
+        requestId: error.$metadata?.requestId,
+        stack: error.stack
+      });
       
       // Handle specific "already signed in" error
       if (error.message?.includes('already') && error.message?.includes('signed')) {
         try {
-          console.log('🔐 Handling already signed in error, clearing session');
           await signOut();
           this._currentUser.set(null);
           this._isAuthenticated.set(false);
+          const errorMsg = 'Session conflict detected. Please try signing in again.';
+          this.setAuthError(errorMsg);
           return { 
             success: false, 
-            error: 'Session conflict detected. Please try signing in again.' 
+            error: errorMsg 
           };
         } catch (signOutError) {
-          console.error('Error during cleanup:', signOutError);
+          console.error('SignOut Error:', signOutError);
         }
       }
       
+      // Handle specific Cognito errors
+      let errorMessage = error.message || 'Sign in failed';
+      
+      if (error.name === 'NotAuthorizedException') {
+        errorMessage = 'Invalid email or password. Please check your credentials.';
+      } else if (error.name === 'UserNotConfirmedException') {
+        errorMessage = 'Account not verified. Please check your email for verification code.';
+      } else if (error.name === 'TooManyRequestsException') {
+        errorMessage = 'Too many attempts. Please wait before trying again.';
+      } else if (error.name === 'UserNotFoundException') {
+        errorMessage = 'User not found. Please check your email address.';
+      }
+      
+      this.setAuthError(errorMessage);
       return { 
         success: false, 
-        error: error.message || 'Sign in failed' 
+        error: errorMessage 
       };
     } finally {
       this._isLoading.set(false);
@@ -303,16 +320,13 @@ export class AuthService {
       if (global) {
         // Sign out from all devices/sessions
         await signOut({ global: true });
-        console.log('🔐 Global sign out completed - all sessions terminated');
       } else {
         await signOut();
-        console.log('🔐 Local sign out completed');
       }
       
       this._currentUser.set(null);
       this._isAuthenticated.set(false);
     } catch (error) {
-      console.error('Sign out error:', error);
       // Even if signOut fails, clear local state
       this._currentUser.set(null);
       this._isAuthenticated.set(false);
@@ -330,7 +344,6 @@ export class AuthService {
       await this.signOut(true);
       return { success: true };
     } catch (error: any) {
-      console.error('Force global sign out error:', error);
       return { 
         success: false, 
         error: error.message || 'Failed to sign out globally' 
@@ -347,7 +360,6 @@ export class AuthService {
       
       return !this.isTokenExpired(session.tokens.accessToken.toString());
     } catch (error) {
-      console.log('Session validation failed:', error);
       return false;
     }
   }
@@ -365,6 +377,22 @@ export class AuthService {
     return this._currentUser()?.username;
   }
 
+  // Error and success message management
+  setAuthError(message: string): void {
+    this._authError.set(message);
+    this._authSuccess.set(''); // Clear success message
+  }
+
+  setAuthSuccess(message: string): void {
+    this._authSuccess.set(message);
+    this._authError.set(''); // Clear error message
+  }
+
+  clearAuthMessages(): void {
+    this._authError.set('');
+    this._authSuccess.set('');
+  }
+
 
   // Test mode methods (only for testing)
   enableTestMode(mockUser?: AuthUser): void {
@@ -377,7 +405,6 @@ export class AuthService {
         email: 'test@example.com',
         emailVerified: true
       });
-      console.log('🧪 Test mode enabled with mock authentication');
     }
   }
 
@@ -386,7 +413,6 @@ export class AuthService {
       this._testMode.set(false);
       this._isAuthenticated.set(false);
       this._currentUser.set(null);
-      console.log('🧪 Test mode disabled');
     }
   }
 
@@ -398,15 +424,12 @@ export class AuthService {
         username: email
       });
 
-      console.log('🔐 Reset password code sent successfully for:', email);
       return { success: true };
     } catch (error: any) {
-      console.error('Reset password error:', error);
       
       // Handle specific AWS Amplify errors that might cause redirects
       if (error.name === 'UserNotFoundException') {
         // Return success even for non-existent users (security best practice)
-        console.log('🔐 User not found, but returning success for security');
         return { success: true };
       }
       
@@ -425,7 +448,6 @@ export class AuthService {
       }
       
       // For any other error, return success (security best practice)
-      console.log('🔐 Unknown error, but returning success for security:', error.name);
       return { success: true };
     } finally {
       this._isLoading.set(false);
@@ -444,7 +466,6 @@ export class AuthService {
 
       return { success: true };
     } catch (error: any) {
-      console.error('Confirm reset password error:', error);
       
       let errorMessage = error.message || 'Password reset failed';
       
