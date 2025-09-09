@@ -139,9 +139,7 @@ const schema = a.schema({
   // Temporarily disable external operations to fix deployment
   // TODO: Re-enable external operations once resolver issues are resolved
 
-  // TypeScript-only model definitions - these provide types but don't create tables
-  // since we override the data sources to point to our custom tables in backend.ts
-  // NOTE: These models may still create auto-generated tables in some cases
+  // Model definitions - resolvers will be redirected in backend.ts
   Project: a.model({
       id: a.string().required(),
       version: a.datetime().required(),
@@ -288,6 +286,7 @@ const schema = a.schema({
     })
     .identifier(['id', 'version'])
     .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+
 
   // AI-powered workflow validation
   validateWorkflow: a.generation({

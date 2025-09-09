@@ -26,7 +26,7 @@
     "css:analyze": "echo 'Analyzing CSS bundle sizes...' && find src -name '*.less' -exec wc -c {} + | sort -n",
     "css:optimize": "node optimize-css.js",
     "css:restore": "find src -name '*.backup' -exec sh -c 'mv \"$1\" \"${1%.backup}\"' _ {} \\;",
-    "sandbox": "export AWS_BRANCH=sandbox; npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00009"
+    "sandbox": "export AWS_BRANCH=sandbox; npx ampx sandbox --profile aws_amplify_docflow4 --identifier 00012"
   },
   "prettier": {
     "printWidth": 100,
@@ -55,6 +55,7 @@
     "@aws-sdk/client-apigatewaymanagementapi": "^3.873.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.879.0",
     "@aws-sdk/client-dynamodb": "^3.873.0",
+    "@aws-sdk/credential-providers": "^3.883.0",
     "@aws-sdk/lib-dynamodb": "^3.873.0",
     "aws-amplify": "^6.15.5",
     "mocha": "^11.7.2",

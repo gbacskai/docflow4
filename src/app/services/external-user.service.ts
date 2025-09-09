@@ -78,20 +78,27 @@ export class ExternalUserService {
   }
   
   /**
-   * Find user by Cognito user ID
+   * Find user by Cognito user ID using GraphQL API
    */
   private async findUserByCognitoId(cognitoUserId: string): Promise<ExternalUser | null> {
     try {
-      const result = await this.client.models.User.list();
+      console.log(`🔍 Searching for user with cognitoUserId: ${cognitoUserId}`);
       
-      if (!result.data) {
+      const { data } = await this.client.models.User.list({
+        filter: {
+          cognitoUserId: {
+            eq: cognitoUserId
+          }
+        }
+      });
+      
+      if (!data || data.length === 0) {
+        console.log(`❌ No user found with cognitoUserId: ${cognitoUserId}`);
         return null;
       }
       
-      const users = result.data;
-      const user = users.find(user => user.cognitoUserId === cognitoUserId);
-      
-      return user ? user as ExternalUser : null;
+      console.log(`✅ Found user: ${data[0].id}`);
+      return data[0] as ExternalUser;
     } catch (error) {
       console.error('Error finding user by Cognito ID:', error);
       return null;
@@ -99,23 +106,36 @@ export class ExternalUserService {
   }
   
   /**
-   * Find user by email address (typically invitation records)
+   * Find user by email address (typically invitation records) using GraphQL API
    */
   private async findUserByEmail(email: string): Promise<ExternalUser | null> {
     try {
-      const result = await this.client.models.User.list();
+      console.log(`🔍 Searching for invited user with email: ${email}`);
       
-      if (!result.data) {
+      const { data } = await this.client.models.User.list({
+        filter: {
+          and: [
+            {
+              email: {
+                eq: email.toLowerCase()
+              }
+            },
+            {
+              status: {
+                eq: 'invited'
+              }
+            }
+          ]
+        }
+      });
+      
+      if (!data || data.length === 0) {
+        console.log(`❌ No invited user found with email: ${email}`);
         return null;
       }
       
-      const users = result.data;
-      const user = users.find(user => 
-        user.email && user.email.toLowerCase() === email.toLowerCase() &&
-        user.status === 'invited'
-      );
-      
-      return user ? user as ExternalUser : null;
+      console.log(`✅ Found invited user: ${data[0].id}`);
+      return data[0] as ExternalUser;
     } catch (error) {
       console.error('Error finding user by email:', error);
       return null;
@@ -123,7 +143,7 @@ export class ExternalUserService {
   }
   
   /**
-   * Create a new user record from an existing invitation
+   * Create a new user record from an existing invitation using GraphQL API
    */
   private async createUserFromInvitation(
     cognitoUserId: string, 
@@ -135,32 +155,35 @@ export class ExternalUserService {
     const isFirst = await this.isFirstUser();
     const userType = isFirst ? 'admin' : (invitationRecord.userType || 'client');
     
-    const result = await this.client.models.User.create({
+    const newUserData = {
       id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      version: new Date().toISOString(),
       email: invitationRecord.email,
       firstName: invitationRecord.firstName || '',
       lastName: invitationRecord.lastName || '',
-      userType: userType,
+      userType: userType as 'admin' | 'client' | 'provider',
       interestedDocumentTypes: invitationRecord.interestedDocumentTypes || [],
-      status: 'active', // Change from 'invited' to 'active'
+      status: 'active' as const, // Change from 'invited' to 'active'
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
       lastLoginAt: new Date().toISOString(),
-      version: new Date().toISOString()
-    });
+      active: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     
-    if (!result.data) {
-      throw new Error('Failed to create user from invitation');
-    }
+    console.log(`💾 Creating user:`, newUserData.id);
+    
+    const { data } = await this.client.models.User.create(newUserData);
     
     console.log(isFirst ? '👑 First user created as admin' : '👤 User created from invitation');
     
-    return result.data as ExternalUser;
+    return data as ExternalUser;
   }
   
   /**
-   * Create a completely new user record (no prior invitation)
+   * Create a completely new user record (no prior invitation) using GraphQL API
    */
   private async createNewUser(
     cognitoUserId: string, 
@@ -171,48 +194,58 @@ export class ExternalUserService {
     // Check if this is the first user - if so, make them an admin
     const userType = await this.isFirstUser() ? 'admin' : 'client';
     
-    const result = await this.client.models.User.create({
+    const newUserData = {
       id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      version: new Date().toISOString(),
       email: email,
       firstName: '',
       lastName: '',
-      userType: userType,
+      userType: userType as 'admin' | 'client' | 'provider',
       interestedDocumentTypes: [],
-      status: 'active',
+      status: 'active' as const,
       cognitoUserId: cognitoUserId, // Link to Cognito user
       lastLoginAt: new Date().toISOString(),
-      version: new Date().toISOString()
-    });
+      active: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     
-    if (!result.data) {
-      throw new Error('Failed to create new user');
-    }
+    console.log(`💾 Creating new user:`, newUserData.id);
+    
+    const { data } = await this.client.models.User.create(newUserData);
     
     console.log(userType === 'admin' ? '👑 First user created as admin' : '👤 New user created');
     
-    return result.data as ExternalUser;
+    return data as ExternalUser;
   }
   
   /**
-   * Check if this is the first user in the system
+   * Check if this is the first user in the system using GraphQL API
    */
   private async isFirstUser(): Promise<boolean> {
     try {
-      const result = await this.client.models.User.list();
+      console.log(`🔍 Checking for existing active users`);
       
-      if (!result.data) {
-        return true; // No users found, so this would be the first
-      }
+      const { data } = await this.client.models.User.list({
+        filter: {
+          and: [
+            {
+              status: {
+                eq: 'active'
+              }
+            },
+            {
+              cognitoUserId: {
+                attributeExists: true
+              }
+            }
+          ]
+        }
+      });
       
-      const users = result.data;
-      
-      // Count users who have status 'active' and are linked to Cognito accounts
-      const activeUsers = users.filter(user => 
-        user.status === 'active' && user.cognitoUserId
-      );
-      
-      const isFirst = activeUsers.length === 0;
-      console.log(`🔢 Active users count: ${activeUsers.length}, isFirst: ${isFirst}`);
+      const activeUserCount = data?.length || 0;
+      const isFirst = activeUserCount === 0;
+      console.log(`🔢 Active users count: ${activeUserCount}, isFirst: ${isFirst}`);
       
       return isFirst;
     } catch (error) {
@@ -222,18 +255,20 @@ export class ExternalUserService {
   }
   
   /**
-   * Update last login time for existing user
+   * Update last login time for existing user using GraphQL API
    */
   async updateLastLogin(cognitoUserId: string): Promise<void> {
     try {
       const user = await this.findUserByCognitoId(cognitoUserId);
       
       if (user) {
-        await this.client.models.User.update({
+        const { data } = await this.client.models.User.update({
           id: user.id,
           version: user.version,
-          lastLoginAt: new Date().toISOString()
+          lastLoginAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
+        
         console.log('✅ Updated last login time for user:', user.id);
       }
     } catch (error) {
@@ -243,31 +278,46 @@ export class ExternalUserService {
   }
   
   /**
-   * Clean up any remaining non-Cognito user records with the same email
+   * Clean up any remaining non-Cognito user records with the same email using GraphQL API
    */
   private async cleanupNonCognitoRecords(email: string, currentCognitoUserId: string): Promise<void> {
     try {
       console.log('🧹 Cleaning up non-Cognito records for:', email);
       
-      const result = await this.client.models.User.list();
-      if (!result.data) {
+      const { data } = await this.client.models.User.list({
+        filter: {
+          and: [
+            {
+              email: {
+                eq: email.toLowerCase()
+              }
+            },
+            {
+              or: [
+                {
+                  cognitoUserId: {
+                    attributeExists: false
+                  }
+                },
+                {
+                  cognitoUserId: {
+                    ne: currentCognitoUserId
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      });
+      
+      if (!data || data.length === 0) {
         return;
       }
       
-      const users = result.data;
+      console.log(`🗑️ Found ${data.length} records to clean up`);
       
-      // Find records to delete: same email BUT wrong cognitoUserId (including null/undefined)
-      const recordsToDelete = users.filter(user => {
-        const sameEmail = user.email && user.email.toLowerCase() === email.toLowerCase();
-        const hasCorrectCognitoUserId = user.cognitoUserId === currentCognitoUserId;
-        
-        return sameEmail && !hasCorrectCognitoUserId;
-      });
-      
-      console.log(`🗑️ Found ${recordsToDelete.length} records to clean up`);
-      
-      // For now, we'll just log this - implementing deletion would require additional resolvers
-      recordsToDelete.forEach(record => {
+      // For now, we'll just log this - implementing deletion would require additional operations
+      data.forEach(record => {
         console.log(`🗑️ Would delete record: ${record.id} (${record.email})`);
       });
       
