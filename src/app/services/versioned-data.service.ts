@@ -21,7 +21,7 @@ export class VersionedDataService {
   private directDB = inject(DirectDynamoDBService);
   
   // Flag to use direct DynamoDB instead of GraphQL
-  private useDirectDB = true;
+  private useDirectDB = false;
 
   generateTimestamp(): string {
     return new Date().toISOString();

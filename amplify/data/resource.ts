@@ -155,7 +155,10 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
   Document: a.model({
       id: a.string().required(),
@@ -168,7 +171,10 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
   User: a.model({
       id: a.string().required(),
@@ -190,7 +196,10 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
   DocumentType: a.model({
       id: a.string().required(),
@@ -210,7 +219,10 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
   Workflow: a.model({
       id: a.string().required(),
@@ -226,7 +238,10 @@ const schema = a.schema({
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
   ChatRoom: a.model({
       id: a.string().required(),
@@ -256,7 +271,10 @@ const schema = a.schema({
       lastActivityAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
   ChatMessage: a.model({
       id: a.string().required(),
@@ -285,7 +303,10 @@ const schema = a.schema({
       editedAt: a.datetime()
     })
     .identifier(['id', 'version'])
-    .authorization(allow => [allow.publicApiKey().to(['create', 'read', 'update', 'delete'])]),
+    .authorization(allow => [
+      allow.publicApiKey().to(['create', 'read', 'update', 'delete']),
+      allow.authenticated().to(['create', 'read', 'update', 'delete'])
+    ]),
 
 
   // AI-powered workflow validation
@@ -342,7 +363,7 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'apiKey',
+    defaultAuthorizationMode: 'userPool',
     apiKeyAuthorizationMode: { expiresInDays: 30 }
   }
 });
