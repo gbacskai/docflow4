@@ -74,6 +74,16 @@ export class Admin implements OnInit {
     documents: false,
     conflictResolution: 'ignore' as 'ignore' | 'update'
   };
+
+  clearOptions = {
+    documentTypes: false,
+    workflows: false,
+    projects: false,
+    documents: false,
+    users: false,
+    chatRooms: false,
+    chatMessages: false
+  };
   
   // Form data
   exportForm: ExportRequest = {
@@ -231,8 +241,8 @@ export class Admin implements OnInit {
       // Mock export data
       const mockData = {
         Projects: [
-          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15' },
-          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10' },
+          { id: '1', name: 'Website Redesign', status: 'active' },
+          { id: '2', name: 'Mobile App', status: 'active' },
         ],
         DocumentTypes: [
           { id: '1', name: 'Requirements' },
@@ -650,6 +660,10 @@ export class Admin implements OnInit {
     return this.restoreOptions.documentTypes || this.restoreOptions.workflows || this.restoreOptions.projects || this.restoreOptions.documents;
   }
 
+  hasClearSelection(): boolean {
+    return this.clearOptions.documentTypes || this.clearOptions.workflows || this.clearOptions.projects || this.clearOptions.documents || this.clearOptions.users || this.clearOptions.chatRooms || this.clearOptions.chatMessages;
+  }
+
   async createBackup() {
     if (!this.hasBackupSelection()) {
       alert('Please select at least one data type to backup.');
@@ -835,7 +849,7 @@ export class Admin implements OnInit {
             const allDocTypes = existingResult.success ? existingResult.data || [] : [];
             const existingDocTypes = allDocTypes.filter(dt => dt.identifier === docType.identifier);
             
-            const { id, createdAt, updatedAt, ...updateData } = docType;
+            const { id, updatedAt, ...updateData } = docType;
             
             if (existingDocTypes && existingDocTypes.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -857,7 +871,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -884,7 +897,7 @@ export class Admin implements OnInit {
             const allWorkflows = existingResult.success ? existingResult.data || [] : [];
             const existingWorkflows = allWorkflows.filter(w => w.identifier === workflow.identifier);
             
-            const { id, createdAt, updatedAt, ...updateData } = workflow;
+            const { id, updatedAt, ...updateData } = workflow;
             
             if (existingWorkflows && existingWorkflows.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -906,7 +919,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('Workflow', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -933,7 +945,7 @@ export class Admin implements OnInit {
             const allProjects = existingResult.success ? existingResult.data || [] : [];
             const existingProjects = allProjects.filter(p => p.identifier === project.identifier);
             
-            const { id, createdAt, updatedAt, ...updateData } = project;
+            const { id, updatedAt, ...updateData } = project;
             
             if (existingProjects && existingProjects.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -955,7 +967,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('Project', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -984,7 +995,7 @@ export class Admin implements OnInit {
               d.projectId === document.projectId && d.documentType === document.documentType
             );
             
-            const { id, createdAt, updatedAt, ...updateData } = document;
+            const { id, updatedAt, ...updateData } = document;
             
             if (existingDocuments && existingDocuments.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -1006,7 +1017,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('Document', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -1207,6 +1217,182 @@ export class Admin implements OnInit {
       console.error('Clear database failed:', error);
       this.clearDatabaseStatus.set('❌ Clear database failed: ' + (error as Error).message);
       this.errorMessage.set('Failed to clear database: ' + (error as Error).message);
+    } finally {
+      this.clearDatabaseLoading.set(false);
+    }
+  }
+
+  async clearSelectedTables() {
+    if (!this.hasClearSelection()) {
+      alert('Please select at least one table to clear.');
+      return;
+    }
+
+    const selectedTables = [];
+    if (this.clearOptions.documentTypes) selectedTables.push('Document Types');
+    if (this.clearOptions.workflows) selectedTables.push('Workflows');
+    if (this.clearOptions.projects) selectedTables.push('Projects');
+    if (this.clearOptions.documents) selectedTables.push('Documents');
+    if (this.clearOptions.users) selectedTables.push('Users');
+    if (this.clearOptions.chatRooms) selectedTables.push('Chat Rooms');
+    if (this.clearOptions.chatMessages) selectedTables.push('Chat Messages');
+
+    const confirmClear = confirm(
+      `This will permanently delete ALL data from the following tables:\n` +
+      `• ${selectedTables.join('\n• ')}\n\n` +
+      'This operation will delete EVERY version of EVERY record and cannot be undone. Are you absolutely sure you want to proceed?'
+    );
+
+    if (!confirmClear) {
+      return;
+    }
+
+    // Double confirmation for safety
+    const doubleConfirm = confirm(
+      'FINAL WARNING: This will delete your selected data permanently. Click OK to continue.'
+    );
+
+    if (!doubleConfirm) {
+      return;
+    }
+
+    this.clearDatabaseLoading.set(true);
+    this.clearDatabaseStatus.set('Starting selective table clear operation...');
+    this.errorMessage.set('');
+
+    try {
+      const client = generateClient<Schema>();
+      let deletedCount = 0;
+      const errors: string[] = [];
+
+      // Clear tables in dependency order (dependent tables first)
+      if (this.clearOptions.documents) {
+        this.clearDatabaseStatus.set('Clearing Documents (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('Document');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Document records (all versions)...`);
+          } else {
+            errors.push(`Documents: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Documents: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.projects) {
+        this.clearDatabaseStatus.set('Clearing Projects (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('Project');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Project records (all versions)...`);
+          } else {
+            errors.push(`Projects: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Projects: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.workflows) {
+        this.clearDatabaseStatus.set('Clearing Workflows (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('Workflow');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Workflow records (all versions)...`);
+          } else {
+            errors.push(`Workflows: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Workflows: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.documentTypes) {
+        this.clearDatabaseStatus.set('Clearing Document Types (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('DocumentType');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} DocumentType records (all versions)...`);
+          } else {
+            errors.push(`DocumentTypes: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`DocumentTypes: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.chatMessages) {
+        this.clearDatabaseStatus.set('Clearing Chat Messages (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatMessage');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatMessage records (all versions)...`);
+          } else {
+            errors.push(`ChatMessages: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`ChatMessages: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.chatRooms) {
+        this.clearDatabaseStatus.set('Clearing Chat Rooms (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatRoom');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatRoom records (all versions)...`);
+          } else {
+            errors.push(`ChatRooms: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`ChatRooms: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.users) {
+        this.clearDatabaseStatus.set('Clearing Users (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('User');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} User records (all versions)...`);
+          } else {
+            errors.push(`Users: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Users: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      // Show final results
+      if (this.clearOptions.users) {
+        this.clearDatabaseStatus.set('Note: Cognito user accounts require manual deletion from AWS Console...');
+      }
+
+      if (errors.length === 0) {
+        this.clearDatabaseStatus.set(
+          `✅ Successfully cleared selected tables.\n` +
+          `Total records deleted: ${deletedCount}\n` +
+          `Selected tables have been cleared.`
+        );
+      } else {
+        this.clearDatabaseStatus.set(
+          `⚠️ Clear operation completed with errors:\n` +
+          `Total records deleted: ${deletedCount}\n` +
+          `Errors:\n• ${errors.join('\n• ')}`
+        );
+      }
+    } catch (error) {
+      console.error('Clear database error:', error);
+      this.clearDatabaseStatus.set('❌ Clear database failed: ' + (error as Error).message);
+      this.errorMessage.set('Clear database operation failed');
     } finally {
       this.clearDatabaseLoading.set(false);
     }

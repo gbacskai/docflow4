@@ -17,7 +17,6 @@ export interface ExternalUser {
   createdBy?: string;
   invitedAt?: string;
   active: boolean;
-  createdAt: string;
   updatedAt: string;
 }
 
@@ -167,7 +166,6 @@ export class ExternalUserService {
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
       active: true,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
@@ -203,7 +201,6 @@ export class ExternalUserService {
       status: 'active' as const,
       cognitoUserId: cognitoUserId, // Link to Cognito user
       active: true,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     

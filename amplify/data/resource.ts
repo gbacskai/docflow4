@@ -14,7 +14,6 @@ const schema = a.schema({
     workflowId: a.string(),
     status: a.string(),
     active: a.boolean(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime()
   }),
   
@@ -34,7 +33,6 @@ const schema = a.schema({
     invitedAt: a.datetime(),
     lastLoginAt: a.datetime(),
     active: a.boolean(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime()
   }),
   
@@ -45,7 +43,6 @@ const schema = a.schema({
     documentType: a.string().required(),
     formData: a.string(),
     active: a.boolean(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime()
   }),
   
@@ -63,7 +60,6 @@ const schema = a.schema({
     active: a.boolean(),
     usageCount: a.integer(),
     templateCount: a.integer(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime()
   }),
   
@@ -77,7 +73,6 @@ const schema = a.schema({
     actors: a.string().array(),
     isActive: a.boolean(),
     active: a.boolean(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime()
   }),
   
@@ -104,7 +99,6 @@ const schema = a.schema({
     isArchived: a.boolean(),
     allowFileSharing: a.boolean(),
     maxParticipants: a.integer(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime(),
     lastActivityAt: a.datetime()
   }),
@@ -131,7 +125,6 @@ const schema = a.schema({
     replyToMessageId: a.string(),
     threadId: a.string(),
     active: a.boolean(),
-    createdAt: a.datetime(),
     updatedAt: a.datetime(),
     editedAt: a.datetime()
   }),
@@ -151,7 +144,6 @@ const schema = a.schema({
       workflowId: a.string(),
       status: a.enum(['active', 'completed', 'archived']),
       active: a.boolean().default(true),
-      createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
@@ -167,7 +159,6 @@ const schema = a.schema({
       documentType: a.string().required(),
       formData: a.string(),
       active: a.boolean().default(true),
-      createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
@@ -192,7 +183,6 @@ const schema = a.schema({
       invitedAt: a.datetime(),
       lastLoginAt: a.datetime(),
       active: a.boolean().default(true),
-      createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
@@ -215,7 +205,6 @@ const schema = a.schema({
       active: a.boolean().default(true),
       usageCount: a.integer(),
       templateCount: a.integer(),
-      createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
@@ -234,7 +223,6 @@ const schema = a.schema({
       actors: a.string().array(),
       isActive: a.boolean().default(true),
       active: a.boolean().default(true),
-      createdAt: a.datetime(),
       updatedAt: a.datetime()
     })
     .identifier(['id', 'version'])
@@ -266,7 +254,6 @@ const schema = a.schema({
       isArchived: a.boolean().default(false),
       allowFileSharing: a.boolean().default(true),
       maxParticipants: a.integer().default(50),
-      createdAt: a.datetime(),
       updatedAt: a.datetime(),
       lastActivityAt: a.datetime()
     })
@@ -298,7 +285,6 @@ const schema = a.schema({
       replyToMessageId: a.string(),
       threadId: a.string(),
       active: a.boolean().default(true),
-      createdAt: a.datetime(),
       updatedAt: a.datetime(),
       editedAt: a.datetime()
     })

@@ -18,7 +18,6 @@ describe('DocumentTypes', () => {
     description: 'Test Description',
     definition: '{"fields": []}',
     isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z'
   };
 
@@ -63,7 +62,6 @@ describe('DocumentTypes', () => {
     spyOn(component, 'createDocumentType').and.callFake(async (docType: any) => {
       await mockClient.models.DocumentType.create({
         ...docType,
-        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
     });

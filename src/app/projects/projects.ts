@@ -713,7 +713,6 @@ export class Projects implements OnInit, OnDestroy {
           lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
           userType: 'client',
           status: 'active',
-          createdAt: new Date().toISOString()
         }
       });
       
@@ -773,7 +772,7 @@ export class Projects implements OnInit, OnDestroy {
 
       try {
         if (this.currentMode() === 'create') {
-          await this.createProject(projectData);
+          await this.createProject(projectData as any);
         } else if (this.currentMode() === 'edit' && this.selectedProject()) {
           await this.updateProject(this.selectedProject()!.id, projectData);
         }
@@ -794,7 +793,7 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>) {
+  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'version' | 'updatedAt'>) {
     try {
       console.log('Creating project with data:', project);
       const client = generateClient<Schema>();
@@ -802,8 +801,7 @@ export class Projects implements OnInit, OnDestroy {
       // Create the project
       const projectResult = await this.versionedDataService.createVersionedRecord('Project', {
         data: {
-          ...project,
-          createdAt: new Date().toISOString()
+          ...project
         }
       });
       
@@ -898,7 +896,6 @@ export class Projects implements OnInit, OnDestroy {
                   projectId: createdProject.id,
                   documentType: docType.id,
                   formData: JSON.stringify(initialFormData),
-                  createdAt: new Date().toISOString()
                 }
               });
             } catch (error) {
@@ -908,7 +905,6 @@ export class Projects implements OnInit, OnDestroy {
                 data: {
                   projectId: createdProject.id,
                   documentType: docType.id,
-                  createdAt: new Date().toISOString()
                 }
               });
             }
@@ -930,7 +926,7 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async updateProject(id: string, updates: Omit<Partial<Schema['Project']['type']>, 'id' | 'ownerId' | 'createdAt'>) {
+  async updateProject(id: string, updates: Omit<Partial<Schema['Project']['type']>, 'id' | 'ownerId'>) {
     try {
       const result = await this.versionedDataService.updateVersionedRecord('Project', id, updates);
       
@@ -1026,7 +1022,6 @@ export class Projects implements OnInit, OnDestroy {
               projectId: project.id,
               documentType: docType.id,
               formData: JSON.stringify(initialFormData),
-              createdAt: new Date().toISOString()
             }
           });
 

@@ -142,7 +142,6 @@ export class UserManagementService {
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
-      createdAt: invitationRecord.createdAt || new Date().toISOString()
     };
     
     const result = await this.versionedDataService.createVersionedRecord('User', { data: newUserData });
@@ -195,7 +194,6 @@ export class UserManagementService {
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: null,
       invitedAt: null,
-      createdAt: new Date().toISOString()
     };
     
     const result = await this.versionedDataService.createVersionedRecord('User', { data: newUserData });
@@ -300,7 +298,6 @@ export class UserManagementService {
           interestedDocumentTypes: [],
           status: 'active',
           cognitoUserId: null, // No cognito ID - this should be cleaned up
-          createdAt: new Date().toISOString()
         }
       });
     } catch (error) {

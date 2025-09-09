@@ -522,8 +522,8 @@ export class WorkflowService {
       }
 
       const latestDocument = relevantDocuments.reduce((latest, current) => {
-        const currentDate = new Date(current.updatedAt || current.createdAt || Date.now());
-        const latestDate = new Date(latest.updatedAt || latest.createdAt || Date.now());
+        const currentDate = new Date(current.updatedAt || Date.now());
+        const latestDate = new Date(latest.updatedAt || Date.now());
         return currentDate > latestDate ? current : latest;
       });
 

@@ -475,169 +475,100 @@
       </div>
       
       <div class="table-clear-controls">
-        <h3>Clear Individual Tables:</h3>
-        <div class="table-buttons-grid">
-          <!-- Document Types -->
-          <div class="table-clear-item">
-            <button 
-              class="btn-table-clear" 
-              (click)="clearTable('DocumentType')" 
-              [disabled]="isTableClearing('DocumentType')"
-            >
-              @if (isTableClearing('DocumentType')) {
-                <span class="loading-spinner"></span>
-                Clearing...
-              } @else {
-                🗑️ Clear Document Types
-              }
-            </button>
-            @if (getTableStatus('DocumentType')) {
-              <div class="table-status-message">
-                <button 
-                  class="clear-status-btn" 
-                  (click)="clearSingleTableStatus('DocumentType')"
-                  title="Clear status">✕</button>
-                <pre>{{ getTableStatus('DocumentType') }}</pre>
-              </div>
-            }
-          </div>
-
-          <!-- Workflows -->
-          <div class="table-clear-item">
-            <button 
-              class="btn-table-clear" 
-              (click)="clearTable('Workflow')" 
-              [disabled]="isTableClearing('Workflow')"
-            >
-              @if (isTableClearing('Workflow')) {
-                <span class="loading-spinner"></span>
-                Clearing...
-              } @else {
-                🗑️ Clear Workflows
-              }
-            </button>
-            @if (getTableStatus('Workflow')) {
-              <div class="table-status-message">
-                <button 
-                  class="clear-status-btn" 
-                  (click)="clearSingleTableStatus('Workflow')"
-                  title="Clear status">✕</button>
-                <pre>{{ getTableStatus('Workflow') }}</pre>
-              </div>
-            }
-          </div>
-
-          <!-- Projects -->
-          <div class="table-clear-item">
-            <button 
-              class="btn-table-clear" 
-              (click)="clearTable('Project')" 
-              [disabled]="isTableClearing('Project')"
-            >
-              @if (isTableClearing('Project')) {
-                <span class="loading-spinner"></span>
-                Clearing...
-              } @else {
-                🗑️ Clear Projects
-              }
-            </button>
-            @if (getTableStatus('Project')) {
-              <div class="table-status-message">
-                <button 
-                  class="clear-status-btn" 
-                  (click)="clearSingleTableStatus('Project')"
-                  title="Clear status">✕</button>
-                <pre>{{ getTableStatus('Project') }}</pre>
-              </div>
-            }
-          </div>
-
-          <!-- Documents -->
-          <div class="table-clear-item">
-            <button 
-              class="btn-table-clear" 
-              (click)="clearTable('Document')" 
-              [disabled]="isTableClearing('Document')"
-            >
-              @if (isTableClearing('Document')) {
-                <span class="loading-spinner"></span>
-                Clearing...
-              } @else {
-                🗑️ Clear Documents
-              }
-            </button>
-            @if (getTableStatus('Document')) {
-              <div class="table-status-message">
-                <button 
-                  class="clear-status-btn" 
-                  (click)="clearSingleTableStatus('Document')"
-                  title="Clear status">✕</button>
-                <pre>{{ getTableStatus('Document') }}</pre>
-              </div>
-            }
-          </div>
-
-          <!-- Users -->
-          <div class="table-clear-item">
-            <button 
-              class="btn-table-clear" 
-              (click)="clearTable('User')" 
-              [disabled]="isTableClearing('User')"
-            >
-              @if (isTableClearing('User')) {
-                <span class="loading-spinner"></span>
-                Clearing...
-              } @else {
-                🗑️ Clear Users
-              }
-            </button>
-            @if (getTableStatus('User')) {
-              <div class="table-status-message">
-                <button 
-                  class="clear-status-btn" 
-                  (click)="clearSingleTableStatus('User')"
-                  title="Clear status">✕</button>
-                <pre>{{ getTableStatus('User') }}</pre>
-              </div>
-            }
+        <h3>Select Tables to Clear:</h3>
+        
+        <div class="clear-options">
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.documentTypes"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Document Types
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.workflows"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Workflows
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.projects"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Projects
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.documents"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Documents
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.users"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Users
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.chatRooms"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Chat Rooms
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.chatMessages"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Chat Messages
+            </label>
           </div>
         </div>
-
-        <div class="clear-all-section">
-          <h3>Clear All Tables:</h3>
-          <div class="action-controls">
+        
+        <button 
+          class="btn-warning" 
+          (click)="clearSelectedTables()" 
+          [disabled]="clearDatabaseLoading() || !hasClearSelection()"
+        >
+          @if (clearDatabaseLoading()) {
+            <span class="loading-spinner"></span>
+            Clearing Tables...
+          } @else {
+            🗑️ Clear Selected Tables
+          }
+        </button>
+        
+        @if (clearDatabaseStatus()) {
+          <div class="status-message">
             <button 
-              class="btn-secondary clear-all-btn" 
-              (click)="clearDatabase()" 
-              [disabled]="clearDatabaseLoading()"
-            >
-              @if (clearDatabaseLoading()) {
-                <span class="loading-spinner"></span>
-                Clearing All Data...
-              } @else {
-                🗑️ Clear ALL Tables
-              }
-            </button>
-
-            @if (clearDatabaseStatus()) {
-              <div class="status-message">
-                <button 
-                  class="clear-status-btn" 
-                  (click)="clearClearDatabaseStatus()"
-                  title="Clear status">✕</button>
-                <pre>{{ clearDatabaseStatus() }}</pre>
-              </div>
-            }
+              class="clear-status-btn" 
+              (click)="clearClearDatabaseStatus()"
+              title="Clear status">✕</button>
+            <pre>{{ clearDatabaseStatus() }}</pre>
           </div>
-        </div>
+        }
       </div>
     </div>
   </div>
 
-  <!-- Clear Messages Button -->
-  <div class="admin-section">
-    <button class="btn-secondary" (click)="clearMessages()">
-      🧹 Clear All Messages
-    </button>
-  </div>
 </div>

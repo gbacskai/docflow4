@@ -64,25 +64,173 @@ export class VersionedDataService {
       let result;
       switch (modelName) {
         case 'Project':
-          result = await this.client.models.Project.create(recordData);
+          // Create a schema-compliant Project object
+          const projectInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid Project fields
+          if (recordData.name) projectInput.name = recordData.name;
+          if (recordData.identifier) projectInput.identifier = recordData.identifier;
+          if (recordData.description) projectInput.description = recordData.description;
+          if (recordData.status) projectInput.status = recordData.status;
+          if (recordData.ownerId) projectInput.ownerId = recordData.ownerId;
+          if (recordData.adminUsers) projectInput.adminUsers = recordData.adminUsers;
+          if (recordData.workflowId) projectInput.workflowId = recordData.workflowId;
+          
+          result = await this.client.models.Project.create(projectInput);
           break;
         case 'Document':
-          result = await this.client.models.Document.create(recordData);
+          // Create a schema-compliant Document object
+          const documentInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid Document fields
+          if (recordData.projectId) documentInput.projectId = recordData.projectId;
+          if (recordData.documentType) documentInput.documentType = recordData.documentType;
+          if (recordData.formData) documentInput.formData = recordData.formData;
+          
+          result = await this.client.models.Document.create(documentInput);
           break;
         case 'User':
-          result = await this.client.models.User.create(recordData);
+          // Create a schema-compliant User object
+          const userInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid User fields based on current schema
+          if (recordData.email) userInput.email = recordData.email;
+          if (recordData.userType) userInput.userType = recordData.userType;
+          if (recordData.firstName) userInput.firstName = recordData.firstName;
+          if (recordData.lastName) userInput.lastName = recordData.lastName;
+          if (recordData.interestedDocumentTypes) userInput.interestedDocumentTypes = recordData.interestedDocumentTypes;
+          if (recordData.status) userInput.status = recordData.status;
+          if (recordData.emailVerified !== undefined) userInput.emailVerified = recordData.emailVerified;
+          if (recordData.cognitoUserId) userInput.cognitoUserId = recordData.cognitoUserId;
+          if (recordData.invitedBy) userInput.invitedBy = recordData.invitedBy;
+          if (recordData.createdBy) userInput.createdBy = recordData.createdBy;
+          if (recordData.invitedAt) userInput.invitedAt = recordData.invitedAt;
+          if (recordData.lastLoginAt) userInput.lastLoginAt = recordData.lastLoginAt;
+          
+          result = await this.client.models.User.create(userInput);
           break;
         case 'DocumentType':
-          result = await this.client.models.DocumentType.create(recordData);
+          console.log('🔍 DocumentType recordData being sent to GraphQL:', recordData);
+          console.log('🔍 DocumentType recordData keys:', Object.keys(recordData));
+          
+          // Create a schema-compliant DocumentType object
+          const documentTypeInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid DocumentType fields
+          if (recordData.name) documentTypeInput.name = recordData.name;
+          if (recordData.identifier) documentTypeInput.identifier = recordData.identifier;
+          if (recordData.description) documentTypeInput.description = recordData.description;
+          if (recordData.definition) documentTypeInput.definition = recordData.definition;
+          if (recordData.validationRules) documentTypeInput.validationRules = recordData.validationRules;
+          if (recordData.category) documentTypeInput.category = recordData.category;
+          if (recordData.fields) documentTypeInput.fields = recordData.fields;
+          if (recordData.isActive !== undefined) documentTypeInput.isActive = recordData.isActive;
+          if (recordData.usageCount !== undefined) documentTypeInput.usageCount = recordData.usageCount;
+          if (recordData.templateCount !== undefined) documentTypeInput.templateCount = recordData.templateCount;
+          
+          console.log('🔍 DocumentType filtered input:', documentTypeInput);
+          result = await this.client.models.DocumentType.create(documentTypeInput);
           break;
         case 'Workflow':
-          result = await this.client.models.Workflow.create(recordData);
+          // Create a schema-compliant Workflow object
+          const workflowInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid Workflow fields
+          if (recordData.name) workflowInput.name = recordData.name;
+          if (recordData.identifier) workflowInput.identifier = recordData.identifier;
+          if (recordData.description) workflowInput.description = recordData.description;
+          if (recordData.rules) workflowInput.rules = recordData.rules;
+          if (recordData.actors) workflowInput.actors = recordData.actors;
+          if (recordData.isActive !== undefined) workflowInput.isActive = recordData.isActive;
+          
+          result = await this.client.models.Workflow.create(workflowInput);
           break;
         case 'ChatRoom':
-          result = await this.client.models.ChatRoom.create(recordData);
+          // Create a schema-compliant ChatRoom object
+          const chatRoomInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid ChatRoom fields
+          if (recordData.projectId) chatRoomInput.projectId = recordData.projectId;
+          if (recordData.projectName) chatRoomInput.projectName = recordData.projectName;
+          if (recordData.documentId) chatRoomInput.documentId = recordData.documentId;
+          if (recordData.documentType) chatRoomInput.documentType = recordData.documentType;
+          if (recordData.roomType) chatRoomInput.roomType = recordData.roomType;
+          if (recordData.title) chatRoomInput.title = recordData.title;
+          if (recordData.description) chatRoomInput.description = recordData.description;
+          if (recordData.participants) chatRoomInput.participants = recordData.participants;
+          if (recordData.adminUsers) chatRoomInput.adminUsers = recordData.adminUsers;
+          if (recordData.providerUsers) chatRoomInput.providerUsers = recordData.providerUsers;
+          if (recordData.lastMessage) chatRoomInput.lastMessage = recordData.lastMessage;
+          if (recordData.lastMessageTime) chatRoomInput.lastMessageTime = recordData.lastMessageTime;
+          if (recordData.lastMessageSender) chatRoomInput.lastMessageSender = recordData.lastMessageSender;
+          if (recordData.messageCount !== undefined) chatRoomInput.messageCount = recordData.messageCount;
+          if (recordData.unreadCount !== undefined) chatRoomInput.unreadCount = recordData.unreadCount;
+          if (recordData.isActive !== undefined) chatRoomInput.isActive = recordData.isActive;
+          if (recordData.isArchived !== undefined) chatRoomInput.isArchived = recordData.isArchived;
+          
+          result = await this.client.models.ChatRoom.create(chatRoomInput);
           break;
         case 'ChatMessage':
-          result = await this.client.models.ChatMessage.create(recordData);
+          // Create a schema-compliant ChatMessage object
+          const chatMessageInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid ChatMessage fields
+          if (recordData.chatRoomId) chatMessageInput.chatRoomId = recordData.chatRoomId;
+          if (recordData.senderId) chatMessageInput.senderId = recordData.senderId;
+          if (recordData.senderName) chatMessageInput.senderName = recordData.senderName;
+          if (recordData.senderEmail) chatMessageInput.senderEmail = recordData.senderEmail;
+          if (recordData.senderType) chatMessageInput.senderType = recordData.senderType;
+          if (recordData.message) chatMessageInput.message = recordData.message;
+          if (recordData.messageType) chatMessageInput.messageType = recordData.messageType;
+          if (recordData.attachmentUrl) chatMessageInput.attachmentUrl = recordData.attachmentUrl;
+          if (recordData.fileSize !== undefined) chatMessageInput.fileSize = recordData.fileSize;
+          if (recordData.fileName) chatMessageInput.fileName = recordData.fileName;
+          if (recordData.projectId) chatMessageInput.projectId = recordData.projectId;
+          if (recordData.documentId) chatMessageInput.documentId = recordData.documentId;
+          if (recordData.isRead !== undefined) chatMessageInput.isRead = recordData.isRead;
+          if (recordData.readBy) chatMessageInput.readBy = recordData.readBy;
+          if (recordData.readAt) chatMessageInput.readAt = recordData.readAt;
+          if (recordData.deliveredAt) chatMessageInput.deliveredAt = recordData.deliveredAt;
+          if (recordData.replyToMessageId) chatMessageInput.replyToMessageId = recordData.replyToMessageId;
+          if (recordData.threadId) chatMessageInput.threadId = recordData.threadId;
+          if (recordData.editedAt) chatMessageInput.editedAt = recordData.editedAt;
+          
+          result = await this.client.models.ChatMessage.create(chatMessageInput);
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);

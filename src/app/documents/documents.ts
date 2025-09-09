@@ -254,7 +254,7 @@ export class Documents implements OnInit {
           documentType: formValue.documentType,
           formData: JSON.stringify(dynamicFormValue)
         };
-        const newDocument = await this.createDocument(documentData);
+        const newDocument = await this.createDocument(documentData as any);
         
         // Upload files after creating document
         if (Object.keys(this.dynamicFormService.fileObjects()).length > 0) {
@@ -289,12 +289,11 @@ export class Documents implements OnInit {
     }
   }
 
-  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>): Promise<Schema['Document']['type']> {
+  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'version' | 'updatedAt'>): Promise<Schema['Document']['type']> {
     try {
       const result = await this.versionedDataService.createVersionedRecord('Document', {
         data: {
-          ...document,
-          createdAt: new Date().toISOString()
+          ...document
         }
       });
       
