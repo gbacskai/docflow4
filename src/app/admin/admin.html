@@ -88,6 +88,59 @@
     </div>
   </div>
 
+  <!-- Active Flag Cleanup Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>🧹 Active Flag Cleanup</h2>
+      <p>Clean up active flags across all tables to ensure data integrity</p>
+    </div>
+    
+    <div class="action-panel">
+      <div class="export-info">
+        <div class="info-item">
+          <strong>What this does:</strong>
+          <ul>
+            <li>Loads all data from every table (Project, Document, User, DocumentType, Workflow, ChatRoom, ChatMessage)</li>
+            <li>Sets the latest record per ID to <code>active = true</code></li>
+            <li>Removes the active key entirely from older records</li>
+            <li>Ensures proper data integrity across all versioned records</li>
+          </ul>
+        </div>
+        <div class="info-item">
+          <strong>⚠️ Important:</strong> This process may take several minutes for large datasets
+        </div>
+      </div>
+      
+      <div class="action-controls">
+        <button 
+          class="btn-warning large" 
+          (click)="cleanupActiveFlagsAllTables()" 
+          [disabled]="activeCleanupLoading()"
+        >
+          @if (activeCleanupLoading()) {
+            <span class="loading-spinner"></span>
+            Cleaning up...
+          } @else {
+            🧹 Cleanup Active Flags
+          }
+        </button>
+
+        @if (activeCleanupStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearActiveCleanupStatus()" 
+              title="Clear status message"
+            >
+              ✕
+            </button>
+            <pre>{{ activeCleanupStatus() }}</pre>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
   <!-- AWS Resources -->
   <div class="admin-section">
     <div class="section-header">

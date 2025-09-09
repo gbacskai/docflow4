@@ -1211,4 +1211,233 @@ export class Admin implements OnInit {
   clearClearDatabaseStatus() {
     this.clearDatabaseStatus.set('');
   }
+
+  // 🧹 ACTIVE FLAG CLEANUP PROCESS
+  activeCleanupLoading = signal(false);
+  activeCleanupStatus = signal<string>('');
+
+  /**
+   * 🧹 Cleanup Process: Load all data for every table and ensure proper active flag management
+   * - Latest record per ID gets active = true
+   * - Old records have active key removed entirely
+   */
+  async cleanupActiveFlagsAllTables() {
+    if (!confirm('This will cleanup active flags across ALL tables. This process may take several minutes. Continue?')) {
+      return;
+    }
+
+    this.activeCleanupLoading.set(true);
+    this.activeCleanupStatus.set('Starting active flag cleanup across all tables...');
+    
+    const modelNames = ['Project', 'Document', 'User', 'DocumentType', 'Workflow', 'ChatRoom', 'ChatMessage'];
+    let totalProcessed = 0;
+    let totalCleaned = 0;
+    const errors: string[] = [];
+
+    try {
+      for (const modelName of modelNames) {
+        try {
+          this.activeCleanupStatus.set(`🔄 Processing ${modelName} table...`);
+          
+          const result = await this.cleanupModelActiveFlags(modelName);
+          totalProcessed += result.totalRecords;
+          totalCleaned += result.cleanedRecords;
+          
+          this.activeCleanupStatus.set(`✅ ${modelName}: ${result.cleanedRecords} records cleaned out of ${result.totalRecords} processed`);
+          
+          // Small delay to show progress
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (error: any) {
+          const errorMsg = `${modelName}: ${error.message || 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error(`Cleanup error for ${modelName}:`, error);
+        }
+      }
+
+      // Show final results
+      if (errors.length > 0) {
+        this.activeCleanupStatus.set(
+          `⚠️ Cleanup completed with warnings. ${totalCleaned} records cleaned out of ${totalProcessed} total processed. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}`
+        );
+      } else {
+        this.activeCleanupStatus.set(
+          `🎯 Active flag cleanup completed successfully!\n\n` +
+          `📊 Summary:\n` +
+          `• Total records processed: ${totalProcessed}\n` +
+          `• Records cleaned: ${totalCleaned}\n` +
+          `• Tables processed: ${modelNames.length}\n\n` +
+          `✅ All tables now have proper active flag management!`
+        );
+        this.successMessage.set(`Active flag cleanup completed: ${totalCleaned} records cleaned`);
+      }
+      
+    } catch (error) {
+      console.error('Active flag cleanup failed:', error);
+      this.activeCleanupStatus.set('❌ Active flag cleanup failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to cleanup active flags: ' + (error as Error).message);
+    } finally {
+      this.activeCleanupLoading.set(false);
+    }
+  }
+
+  /**
+   * Cleanup active flags for a specific model
+   */
+  private async cleanupModelActiveFlags(modelName: string): Promise<{totalRecords: number, cleanedRecords: number}> {
+    console.log(`🧹 Starting cleanup for ${modelName}`);
+    
+    // Step 1: Load ALL versions of all records
+    const allVersionsResult = await this.versionedDataService.getAllVersionsAllRecords(modelName);
+    if (!allVersionsResult.success || !allVersionsResult.data) {
+      throw new Error(allVersionsResult.error || 'Failed to load records');
+    }
+
+    const allRecords = allVersionsResult.data;
+    console.log(`📊 ${modelName}: Loaded ${allRecords.length} total records (all versions)`);
+
+    if (allRecords.length === 0) {
+      return { totalRecords: 0, cleanedRecords: 0 };
+    }
+
+    // Step 2: Group records by ID to find latest version of each
+    const groupedById = allRecords.reduce((acc, record) => {
+      const id = record.id;
+      if (!acc[id]) {
+        acc[id] = [];
+      }
+      acc[id].push(record);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    console.log(`📊 ${modelName}: Found ${Object.keys(groupedById).length} unique record IDs`);
+
+    let cleanedRecords = 0;
+
+    // Step 3: Process each ID group
+    for (const [id, recordVersions] of Object.entries(groupedById)) {
+      try {
+        const recordsArray = recordVersions as any[];
+        
+        // Sort by version timestamp to get latest first
+        const sortedVersions = recordsArray.sort((a: any, b: any) => 
+          new Date(b.version).getTime() - new Date(a.version).getTime()
+        );
+
+        const latestRecord = sortedVersions[0];
+        const oldRecords = sortedVersions.slice(1);
+
+        console.log(`🔄 ${modelName} ID ${id}: ${recordsArray.length} versions, latest: ${latestRecord.version}`);
+
+        // Step 4: Ensure latest record has active = true
+        if (latestRecord.active !== true) {
+          console.log(`🎯 ${modelName} ID ${id}: Setting latest version to active = true`);
+          await this.updateRecordActiveFlag(modelName, latestRecord.id, latestRecord.version, true);
+          cleanedRecords++;
+        }
+
+        // Step 5: Remove active key from old records
+        for (const oldRecord of oldRecords) {
+          if (oldRecord.active !== undefined) {
+            console.log(`🚫 ${modelName} ID ${id}: Removing active key from version ${oldRecord.version}`);
+            await this.removeActiveKeyFromRecord(modelName, oldRecord.id, oldRecord.version);
+            cleanedRecords++;
+          }
+        }
+
+      } catch (error: any) {
+        console.error(`Error processing ${modelName} ID ${id}:`, error);
+        // Continue with other records even if one fails
+      }
+    }
+
+    console.log(`✅ ${modelName} cleanup completed: ${cleanedRecords} records cleaned`);
+    return { totalRecords: allRecords.length, cleanedRecords };
+  }
+
+  /**
+   * Update a record to set active flag to true or false
+   */
+  private async updateRecordActiveFlag(modelName: string, id: string, version: string, active: boolean): Promise<void> {
+    const client = generateClient<Schema>();
+    
+    const updateData: any = {
+      id,
+      version,
+      active,
+      updatedAt: new Date().toISOString()
+    };
+
+    switch (modelName) {
+      case 'Project':
+        await client.models.Project.update(updateData);
+        break;
+      case 'Document':
+        await client.models.Document.update(updateData);
+        break;
+      case 'User':
+        await client.models.User.update(updateData);
+        break;
+      case 'DocumentType':
+        await client.models.DocumentType.update(updateData);
+        break;
+      case 'Workflow':
+        await client.models.Workflow.update(updateData);
+        break;
+      case 'ChatRoom':
+        await client.models.ChatRoom.update(updateData);
+        break;
+      case 'ChatMessage':
+        await client.models.ChatMessage.update(updateData);
+        break;
+      default:
+        throw new Error(`Unknown model: ${modelName}`);
+    }
+  }
+
+  /**
+   * Remove the active key entirely from a record
+   */
+  private async removeActiveKeyFromRecord(modelName: string, id: string, version: string): Promise<void> {
+    const client = generateClient<Schema>();
+    
+    // Create update data WITHOUT active field to remove it
+    const updateData: any = {
+      id,
+      version,
+      updatedAt: new Date().toISOString()
+      // NOTE: Deliberately omitting 'active' field to remove it
+    };
+
+    switch (modelName) {
+      case 'Project':
+        await client.models.Project.update(updateData);
+        break;
+      case 'Document':
+        await client.models.Document.update(updateData);
+        break;
+      case 'User':
+        await client.models.User.update(updateData);
+        break;
+      case 'DocumentType':
+        await client.models.DocumentType.update(updateData);
+        break;
+      case 'Workflow':
+        await client.models.Workflow.update(updateData);
+        break;
+      case 'ChatRoom':
+        await client.models.ChatRoom.update(updateData);
+        break;
+      case 'ChatMessage':
+        await client.models.ChatMessage.update(updateData);
+        break;
+      default:
+        throw new Error(`Unknown model: ${modelName}`);
+    }
+  }
+
+  clearActiveCleanupStatus() {
+    this.activeCleanupStatus.set('');
+  }
 }

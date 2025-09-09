@@ -142,7 +142,6 @@ export class UserManagementService {
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
-      lastLoginAt: new Date().toISOString(),
       createdAt: invitationRecord.createdAt || new Date().toISOString()
     };
     
@@ -196,7 +195,6 @@ export class UserManagementService {
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: null,
       invitedAt: null,
-      lastLoginAt: new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
     
@@ -239,25 +237,6 @@ export class UserManagementService {
     }
   }
 
-  /**
-   * Update last login time for existing user
-   */
-  async updateLastLogin(cognitoUserId: string): Promise<void> {
-    try {
-      const client = generateClient<Schema>();
-      
-      // Find the user by Cognito user ID
-      const user = await this.findUserByCognitoId(client, cognitoUserId);
-      
-      if (user) {
-        await this.versionedDataService.updateVersionedRecord('User', user.id, {
-          lastLoginAt: new Date().toISOString()
-        });
-      }
-    } catch (error) {
-      // Don't throw - this shouldn't break the auth flow
-    }
-  }
   
   /**
    * Clean up any remaining non-Cognito user records with the same email

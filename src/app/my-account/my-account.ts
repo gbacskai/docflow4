@@ -193,6 +193,7 @@ export class MyAccount implements OnInit, OnDestroy {
       } else {
         const filtered = this.documentTypes().filter(docType =>
           docType.name?.toLowerCase().includes(query) ||
+          docType.description?.toLowerCase().includes(query) ||
           docType.definition?.toLowerCase().includes(query) ||
           docType.category?.toLowerCase().includes(query)
         );
@@ -230,7 +231,7 @@ export class MyAccount implements OnInit, OnDestroy {
 
   getDocumentTypeDescription(docTypeId: string): string {
     const docType = this.documentTypes().find(dt => dt.id === docTypeId);
-    return docType?.definition || '';
+    return docType?.description || '';
   }
 
   getDocumentTypeNames(docTypeIds: string[]): string {
