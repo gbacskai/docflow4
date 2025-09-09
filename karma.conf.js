@@ -19,12 +19,13 @@ module.exports = function (config) {
       suppressAll: true // removes the duplicated traces
     },
     coverageReporter: {
-      dir: require('path').join(__dirname, './coverage/docflow4'),
+      dir: require('path').join(__dirname, './tests/coverage/docflow4'),
       subdir: '.',
       reporters: [
         { type: 'html' },
         { type: 'text-summary' },
-        { type: 'lcovonly' }
+        { type: 'lcovonly' },
+        { type: 'json-summary' }
       ]
     },
     reporters: ['progress', 'kjhtml'],

@@ -15,7 +15,7 @@ module.exports = defineConfig({
     // Configure mochawesome reporter
     reporter: 'mochawesome',
     reporterOptions: {
-      reportDir: 'cypress/report/mochawesome-report',
+      reportDir: 'tests/cypress/report/mochawesome-report',
       overwrite: false,
       html: false,
       json: true,
@@ -34,12 +34,12 @@ module.exports = defineConfig({
     
     // Specify test files pattern
     specPattern: [
-      'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
-      'cypress/e2e/**/*.spec.{js,jsx,ts,tsx}'
+      'tests/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
+      'tests/cypress/e2e/**/*.spec.{js,jsx,ts,tsx}'
     ],
     
     // Support file
-    supportFile: 'cypress/support/e2e.js',
+    supportFile: 'tests/cypress/support/e2e.js',
     
     // Exclude patterns
     excludeSpecPattern: [

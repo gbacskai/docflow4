@@ -2,86 +2,136 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { generateClient } from 'aws-amplify/data';
-import { uploadData, getUrl } from 'aws-amplify/storage';
 import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ChatService } from '../services/chat.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { UserDataService } from '../services/user-data.service';
+import { DynamicFormService } from '../services/dynamic-form.service';
+import { DynamicFormComponent } from '../shared/dynamic-form.component';
 
 @Component({
   selector: 'app-documents',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, DynamicFormComponent],
   templateUrl: './documents.html',
   styleUrl: './documents.less'
 })
 export class Documents implements OnInit {
   documents = signal<Array<Schema['Document']['type']>>([]);
+  filteredDocuments = signal<Array<Schema['Document']['type']>>([]);
+  documentSearchQuery = signal<string>('');
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   projects = signal<Array<Schema['Project']['type']>>([]);
+  workflows = signal<Array<Schema['Workflow']['type']>>([]);
   loading = signal(true);
   loadingDocumentTypes = signal(false);
   loadingProjects = signal(false);
   showForm = signal(false);
-  currentMode = signal<'create' | 'edit' | 'view'>('create');
+  currentMode = signal<'create' | 'edit'>('create');
   selectedDocument = signal<Schema['Document']['type'] | null>(null);
   processing = signal(false);
-  uploading = signal(false);
-  selectedFiles = signal<File[]>([]);
-  expandedFilePreview = signal<string | null>(null);
-  viewerOpen = signal(false);
-  viewerFileUrl = signal<string | null>(null);
-  viewerFileName = signal<string | null>(null);
-  viewerFileType = signal<'image' | 'pdf' | 'other'>('other');
+  
+  private documentSearchTimeout: any = null;
   
   private fb = inject(FormBuilder);
-  private sanitizer = inject(DomSanitizer);
+  private versionedDataService = inject(VersionedDataService);
   private router = inject(Router);
   private chatService = inject(ChatService);
   private userDataService = inject(UserDataService);
+  dynamicFormService = inject(DynamicFormService);
   
   documentForm: FormGroup = this.fb.group({
     projectId: ['', [Validators.required]],
-    documentType: ['', [Validators.required]],
-    assignedProviders: [''],
-    acceptedProvider: [''],
-    status: ['requested', [Validators.required]],
-    dueDate: ['']
+    documentType: ['', [Validators.required]]
   });
+
+  get isFormValid(): boolean {
+    const mainFormValid = this.documentForm.valid;
+    const dynamicFormGroup = this.dynamicFormService.dynamicFormGroup();
+    const dynamicFormValid = !dynamicFormGroup || dynamicFormGroup.valid;
+    return mainFormValid && dynamicFormValid;
+  }
 
   async ngOnInit() {
     await Promise.all([
       this.loadDocuments(), 
       this.loadDocumentTypes(),
-      this.loadProjects()
+      this.loadProjects(),
+      this.loadWorkflows()
     ]);
+    
+    // Setup document type change listener
+    this.documentForm.get('documentType')?.valueChanges.subscribe((documentTypeId) => {
+      if (documentTypeId) {
+        this.onDocumentTypeChange(documentTypeId);
+      } else {
+        this.dynamicFormService.resetForm();
+      }
+    });
   }
 
   async loadDocuments() {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Document.list();
-      console.log('Raw documents from database:', data);
-      console.log('Number of documents loaded:', data ? data.length : 0);
+      const result = await this.versionedDataService.getAllLatestVersions('Document');
+        const data = result.success ? result.data || [] : [];
       this.documents.set(data);
-      console.log('Documents signal updated. Current documents:', this.documents());
+      this.applyDocumentSearch(); // Initialize filtered documents
     } catch (error) {
-      console.error('Error loading documents:', error);
       this.documents.set([]);
+      this.filteredDocuments.set([]);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  onDocumentSearchInputChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.documentSearchQuery.set(input.value);
+    
+    // Clear existing timeout
+    if (this.documentSearchTimeout) {
+      clearTimeout(this.documentSearchTimeout);
+    }
+    
+    // Debounce search for better performance
+    this.documentSearchTimeout = setTimeout(() => {
+      this.applyDocumentSearch();
+    }, 300);
+  }
+
+  clearDocumentSearch(): void {
+    this.documentSearchQuery.set('');
+    this.applyDocumentSearch();
+  }
+
+  applyDocumentSearch(): void {
+    const query = this.documentSearchQuery().toLowerCase().trim();
+    
+    if (!query) {
+      this.filteredDocuments.set(this.documents());
+      return;
+    }
+
+    const filtered = this.documents().filter(document => {
+      const projectName = this.getProjectName(document.projectId).toLowerCase();
+      const documentTypeName = this.getDocumentTypeName(document.documentType).toLowerCase();
+      
+      return projectName.includes(query) || documentTypeName.includes(query);
+    });
+
+    this.filteredDocuments.set(filtered);
   }
 
   async loadDocumentTypes() {
     try {
       this.loadingDocumentTypes.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data);
     } catch (error) {
-      console.error('Error loading document types:', error);
       this.documentTypes.set([]);
     } finally {
       this.loadingDocumentTypes.set(false);
@@ -92,16 +142,26 @@ export class Documents implements OnInit {
     try {
       this.loadingProjects.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Project.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Project');
+        const data = result.success ? result.data || [] : [];
       
-      // Filter to show only active projects
-      const activeProjects = data.filter(project => project.status === 'active');
-      this.projects.set(activeProjects);
+      // Show all projects (not just active) for document viewing/editing
+      this.projects.set(data);
     } catch (error) {
-      console.error('Error loading projects:', error);
       this.projects.set([]);
     } finally {
       this.loadingProjects.set(false);
+    }
+  }
+
+  async loadWorkflows() {
+    try {
+      const client = generateClient<Schema>();
+      const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+        const data = result.success ? result.data || [] : [];
+      this.workflows.set(data.filter(workflow => workflow.isActive));
+    } catch (error) {
+      this.workflows.set([]);
     }
   }
 
@@ -109,7 +169,11 @@ export class Documents implements OnInit {
     this.currentMode.set('create');
     this.selectedDocument.set(null);
     this.documentForm.reset();
-    this.documentForm.patchValue({ status: 'requested' });
+    
+    // Ensure fields are enabled for create mode
+    this.documentForm.get('projectId')?.enable();
+    this.documentForm.get('documentType')?.enable();
+    
     this.showForm.set(true);
   }
 
@@ -117,162 +181,130 @@ export class Documents implements OnInit {
     this.currentMode.set('edit');
     this.selectedDocument.set(document);
     
-    const assignedProvidersString = document.assignedProviders ? document.assignedProviders.join(', ') : '';
-    
     this.documentForm.patchValue({
       projectId: document.projectId,
-      documentType: document.documentType,
-      assignedProviders: assignedProvidersString,
-      acceptedProvider: document.acceptedProvider || '',
-      status: document.status || 'requested',
-      dueDate: document.dueDate ? document.dueDate.split('T')[0] : ''
+      documentType: document.documentType
     });
+    
+    // Disable project and document type fields in edit mode
+    this.documentForm.get('projectId')?.disable();
+    this.documentForm.get('documentType')?.disable();
+    
+    // Generate dynamic form for the document type
+    this.onDocumentTypeChange(document.documentType);
+    
+    // Populate dynamic form with existing data if available
+    const documentWithFormData = document as any;
+    if (documentWithFormData.formData) {
+      try {
+        const existingData = JSON.parse(documentWithFormData.formData);
+        setTimeout(() => {
+          this.dynamicFormService.patchFormValue(existingData);
+        }, 100);
+      } catch (error) {
+      }
+    } else {
+    }
+    
     this.showForm.set(true);
   }
 
-  openViewMode(document: Schema['Document']['type']) {
-    this.currentMode.set('view');
-    this.selectedDocument.set(document);
-    this.showForm.set(true);
-  }
 
   closeForm() {
     this.showForm.set(false);
     this.currentMode.set('create');
     this.selectedDocument.set(null);
     this.documentForm.reset();
-    this.documentForm.patchValue({ status: 'requested' });
-    // Clear selected files
-    this.selectedFiles.set([]);
-    // Reset file input
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
+    this.documentForm.enable(); // Re-enable form for next use
+    this.dynamicFormService.resetForm();
   }
 
   async onSubmitForm() {
-    if (!this.documentForm.valid) return;
+    // Only validate forms in create mode
+    if (this.currentMode() === 'create') {
+      if (!this.documentForm.valid) return;
+      if (!this.dynamicFormService.isFormValid()) {
+        this.dynamicFormService.markAllFieldsAsTouched();
+        return;
+      }
+    }
 
     this.processing.set(true);
     
     try {
       const formValue = this.documentForm.value;
-      const assignedProvidersArray = formValue.assignedProviders 
-        ? formValue.assignedProviders.split(',').map((provider: string) => provider.trim()).filter((provider: string) => provider)
-        : [];
+      let dynamicFormValue = this.dynamicFormService.getFormValue();
 
-      const documentData = {
-        projectId: formValue.projectId,
-        documentType: formValue.documentType,
-        assignedProviders: assignedProvidersArray,
-        acceptedProvider: formValue.acceptedProvider || undefined,
-        status: formValue.status as 'requested' | 'accepted' | 'rejected' | 'provided' | 'amended',
-        dueDate: formValue.dueDate ? new Date(formValue.dueDate).toISOString() : undefined
-      };
-
+      // Handle file uploads if there are any
+      let uploadedFileUrls = {};
       if (this.currentMode() === 'create') {
-        await this.createDocumentWithFiles(documentData);
+        // For create mode, we need to create the document first to get an ID for file uploads
+        const documentData = {
+          projectId: formValue.projectId,
+          documentType: formValue.documentType,
+          formData: JSON.stringify(dynamicFormValue)
+        };
+        const newDocument = await this.createDocument(documentData);
+        
+        // Upload files after creating document
+        if (Object.keys(this.dynamicFormService.fileObjects()).length > 0) {
+          uploadedFileUrls = await this.dynamicFormService.uploadFilesForDocument(newDocument.id);
+          // Update form data with file URLs
+          dynamicFormValue = { ...dynamicFormValue, ...uploadedFileUrls };
+          await this.updateDocument(newDocument.id, {
+            formData: JSON.stringify(dynamicFormValue)
+          } as any);
+        }
       } else if (this.currentMode() === 'edit' && this.selectedDocument()) {
-        await this.updateDocument(this.selectedDocument()!.id, documentData);
+        // For edit mode, upload files first then update
+        if (Object.keys(this.dynamicFormService.fileObjects()).length > 0) {
+          uploadedFileUrls = await this.dynamicFormService.uploadFilesForDocument(this.selectedDocument()!.id);
+          // Merge uploaded file URLs with existing form data
+          dynamicFormValue = { ...dynamicFormValue, ...uploadedFileUrls };
+        }
+        
+        await this.updateDocument(this.selectedDocument()!.id, {
+          formData: JSON.stringify(dynamicFormValue),
+          status: 'draft'
+        } as any);
       }
 
       this.closeForm();
       await this.loadDocuments();
     } catch (error) {
-      console.error('Error submitting form:', error);
     } finally {
       this.processing.set(false);
     }
   }
 
-  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
+  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>): Promise<Schema['Document']['type']> {
     try {
-      const client = generateClient<Schema>();
-      await client.models.Document.create({
-        ...document,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error('Error creating document:', error);
-      throw error;
-    }
-  }
-
-  async createDocumentWithFiles(document: Omit<Schema['Document']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
-    try {
-      const client = generateClient<Schema>();
-      
-      // Create the document first
-      const { data: createdDocument } = await client.models.Document.create({
-        ...document,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      if (!createdDocument) {
-        throw new Error('Failed to create document');
-      }
-
-      // If there are files selected, upload them
-      const files = this.selectedFiles();
-      if (files.length > 0) {
-        this.uploading.set(true);
-        
-        const uploadedFiles = [];
-        const uploadedNames = [];
-
-        // Upload each file
-        for (const file of files) {
-          const fileExtension = file.name.split('.').pop();
-          const uniqueFileName = `documents/${createdDocument.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-
-          // Upload to S3
-          const uploadResult = await uploadData({
-            key: uniqueFileName,
-            data: file,
-            options: {
-              contentType: file.type,
-            }
-          }).result;
-
-          // Get the file URL
-          const urlResult = await getUrl({ key: uniqueFileName });
-          
-          uploadedFiles.push(urlResult.url.toString());
-          uploadedNames.push(file.name);
+      const result = await this.versionedDataService.createVersionedRecord('Document', {
+        data: {
+          ...document,
+          createdAt: new Date().toISOString()
         }
-
-        // Update document with file information
-        await client.models.Document.update({
-          id: createdDocument.id,
-          fileUrls: uploadedFiles,
-          fileNames: uploadedNames,
-          updatedAt: new Date().toISOString()
-        });
-
-        this.uploading.set(false);
-      }
-
-      // Reset file selection
-      this.selectedFiles.set([]);
+      });
       
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create document');
+      }
+      
+      return result.data;
     } catch (error) {
-      console.error('Error creating document with files:', error);
-      this.uploading.set(false);
       throw error;
     }
   }
+
 
   async updateDocument(id: string, updates: Partial<Schema['Document']['type']>) {
     try {
-      const client = generateClient<Schema>();
-      await client.models.Document.update({
-        id,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
+      const result = await this.versionedDataService.updateVersionedRecord('Document', id, updates);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update document');
+      }
     } catch (error) {
-      console.error('Error updating document:', error);
       throw error;
     }
   }
@@ -281,7 +313,6 @@ export class Documents implements OnInit {
   getDocumentTypeName(documentTypeId: string): string {
     const docType = this.documentTypes().find(dt => dt.id === documentTypeId);
     if (!docType) {
-      console.log(`Document type not found for ID: ${documentTypeId}. Available types:`, this.documentTypes().map(dt => ({ id: dt.id, name: dt.name })));
     }
     return docType ? docType.name : 'Unknown Type';
   }
@@ -289,275 +320,58 @@ export class Documents implements OnInit {
   getProjectName(projectId: string): string {
     const project = this.projects().find(p => p.id === projectId);
     if (!project) {
-      console.log(`Project not found for ID: ${projectId}. Available projects:`, this.projects().map(p => ({ id: p.id, name: p.name })));
     }
     return project ? project.name : 'Unknown Project';
   }
 
-  onFilesSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const filesArray = Array.from(input.files);
-      this.selectedFiles.set(filesArray);
-    }
-  }
-
-  removeFile(index: number) {
-    const currentFiles = this.selectedFiles();
-    const updatedFiles = currentFiles.filter((_, i) => i !== index);
-    this.selectedFiles.set(updatedFiles);
+  onDocumentTypeChange(documentTypeId: string) {
+    const documentType = this.documentTypes().find(dt => dt.id === documentTypeId);
     
-    // Reset input if no files left
-    if (updatedFiles.length === 0) {
-      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-    }
-  }
-
-  async uploadFilesAndUpdateStatus(document: Schema['Document']['type']) {
-    const files = this.selectedFiles();
-    if (!files.length || document.status !== 'accepted') return;
-
-    this.uploading.set(true);
-
-    try {
-      const uploadedFiles = [];
-      const uploadedNames = [];
-
-      // Upload each file
-      for (const file of files) {
-        const fileExtension = file.name.split('.').pop();
-        const uniqueFileName = `documents/${document.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-
-        // Upload to S3
-        const uploadResult = await uploadData({
-          key: uniqueFileName,
-          data: file,
-          options: {
-            contentType: file.type,
-          }
-        }).result;
-
-        // Get the file URL
-        const urlResult = await getUrl({ key: uniqueFileName });
-        
-        uploadedFiles.push(urlResult.url.toString());
-        uploadedNames.push(file.name);
-      }
-
-      // Merge with existing files if any
-      const existingFileUrls = document.fileUrls || [];
-      const existingFileNames = document.fileNames || [];
+    if (documentType && documentType.definition) {
+      this.dynamicFormService.generateDynamicFormSchema(documentType.definition);
       
-      // Update document with all files and change status to "provided"
-      await this.updateDocument(document.id, {
-        fileUrls: [...existingFileUrls, ...uploadedFiles],
-        fileNames: [...existingFileNames, ...uploadedNames],
-        status: 'provided'
-      });
-
-      // Refresh the documents list
-      await this.loadDocuments();
+      // Reset rules first
+      this.dynamicFormService.workflowRules.set([]);
       
-      // Reset file selection
-      this.selectedFiles.set([]);
-      
-      // Close any open forms
-      this.closeForm();
-
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      alert('Failed to upload files. Please try again.');
-    } finally {
-      this.uploading.set(false);
-    }
-  }
-
-  async downloadFile(fileUrl: string) {
-    try {
-      // Generate fresh URL to avoid expiration issues
-      const url = new URL(fileUrl);
-      let pathname = url.pathname;
-      
-      // Remove leading slash
-      if (pathname.startsWith('/')) {
-        pathname = pathname.substring(1);
+      // Load validation rules from document type
+      const documentTypeWithRules = documentType as any;
+      if (documentTypeWithRules.validationRules) {
+        this.dynamicFormService.loadWorkflowRulesFromText(documentTypeWithRules.validationRules);
+      } else {
       }
       
-      // Handle Amplify's public/ prefix - remove one level if duplicated
-      let key = pathname;
-      if (pathname.startsWith('public/public/')) {
-        key = pathname.substring(7); // Remove the extra "public/"
-      } else if (pathname.startsWith('public/')) {
-        key = pathname.substring(7); // Remove "public/"
-      }
-      
-      // Get fresh download URL
-      const freshUrlResult = await getUrl({ key });
-      const freshUrl = freshUrlResult.url.toString();
-      
-      // Open file in new tab
-      window.open(freshUrl, '_blank');
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      // Fallback to original URL
-      window.open(fileUrl, '_blank');
-    }
-  }
-
-  toggleFilePreview(documentId: string, fileIndex: number) {
-    const previewId = `${documentId}-${fileIndex}`;
-    if (this.expandedFilePreview() === previewId) {
-      this.expandedFilePreview.set(null);
+      // Also load workflow rules from project workflow (these will be merged with document type rules)
+      this.loadWorkflowRulesForDocumentType(documentTypeId);
     } else {
-      this.expandedFilePreview.set(previewId);
+      this.dynamicFormService.resetForm();
     }
   }
 
-  isFilePreviewExpanded(documentId: string, fileIndex: number): boolean {
-    return this.expandedFilePreview() === `${documentId}-${fileIndex}`;
-  }
-
-  getFileExtension(fileName: string | null | undefined): string {
-    return fileName?.split('.').pop()?.toLowerCase() || '';
-  }
-
-  isImageFile(fileName: string | null | undefined): boolean {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    return imageExtensions.includes(this.getFileExtension(fileName));
-  }
-
-  isPdfFile(fileName: string | null | undefined): boolean {
-    return this.getFileExtension(fileName) === 'pdf';
-  }
-
-  async openViewer(fileUrl: string, fileName: string | null | undefined) {
-    if (!fileName) return; // Guard against null/undefined fileName
+  private async loadWorkflowRulesForDocumentType(documentTypeId: string) {
+    const projectId = this.documentForm.get('projectId')?.value;
+    if (!projectId) return;
     
-    try {
-      // Get fresh URL from S3 to avoid expiration issues
-      // Extract the S3 key from the URL
-      const url = new URL(fileUrl);
-      let pathname = url.pathname;
-      
-      // Remove leading slash
-      if (pathname.startsWith('/')) {
-        pathname = pathname.substring(1);
-      }
-      
-      // Handle Amplify's public/ prefix - remove one level if duplicated
-      let key = pathname;
-      if (pathname.startsWith('public/public/')) {
-        key = pathname.substring(7); // Remove the extra "public/"
-      } else if (pathname.startsWith('public/')) {
-        key = pathname.substring(7); // Remove "public/"
-      }
-      
-      console.log('Original URL:', fileUrl);
-      console.log('Pathname:', pathname);
-      console.log('Final key:', key);
-      
-      // For images, we can often use the original URL directly
-      // For PDFs and other files, we need fresh URLs
-      let finalUrl = fileUrl;
-      
-      if (this.isPdfFile(fileName) || this.getFileExtension(fileName) === 'doc' || this.getFileExtension(fileName) === 'docx') {
-        // Generate fresh URL for PDFs and documents
-        const freshUrlResult = await getUrl({ key });
-        finalUrl = freshUrlResult.url.toString();
-        console.log('Generated fresh URL for PDF/document:', finalUrl);
-      } else {
-        // For images, try original URL first, fallback to fresh URL if needed
-        console.log('Using original URL for image:', finalUrl);
-      }
-      
-      this.viewerFileUrl.set(finalUrl);
-      this.viewerFileName.set(fileName);
-      
-      if (this.isImageFile(fileName)) {
-        this.viewerFileType.set('image');
-      } else if (this.isPdfFile(fileName)) {
-        this.viewerFileType.set('pdf');
-      } else {
-        this.viewerFileType.set('other');
-      }
-      
-      this.viewerOpen.set(true);
-      // Prevent body scroll when viewer is open
-      document.body.style.overflow = 'hidden';
-      
-      console.log('Viewer opened with:', {
-        fileName: this.viewerFileName(),
-        fileType: this.viewerFileType(),
-        fileUrl: this.viewerFileUrl()
-      });
-    } catch (error) {
-      console.error('Error opening viewer:', error);
-      // Fallback to original URL if fresh URL generation fails
-      this.viewerFileUrl.set(fileUrl);
-      this.viewerFileName.set(fileName);
-      
-      if (this.isImageFile(fileName)) {
-        this.viewerFileType.set('image');
-      } else if (this.isPdfFile(fileName)) {
-        this.viewerFileType.set('pdf');
-      } else {
-        this.viewerFileType.set('other');
-      }
-      
-      this.viewerOpen.set(true);
-      document.body.style.overflow = 'hidden';
-      
-      console.log('Viewer opened with fallback:', {
-        fileName: this.viewerFileName(),
-        fileType: this.viewerFileType(),
-        fileUrl: this.viewerFileUrl()
-      });
-    }
+    const project = this.projects().find(p => p.id === projectId);
+    if (!project?.workflowId) return;
+    
+    const documentTypeName = this.getDocumentTypeName(documentTypeId);
+    await this.dynamicFormService.loadWorkflowRulesForDocumentType(
+      documentTypeId, 
+      documentTypeName, 
+      this.workflows(), 
+      project.workflowId
+    );
   }
 
-  closeViewer() {
-    this.viewerOpen.set(false);
-    this.viewerFileUrl.set(null);
-    this.viewerFileName.set(null);
-    this.viewerFileType.set('other');
-    // Restore body scroll
-    document.body.style.overflow = '';
-  }
-
-  downloadCurrentFile() {
-    const fileUrl = this.viewerFileUrl();
-    if (fileUrl) {
-      this.downloadFile(fileUrl);
-    }
-  }
-
-  getSafeUrl(url: string | null): SafeResourceUrl | null {
-    if (!url) return null;
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
-  }
-
-  onImageLoad() {
-    console.log('Image loaded successfully');
-  }
-
-  onImageError(url: string | null) {
-    console.error('Image failed to load:', url);
-  }
 
   async openDocumentChat(document: Schema['Document']['type']) {
     try {
-      console.log('🗣️ Opening chat for document:', document.documentType);
-      console.log('🗣️ Document data:', document);
       
       // Get the current user's ID for chat (using database User ID, not Cognito ID)
       const currentUserData = this.userDataService.getCurrentUserData();
       const currentChatUserId = currentUserData?.id;
-      console.log('🗣️ Current user data for chat:', currentUserData);
-      console.log('🗣️ Current user ID for chat:', currentChatUserId);
       
       if (!currentChatUserId) {
-        console.error('❌ No current user ID found - cannot create chat room');
         alert('Unable to create chat room - user not found. Please try logging in again.');
         return;
       }
@@ -566,29 +380,19 @@ export class Documents implements OnInit {
       const documentTypeName = this.getDocumentTypeName(document.documentType);
       const projectName = this.getProjectName(document.projectId);
       
-      // Create document chat room with assigned providers
-      const assignedProviders = document.assignedProviders 
-        ? (Array.isArray(document.assignedProviders) 
-          ? document.assignedProviders 
-          : (document.assignedProviders as string).split(',').map((p: string) => p.trim()))
-        : [];
-      
-      const allParticipants = [document.acceptedProvider, ...assignedProviders, currentChatUserId]
+      // Create document chat room with current user
+      const allParticipants = [currentChatUserId]
         .filter((id): id is string => id !== null && id !== undefined && id.trim() !== '') // Type-safe filter
         .filter((id, index, arr) => arr.indexOf(id) === index); // Remove duplicates
       
-      console.log('🗣️ Participants for chat room:', allParticipants);
       
       // First check if a chat room already exists for this document
-      console.log('🔍 Checking for existing chat room...');
       let chatRoom = await this.chatService.findExistingDocumentChatRoom(document.id);
       
       if (chatRoom) {
-        console.log('✅ Using existing chat room:', chatRoom.title);
         // Ensure current user is added as participant if not already included
         chatRoom = await this.chatService.ensureUserInChatRoom(chatRoom, allParticipants);
       } else {
-        console.log('🆕 Creating new chat room for document');
         chatRoom = await this.chatService.createDocumentChatRoom({
           projectId: document.projectId,
           projectName: projectName,
@@ -601,12 +405,9 @@ export class Documents implements OnInit {
           providerUsers: allParticipants
         });
         
-        console.log('✅ Chat room created successfully:', chatRoom);
-        console.log('✅ Chat room ID:', chatRoom.id);
       }
       
       // Navigate to chat with the specific room
-      console.log('🧭 Navigating to chat with room ID:', chatRoom.id);
       this.router.navigate(['/chat'], { 
         queryParams: { 
           room: chatRoom.id,
@@ -615,8 +416,6 @@ export class Documents implements OnInit {
       });
       
     } catch (error) {
-      console.error('❌ Error creating document chat room:', error);
-      console.error('❌ Error details:', error);
       alert(`Failed to create chat room: ${error}. Please try again.`);
     }
   }

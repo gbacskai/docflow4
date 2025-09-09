@@ -5,7 +5,9 @@ import type { Schema } from '../../../amplify/data/resource';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 import { UserDataService } from '../services/user-data.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { ChatService } from '../services/chat.service';
+import { DynamicFormService } from '../services/dynamic-form.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -22,12 +24,11 @@ export class Projects implements OnInit, OnDestroy {
   projectSearchQuery = signal<string>('');
   showAllProjects = signal<boolean>(false); // false = show only active, true = show all
   users = signal<Array<Schema['User']['type']>>([]);
-  domains = signal<Array<Schema['Domain']['type']>>([]);
+  workflows = signal<Array<Schema['Workflow']['type']>>([]);
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   filteredUsers = signal<Array<Schema['User']['type']>>([]);
   loading = signal(true);
   loadingUsers = signal(false);
-  loadingDomains = signal(false);
   searchingUsers = signal(false);
   showNewProjectForm = signal(false);
   creatingProject = signal(false);
@@ -48,9 +49,11 @@ export class Projects implements OnInit, OnDestroy {
   @ViewChild('ownerSearchInput') ownerSearchInput!: ElementRef<HTMLInputElement>;
   
   private fb = inject(FormBuilder);
+  private versionedDataService = inject(VersionedDataService);
   private authService = inject(AuthService);
   private userDataService = inject(UserDataService);
   private chatService = inject(ChatService);
+  private dynamicFormService = inject(DynamicFormService);
   private router = inject(Router);
   private searchTimeout: any = null;
   private projectSearchTimeout: any = null;
@@ -59,14 +62,14 @@ export class Projects implements OnInit, OnDestroy {
   newProjectForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
     description: ['', [Validators.required, Validators.minLength(10)]],
-    defaultDomain: ['', [Validators.required]],
     ownerId: ['', [Validators.required]],
     adminUsers: [[]],
+    workflowId: ['', [Validators.required]],
     status: ['active', [Validators.required]]
   });
 
   async ngOnInit() {
-    await Promise.all([this.loadProjects(), this.loadUsers(), this.loadDomains(), this.loadDocumentTypes()]);
+    await Promise.all([this.loadProjects(), this.loadUsers(), this.loadDocumentTypes(), this.loadWorkflows()]);
     
     // Wait for user data to be loaded and then reapply filtering
     const checkUserDataAndFilter = () => {
@@ -96,7 +99,8 @@ export class Projects implements OnInit, OnDestroy {
     try {
       this.loading.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.Project.list();
+      const result = await this.versionedDataService.getAllLatestVersions('Project');
+      const data = result.success ? result.data || [] : [];
       this.projects.set(data);
       this.applyProjectFiltering();
     } catch (error) {
@@ -216,7 +220,8 @@ export class Projects implements OnInit, OnDestroy {
     try {
       this.loadingUsers.set(true);
       const client = generateClient<Schema>();
-      const { data } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
+      const data = result.success ? result.data || [] : [];
       this.users.set(data);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -226,29 +231,28 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async loadDomains() {
-    try {
-      this.loadingDomains.set(true);
-      const client = generateClient<Schema>();
-      const { data } = await client.models.Domain.list();
-      // Only show active domains for selection
-      this.domains.set(data.filter(domain => domain.status === 'active'));
-    } catch (error) {
-      console.error('Error loading domains:', error);
-      this.domains.set([]);
-    } finally {
-      this.loadingDomains.set(false);
-    }
-  }
 
   async loadDocumentTypes() {
     try {
       const client = generateClient<Schema>();
-      const { data } = await client.models.DocumentType.list();
+      const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+      const data = result.success ? result.data || [] : [];
       this.documentTypes.set(data.filter(docType => docType.isActive));
     } catch (error) {
       console.error('Error loading document types:', error);
       this.documentTypes.set([]);
+    }
+  }
+
+  async loadWorkflows() {
+    try {
+      const client = generateClient<Schema>();
+      const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+      const data = result.success ? result.data || [] : [];
+      this.workflows.set(data.filter(workflow => workflow.isActive));
+    } catch (error) {
+      console.error('Error loading workflows:', error);
+      this.workflows.set([]);
     }
   }
 
@@ -265,10 +269,12 @@ export class Projects implements OnInit, OnDestroy {
     return user ? user.email : '';
   }
 
-  getDomainName(domainId: string): string {
-    const domain = this.domains().find(d => d.id === domainId);
-    return domain ? domain.name : 'Unknown Domain';
+  getWorkflowName(workflowId: string | null | undefined): string {
+    if (!workflowId) return 'No workflow assigned';
+    const workflow = this.workflows().find(w => w.id === workflowId);
+    return workflow ? workflow.name : 'Unknown workflow';
   }
+
 
   getAdminUserNames(adminUserIds: (string | null)[] | null | undefined): string {
     if (!adminUserIds || adminUserIds.length === 0) return 'No admin users assigned';
@@ -286,25 +292,15 @@ export class Projects implements OnInit, OnDestroy {
     return names.join(', ');
   }
 
-  // Debug method to check document types and their domain associations
+  // Debug method to check document types
   debugDocumentTypes() {
-    console.log('=== DEBUG: Document Types and Domain Associations ===');
+    console.log('=== DEBUG: Document Types ===');
     console.log('Total document types:', this.documentTypes().length);
-    console.log('Total domains:', this.domains().length);
     
     this.documentTypes().forEach(docType => {
       console.log(`Document Type: ${docType.name}`);
       console.log(`  - ID: ${docType.id}`);
-      console.log(`  - Domain IDs: `, docType.domainIds);
       console.log(`  - Active: `, docType.isActive);
-    });
-    
-    this.domains().forEach(domain => {
-      console.log(`Domain: ${domain.name} (${domain.id})`);
-      const associatedTypes = this.documentTypes().filter(dt => 
-        dt.domainIds && dt.domainIds.filter(id => id !== null).includes(domain.id)
-      );
-      console.log(`  - Associated document types: `, associatedTypes.map(dt => dt.name));
     });
   }
 
@@ -640,9 +636,9 @@ export class Projects implements OnInit, OnDestroy {
     this.newProjectForm.patchValue({
       name: project.name,
       description: project.description,
-      defaultDomain: project.defaultDomain,
-      ownerId: project.ownerId,
+            ownerId: project.ownerId,
       adminUsers: project.adminUsers || [],
+      workflowId: project.workflowId || '',
       status: project.status
     });
   }
@@ -656,14 +652,16 @@ export class Projects implements OnInit, OnDestroy {
     this.newProjectForm.patchValue({
       name: project.name,
       description: project.description,
-      defaultDomain: project.defaultDomain,
-      ownerId: project.ownerId,
+            ownerId: project.ownerId,
       adminUsers: project.adminUsers || [],
+      workflowId: project.workflowId || '',
       status: project.status
     });
     
     // Disable form in view mode
-    this.newProjectForm.disable();
+    if (this.currentMode() === 'view') {
+      this.newProjectForm.disable();
+    }
   }
 
   closeForm() {
@@ -689,7 +687,7 @@ export class Projects implements OnInit, OnDestroy {
       if (currentUserId) {
         this.newProjectForm.patchValue({ 
           ownerId: currentUserId,
-          status: 'active' 
+          status: 'active'
         });
       }
     }
@@ -708,13 +706,22 @@ export class Projects implements OnInit, OnDestroy {
       const firstName = nameParts[0] || 'User';
       const lastName = nameParts[1] || '';
 
-      const { data } = await client.models.User.create({
-        email: currentUser.email,
-        firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
-        lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const result = await this.versionedDataService.createVersionedRecord('User', {
+        data: {
+          email: currentUser.email,
+          firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
+          lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
+          userType: 'client',
+          status: 'active',
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create user');
+      }
+      
+      const data = result.data;
 
       // Refresh users list
       await this.loadUsers();
@@ -727,6 +734,19 @@ export class Projects implements OnInit, OnDestroy {
   }
 
   async onSubmitProject() {
+    console.log('Form submission attempted');
+    console.log('Form valid:', this.newProjectForm.valid);
+    console.log('Form value:', this.newProjectForm.value);
+    console.log('Form errors:', this.newProjectForm.errors);
+    
+    // Check individual field errors
+    Object.keys(this.newProjectForm.controls).forEach(key => {
+      const control = this.newProjectForm.get(key);
+      if (control?.errors) {
+        console.log(`Field ${key} errors:`, control.errors);
+      }
+    });
+    
     if (this.newProjectForm.valid) {
       if (this.currentMode() === 'create') {
         this.creatingProject.set(true);
@@ -741,69 +761,165 @@ export class Projects implements OnInit, OnDestroy {
 
       const projectData = {
         name: formValue.name,
+        identifier: formValue.name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'),
         description: formValue.description,
-        defaultDomain: formValue.defaultDomain,
-        ownerId: formValue.ownerId,
+                ownerId: formValue.ownerId,
         adminUsers: adminUsersArray,
+        workflowId: formValue.workflowId,
         status: formValue.status as 'active' | 'completed' | 'archived'
       };
 
-      if (this.currentMode() === 'create') {
-        await this.createProject(projectData);
-      } else if (this.currentMode() === 'edit' && this.selectedProject()) {
-        await this.updateProject(this.selectedProject()!.id, projectData);
+      console.log('Project data to create:', projectData);
+
+      try {
+        if (this.currentMode() === 'create') {
+          await this.createProject(projectData);
+        } else if (this.currentMode() === 'edit' && this.selectedProject()) {
+          await this.updateProject(this.selectedProject()!.id, projectData);
+        }
+      } catch (error) {
+        console.error('Error during project operation:', error);
+        alert('Failed to save project: ' + (error as Error).message);
       }
       
       this.creatingProject.set(false);
       this.updatingProject.set(false);
       this.closeForm();
+    } else {
+      console.log('Form is invalid, cannot submit');
+      // Mark all fields as touched to show validation errors
+      Object.keys(this.newProjectForm.controls).forEach(key => {
+        this.newProjectForm.get(key)?.markAsTouched();
+      });
     }
   }
 
-  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'createdAt' | 'updatedAt'>) {
+  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>) {
     try {
+      console.log('Creating project with data:', project);
       const client = generateClient<Schema>();
       
       // Create the project
-      const { data: createdProject } = await client.models.Project.create({
-        ...project,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+      const projectResult = await this.versionedDataService.createVersionedRecord('Project', {
+        data: {
+          ...project,
+          createdAt: new Date().toISOString()
+        }
       });
+      
+      if (!projectResult.success) {
+        throw new Error(projectResult.error || 'Failed to create project');
+      }
+      
+      const createdProject = projectResult.data;
+      
+      console.log('Project creation result:', createdProject);
 
       if (createdProject) {
         console.log('Project created:', createdProject);
-        console.log('Selected domain ID:', project.defaultDomain);
         console.log('Available document types:', this.documentTypes());
         
-        // Find all document types associated with the selected domain
-        const associatedDocumentTypes = this.documentTypes().filter(docType => {
-          console.log(`Checking docType: ${docType.name}, domainIds:`, docType.domainIds);
-          return docType.domainIds && docType.domainIds.filter(id => id !== null).includes(project.defaultDomain);
-        });
+        // Get document types that are referenced in the selected workflow's rules
+        const selectedWorkflow = this.workflows().find(w => w.id === this.newProjectForm.value.workflowId);
+        
+        console.log('🔍 Selected workflow:', selectedWorkflow);
+        console.log('🔍 Workflow rules:', selectedWorkflow?.rules);
+        console.log('🔍 Available document types:', this.documentTypes().map(dt => ({ name: dt.name, identifier: dt.identifier, id: dt.id })));
+        
+        const associatedDocumentTypes = this.getDocumentTypesFromWorkflow(selectedWorkflow);
 
-        console.log('Associated document types found:', associatedDocumentTypes);
+        console.log('📋 Associated document types found:', associatedDocumentTypes.length);
+        console.log('📋 Associated document types details:', associatedDocumentTypes.map(dt => ({ name: dt.name, identifier: dt.identifier, id: dt.id })));
 
-        if (associatedDocumentTypes.length > 0) {
-          // Create documents for each associated document type
-          const documentPromises = associatedDocumentTypes.map(docType => {
+        // FALLBACK: If no workflow-specific document types found, use all active document types
+        const finalDocumentTypes = associatedDocumentTypes.length > 0 
+          ? associatedDocumentTypes 
+          : this.documentTypes().filter(dt => dt.isActive !== false);
+          
+        if (finalDocumentTypes !== associatedDocumentTypes) {
+          console.log('⚠️  No workflow-specific document types found, falling back to all active document types');
+          console.log('📋 Using all active document types:', finalDocumentTypes.map(dt => ({ name: dt.name, identifier: dt.identifier, id: dt.id })));
+        }
+
+        if (finalDocumentTypes.length > 0) {
+          // Create documents for each document type with validation
+          const documentPromises = finalDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
             console.log(`Creating document for type: ${docType.name}`);
-            return client.models.Document.create({
-              projectId: createdProject.id,
-              documentType: docType.id,
-              status: 'requested',
-              assignedProviders: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            });
+            
+            try {
+              // Parse document type definition to create initial form data
+              let initialFormData: any = {};
+              if (docType.definition) {
+                try {
+                  const definition = JSON.parse(docType.definition);
+                  if (definition.fields && Array.isArray(definition.fields)) {
+                    // Initialize form data with default values from definition
+                    definition.fields.forEach((field: any) => {
+                      if (field.defaultValue !== undefined) {
+                        initialFormData[field.name] = field.defaultValue;
+                      } else if (field.type === 'boolean' || field.type === 'checkbox') {
+                        initialFormData[field.name] = false;
+                      } else {
+                        // Leave other fields undefined to trigger validation rules
+                        initialFormData[field.name] = undefined;
+                      }
+                    });
+                  }
+                } catch (parseError) {
+                  console.warn(`Failed to parse definition for ${docType.name}:`, parseError);
+                }
+              }
+              
+              // Create a temporary FormGroup for validation
+              const tempForm = this.fb.group(initialFormData);
+              
+              // Execute validation rules if they exist
+              if (docType.validationRules) {
+                try {
+                  console.log(`Executing validation rules for ${docType.name}...`);
+                  
+                  // Parse validation rules (they're stored as text, not JSON)
+                  const rulesText = docType.validationRules;
+                  const rules = this.parseValidationRulesFromText(rulesText);
+                  
+                  // Apply validation rules to update form data
+                  const updatedFormData = await this.applyValidationRules(rules, tempForm, initialFormData);
+                  initialFormData = { ...initialFormData, ...updatedFormData };
+                  
+                  console.log(`Validation applied for ${docType.name}, final data:`, initialFormData);
+                } catch (validationError) {
+                  console.warn(`Validation failed for ${docType.name}:`, validationError);
+                }
+              }
+              
+              // Create the document with validated form data
+              return this.versionedDataService.createVersionedRecord('Document', {
+                data: {
+                  projectId: createdProject.id,
+                  documentType: docType.id,
+                  formData: JSON.stringify(initialFormData),
+                  createdAt: new Date().toISOString()
+                }
+              });
+            } catch (error) {
+              console.error(`Error processing document for ${docType.name}:`, error);
+              // Fallback to basic document creation
+              return this.versionedDataService.createVersionedRecord('Document', {
+                data: {
+                  projectId: createdProject.id,
+                  documentType: docType.id,
+                  createdAt: new Date().toISOString()
+                }
+              });
+            }
           });
 
           // Wait for all documents to be created
           await Promise.all(documentPromises);
           
-          console.log(`Successfully created ${associatedDocumentTypes.length} documents for project: ${createdProject.name}`);
+          console.log(`Successfully created ${finalDocumentTypes.length} documents for project: ${createdProject.name}`);
         } else {
-          console.log('No document types associated with domain:', project.defaultDomain);
+          console.log('No document types found.');
         }
       }
 
@@ -816,15 +932,150 @@ export class Projects implements OnInit, OnDestroy {
 
   async updateProject(id: string, updates: Omit<Partial<Schema['Project']['type']>, 'id' | 'ownerId' | 'createdAt'>) {
     try {
-      const client = generateClient<Schema>();
-      await client.models.Project.update({
-        id,
-        ...updates,
-        updatedAt: new Date().toISOString()
-      });
+      const result = await this.versionedDataService.updateVersionedRecord('Project', id, updates);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update project');
+      }
+      
+      const updatedProject = result.data;
+      console.log('Project updated:', updatedProject);
+
+      // Check and create missing documents if workflow is assigned
+      if (updatedProject && updatedProject.workflowId) {
+        console.log('Checking for missing documents in updated project...');
+        await this.ensureProjectDocuments(updatedProject);
+      }
+      
       await this.loadProjects();
     } catch (error) {
       console.error('Error updating project:', error);
+    }
+  }
+
+  /**
+   * Ensure all required documents exist for a project based on its workflow
+   */
+  async ensureProjectDocuments(project: Schema['Project']['type']) {
+    try {
+      console.log('📋 Ensuring documents for project:', project.name);
+      
+      // Get workflow-specific document types
+      const selectedWorkflow = this.workflows().find(w => w.id === project.workflowId);
+      const requiredDocumentTypes = this.getDocumentTypesFromWorkflow(selectedWorkflow);
+      
+      console.log('📋 Required document types:', requiredDocumentTypes.map(dt => dt.name));
+      
+      if (requiredDocumentTypes.length === 0) {
+        console.log('📋 No document types required by workflow');
+        return;
+      }
+
+      // Get existing documents for this project
+      const client = generateClient<Schema>();
+      const allDocumentsResult = await client.models.Document.list();
+      const existingDocuments = allDocumentsResult.data?.filter((doc: any) => doc.projectId === project.id) || [];
+      console.log('📋 Existing documents:', existingDocuments.map((doc: any) => doc.documentType));
+
+      // Find missing document types  
+      const existingDocumentTypes = new Set(existingDocuments.map((doc: any) => doc.documentType));
+      const missingDocumentTypes = requiredDocumentTypes.filter(docType => 
+        !existingDocumentTypes.has(docType.name)
+      );
+
+      console.log('📋 Missing document types:', missingDocumentTypes.map(dt => dt.name));
+
+      if (missingDocumentTypes.length === 0) {
+        console.log('📋 All required documents already exist');
+        return;
+      }
+
+      // Create missing documents
+      const documentPromises = missingDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
+        console.log(`📋 Creating missing document for type: ${docType.name}`);
+        
+        try {
+          // Parse document type definition to create initial form data
+          let initialFormData: any = {};
+          if (docType.definition) {
+            try {
+              const definition = JSON.parse(docType.definition);
+              if (definition.fields && Array.isArray(definition.fields)) {
+                // Initialize form data with default values from definition
+                definition.fields.forEach((field: any) => {
+                  if (field.defaultValue !== undefined) {
+                    initialFormData[field.name] = field.defaultValue;
+                  } else if (field.type === 'boolean' || field.type === 'checkbox') {
+                    initialFormData[field.name] = false;
+                  } else {
+                    initialFormData[field.name] = undefined;
+                  }
+                });
+              }
+            } catch (parseError) {
+              console.warn(`Failed to parse definition for ${docType.name}:`, parseError);
+            }
+          }
+          
+          const documentResult = await this.versionedDataService.createVersionedRecord('Document', {
+            data: {
+              projectId: project.id,
+              documentType: docType.id,
+              formData: JSON.stringify(initialFormData),
+              createdAt: new Date().toISOString()
+            }
+          });
+
+          console.log(`📄 Document creation result for ${docType.name}:`, {
+            success: documentResult.success,
+            data: documentResult.data,
+            error: documentResult.error,
+            fullResult: documentResult
+          });
+
+          if (documentResult.success) {
+            console.log(`✅ Created missing document: ${docType.name}`);
+            return documentResult.data;
+          } else {
+            console.error(`❌ Failed to create document for ${docType.name}:`, documentResult.error);
+            return null;
+          }
+        } catch (error) {
+          console.error(`❌ Error creating document for ${docType.name}:`, error);
+          return null;
+        }
+      });
+
+      // Wait for all missing documents to be created
+      const createdDocuments = await Promise.all(documentPromises);
+      
+      console.log('📋 Raw creation results details:');
+      createdDocuments.forEach((doc, index) => {
+        console.log(`  [${index}]:`, {
+          result: doc,
+          type: typeof doc,
+          isNull: doc === null,
+          isUndefined: doc === undefined,
+          isTruthy: !!doc,
+          stringified: JSON.stringify(doc, null, 2)
+        });
+      });
+      
+      const successfullyCreated = createdDocuments.filter(doc => doc !== null && doc !== undefined);
+      
+      console.log(`📋 Document creation results:`, {
+        attempted: missingDocumentTypes.length,
+        succeeded: successfullyCreated.length,
+        failed: createdDocuments.length - successfullyCreated.length
+      });
+      
+      console.log(`📋 Successfully created ${successfullyCreated.length} missing documents for project: ${project.name}`);
+      
+      // No need to reload documents in projects component
+      // Documents will be automatically available when the documents component loads
+      
+    } catch (error) {
+      console.error('❌ Error ensuring project documents:', error);
     }
   }
 
@@ -891,5 +1142,213 @@ export class Projects implements OnInit, OnDestroy {
       console.error('❌ Error details:', error);
       alert(`Failed to create chat room: ${error}. Please try again.`);
     }
+  }
+
+  private parseValidationRulesFromText(rulesText: string): Array<{ validation: string, action: string }> {
+    const rules: Array<{ validation: string, action: string }> = [];
+    
+    // Split by lines and parse each rule
+    const lines = rulesText.split('\n').map(line => line.trim()).filter(line => line);
+    
+    for (const line of lines) {
+      const match = line.match(/validation:\s*(.+?)\s+action:\s*(.+)/);
+      if (match) {
+        const [, validation, action] = match;
+        rules.push({
+          validation: validation.trim(),
+          action: action.trim()
+        });
+      }
+    }
+    
+    return rules;
+  }
+
+  private async applyValidationRules(
+    rules: Array<{ validation: string, action: string }>, 
+    formGroup: FormGroup, 
+    initialData: any
+  ): Promise<any> {
+    const updatedData: any = {};
+    
+    try {
+      // Use the DynamicFormService to evaluate validation rules
+      for (const rule of rules) {
+        const condition = rule.validation;
+        const actions = rule.action;
+        
+        // Check if the validation condition is met
+        const conditionMet = this.dynamicFormService.evaluateCondition(condition, formGroup, {});
+        
+        if (conditionMet) {
+          console.log(`✅ Rule condition met: ${condition} -> ${actions}`);
+          
+          // Parse and apply actions
+          const actionUpdates = this.parseValidationActions(actions);
+          Object.assign(updatedData, actionUpdates);
+          
+          // Update the FormGroup with new values for subsequent rule evaluations
+          Object.keys(actionUpdates).forEach(key => {
+            if (formGroup.get(key)) {
+              formGroup.get(key)?.setValue(actionUpdates[key]);
+            } else {
+              formGroup.addControl(key, this.fb.control(actionUpdates[key]));
+            }
+          });
+        } else {
+          console.log(`❌ Rule condition not met: ${condition}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error applying validation rules:', error);
+    }
+    
+    return updatedData;
+  }
+
+  private parseValidationActions(actionsText: string): any {
+    const updates: any = {};
+    
+    // Parse actions like "status = 'queued', files.hidden = true"
+    const actionParts = actionsText.split(',').map(part => part.trim());
+    
+    for (const actionPart of actionParts) {
+      const assignmentMatch = actionPart.match(/(\w+(?:\.\w+)?)\s*=\s*(.+)/);
+      if (assignmentMatch) {
+        const [, fieldPath, value] = assignmentMatch;
+        
+        // Handle simple field assignments (ignore complex field.property for now)
+        if (!fieldPath.includes('.')) {
+          let parsedValue: any = value.trim() as any;
+          
+          // Remove quotes from string values
+          if ((parsedValue.startsWith('"') && parsedValue.endsWith('"')) ||
+              (parsedValue.startsWith("'") && parsedValue.endsWith("'"))) {
+            parsedValue = parsedValue.slice(1, -1);
+          } else if (parsedValue === 'true') {
+            parsedValue = true;
+          } else if (parsedValue === 'false') {
+            parsedValue = false;
+          } else if (!isNaN(Number(parsedValue))) {
+            parsedValue = Number(parsedValue);
+          }
+          
+          updates[fieldPath] = parsedValue;
+        }
+      }
+    }
+    
+    return updates;
+  }
+
+  /**
+   * Extract document types that are referenced in a workflow's rules
+   */
+  getDocumentTypesFromWorkflow(workflow?: Schema['Workflow']['type'] | null): Array<Schema['DocumentType']['type']> {
+    if (!workflow || !workflow.rules || workflow.rules.length === 0) {
+      console.log('No workflow or workflow rules found, returning empty array');
+      return [];
+    }
+
+    const docTypeNames = new Set<string>();
+    
+    // Extract document type names from workflow rules
+    workflow.rules.forEach((ruleString: any) => {
+      try {
+        const rule = typeof ruleString === 'string' ? JSON.parse(ruleString) : ruleString;
+        const validation = rule.validation || '';
+        const action = rule.action || '';
+        
+        // Extract document types from validation and action rules
+        this.extractDocTypeNamesFromText(validation, docTypeNames);
+        this.extractDocTypeNamesFromText(action, docTypeNames);
+      } catch (error) {
+        console.error('Error parsing workflow rule:', ruleString, error);
+      }
+    });
+
+    console.log('Document type names extracted from workflow:', Array.from(docTypeNames));
+
+    // Find matching DocumentType objects from the available document types
+    const matchedDocTypes = this.documentTypes().filter(docType => {
+      const isActive = docType.isActive;
+      
+      // Try multiple matching strategies, prioritizing identifier
+      let isReferenced = false;
+      let matchedBy = '';
+      
+      // Strategy 1: Match by identifier first (primary matching method)
+      if (docType.identifier && docTypeNames.has(docType.identifier)) {
+        isReferenced = true;
+        matchedBy = 'identifier exact';
+      }
+      
+      // Strategy 2: Normalize identifier and compare (remove spaces, lowercase)
+      if (!isReferenced && docType.identifier) {
+        const normalizedIdentifier = docType.identifier.replace(/\s+/g, '').toLowerCase();
+        
+        for (const extractedName of docTypeNames) {
+          const normalizedExtracted = extractedName.replace(/\s+/g, '').toLowerCase();
+          if (normalizedExtracted === normalizedIdentifier) {
+            isReferenced = true;
+            matchedBy = 'identifier normalized';
+            console.log(`✅ Matched "${docType.name}" (identifier: "${docType.identifier}") with extracted "${extractedName}" via identifier normalization`);
+            break;
+          }
+        }
+      }
+      
+      // Strategy 3: Fallback to name matching only if no identifier match
+      if (!isReferenced) {
+        if (docTypeNames.has(docType.name)) {
+          isReferenced = true;
+          matchedBy = 'name exact';
+        }
+      }
+      
+      // Strategy 4: Normalize name as final fallback
+      if (!isReferenced) {
+        const normalizedDocTypeName = docType.name.replace(/\s+/g, '').toLowerCase();
+        
+        for (const extractedName of docTypeNames) {
+          const normalizedExtracted = extractedName.replace(/\s+/g, '').toLowerCase();
+          if (normalizedExtracted === normalizedDocTypeName) {
+            isReferenced = true;
+            matchedBy = 'name normalized';
+            console.log(`✅ Matched "${docType.name}" with extracted "${extractedName}" via name normalization`);
+            break;
+          }
+        }
+      }
+      
+      console.log(`Document type ${docType.name} (identifier: ${docType.identifier}): isActive=${isActive}, isReferenced=${isReferenced} (${matchedBy})`);
+      return isActive && isReferenced;
+    });
+
+    console.log('Matched document types for workflow:', matchedDocTypes.map(dt => dt.name));
+    return matchedDocTypes;
+  }
+
+  /**
+   * Extract document type names from workflow rule text
+   */
+  private extractDocTypeNamesFromText(text: string, docTypeNames: Set<string>) {
+    console.log(`🔍 Extracting doc types from text: "${text}"`);
+    
+    // Pattern: document.DocumentTypeName.status or DocumentTypeName.status
+    const docTypePatterns = [
+      /document\.([A-Z][a-zA-Z0-9]*)\./g,  // document.DocumentTypeName.status
+      /([A-Z][a-zA-Z0-9]+)\.(?:status|value|hidden|disabled)/g  // DocumentTypeName.status
+    ];
+    
+    docTypePatterns.forEach((pattern, index) => {
+      console.log(`🔍 Trying pattern ${index + 1}: ${pattern}`);
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const docTypeName = match[1];
+        console.log(`✅ Found document type name: "${docTypeName}" using pattern ${index + 1}`);
+        docTypeNames.add(docTypeName);
+      }
+    });
   }
 }

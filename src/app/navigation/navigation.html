@@ -11,12 +11,6 @@
       </a>
     </li>
     @if (isAuthenticated()) {
-      <li>
-        <a routerLink="/dashboard" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">📊</i>
-          Dashboard
-        </a>
-      </li>
       @if (isCurrentUserAdmin()) {
         <li>
           <a routerLink="/admin" routerLinkActive="active" (click)="onNavigationClick()">
@@ -25,15 +19,21 @@
           </a>
         </li>
         <li>
-          <a routerLink="/domains" routerLinkActive="active" (click)="onNavigationClick()">
-            <i class="icon">🌐</i>
-            Domains
-          </a>
-        </li>
-        <li>
           <a routerLink="/document-types" routerLinkActive="active" (click)="onNavigationClick()">
             <i class="icon">📄</i>
             Document Types
+          </a>
+        </li>
+        <li>
+          <a routerLink="/workflows" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">⚡</i>
+            Workflows
+          </a>
+        </li>
+        <li>
+          <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">👥</i>
+            Users
           </a>
         </li>
       }
@@ -50,15 +50,15 @@
         </a>
       </li>
       <li>
-        <a routerLink="/chat" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">💬</i>
-          Chat
+        <a routerLink="/reporting" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">📊</i>
+          Reporting
         </a>
       </li>
       <li>
-        <a routerLink="/users" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">👥</i>
-          Users
+        <a routerLink="/chat" routerLinkActive="active" (click)="onNavigationClick()">
+          <i class="icon">💬</i>
+          Chat
         </a>
       </li>
     }
