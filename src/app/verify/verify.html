@@ -59,19 +59,6 @@
               Please enter a valid 6-digit verification code
             </div>
           }
-          
-          <div class="resend-section">
-            <p class="resend-text">Didn't receive the code?</p>
-            <button 
-              type="button" 
-              class="btn-secondary" 
-              (click)="resendVerificationCode()" 
-              [disabled]="processing()"
-              data-test="resend-verification-code-btn"
-            >
-              {{ processing() ? 'Sending...' : 'Resend Code' }}
-            </button>
-          </div>
         </div>
 
         @if (errorMessage()) {
@@ -90,6 +77,19 @@
         >
           {{ processing() ? 'Verifying...' : 'Verify Email' }}
         </button>
+
+        <div class="resend-section">
+          <p class="resend-text">Didn't receive the code?</p>
+          <button 
+            type="button" 
+            class="btn-secondary" 
+            (click)="resendVerificationCode()" 
+            [disabled]="processing()"
+            data-test="resend-verification-code-btn"
+          >
+            {{ processing() ? 'Sending...' : 'Resend Code' }}
+          </button>
+        </div>
       </form>
 
       <div class="auth-switch">

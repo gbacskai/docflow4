@@ -1,0 +1,379 @@
+{
+  "exportDate": "2025-09-03T06:14:37.810Z",
+  "exportedBy": "a9ae5488-a081-70d9-79d0-7e622c59b3f8",
+  "version": "1.0",
+  "tables": {
+    "DocumentTypes": [
+      {
+        "id": "346602fb-e803-4c37-acb5-eb718d573ab7",
+        "name": "AWB Confirmation",
+        "identifier": "AwbConfirmation",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"confirmed\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : false,  \"placeholder\": \"Confirm by AWB\"},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: confirmed == true action: status = \"confirmed\" \nvalidation: confirmed == false action: status = \"queued\"\n",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:34.988Z",
+        "updatedAt": "2025-09-01T03:45:36.916Z"
+      },
+      {
+        "id": "b40ac607-b8b6-4cf9-a64f-aef736751a6d",
+        "name": "Design Guidelines",
+        "identifier": "DesignGuidelines",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : false, \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : false, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:35.204Z",
+        "updatedAt": "2025-09-01T03:45:36.306Z"
+      },
+      {
+        "id": "4f2de355-31ff-4481-bdb1-4c5225ba40bc",
+        "name": "Builders Standard Specifications",
+        "identifier": "BuildersStandardSpecifications",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\": true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:35.366Z",
+        "updatedAt": "2025-09-01T03:45:36.765Z"
+      },
+      {
+        "id": "9a3336a8-a38e-4f33-9c01-4936e624783f",
+        "name": "Title Search",
+        "identifier": "TitleSearch",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:36.118Z",
+        "updatedAt": "2025-09-01T03:45:38.408Z"
+      },
+      {
+        "id": "d5c5bff8-1eaa-4f7e-bbe2-240a966d9937",
+        "name": "Estate Engineering Plan",
+        "identifier": "EstateEngineeringPlan",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : false, \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : false, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:35.643Z",
+        "updatedAt": "2025-09-01T03:45:37.945Z"
+      },
+      {
+        "id": "d4c8147d-33cd-43a2-a417-467fce12ba9e",
+        "name": "MCP",
+        "identifier": "Mcp",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:35.784Z",
+        "updatedAt": "2025-09-01T03:45:37.679Z"
+      },
+      {
+        "id": "be324a40-4273-44bb-875b-1ec95de0e385",
+        "name": "Flood Certificate",
+        "identifier": "FloodCertificate",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : false, \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : false, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-02T10:38:16.565Z",
+        "updatedAt": "2025-09-02T10:38:16.565Z"
+      },
+      {
+        "id": "9c3fc6dd-e35c-4d3d-b274-744ca2f2559b",
+        "name": "Concept Sketch",
+        "identifier": "ConceptSketch",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : false, \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : false, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:35.512Z",
+        "updatedAt": "2025-09-01T03:45:38.059Z"
+      },
+      {
+        "id": "a499d280-f936-4dca-a79f-e77517553366",
+        "name": "Planning Report",
+        "identifier": "PlanningReport",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\",\"disabled\": true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:35.966Z",
+        "updatedAt": "2025-09-01T03:45:37.095Z"
+      },
+      {
+        "id": "a95693ba-1bd2-44f4-9037-56bd3595351d",
+        "name": "Property Report",
+        "identifier": "PropertyReport",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\": true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:37.415Z",
+        "updatedAt": "2025-09-01T03:45:38.170Z"
+      },
+      {
+        "id": "cd9ad9da-07a2-41d7-ba4e-534acfc35cda",
+        "name": "Land Sales Contract",
+        "identifier": "LandSalesContract",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : false, \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : false, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:38.291Z",
+        "updatedAt": "2025-09-01T03:45:38.558Z"
+      },
+      {
+        "id": "a860b254-277d-42ea-a58e-36a962afd47a",
+        "name": "Building Permit",
+        "identifier": "building_permit",
+        "definition": "{\n  \"fields\": [\n  ]\n}",
+        "validationRules": null,
+        "category": null,
+        "fields": [],
+        "isActive": false,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:37.570Z",
+        "updatedAt": "2025-09-02T05:20:03.485Z"
+      },
+      {
+        "id": "3ef989fd-1526-4b9f-b2e5-9c6dd84a6501",
+        "name": "Covenants",
+        "identifier": "Covenants",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:34.831Z",
+        "updatedAt": "2025-09-01T03:45:36.617Z"
+      },
+      {
+        "id": "c836f495-8790-4fed-ad8b-f1abec37c1d6",
+        "name": "Plan of Subdivison",
+        "identifier": "PlanOfSubdivison",
+        "definition": "{\n    \"fields\": [\n\t{\"key\": \"notrequired\", \"type\": \"checkbox\", \"label\": \"\", \"hidden\" : true,  \"placeholder\": \"Not Required\"},\n\t{\"key\": \"notes\", \"type\": \"textarea\", \"label\": \"Notes\", \"hidden\" : true, \"placeholder\": \"Notes\"},\n        {\"key\": \"files\", \"type\": \"file\", \"label\": \"\", \"description\": \"You can select multiple files\", \"multiple\": true},\n        {\"key\": \"status\", \"type\": \"select\", \"label\" : \"Status\", \"required\": true, \"defaultValue\": \"queued\", \"disabled\" : true, \"options\": [\n          {\"value\": \"queued\", \"label\": \"Queued\"},\n          {\"value\": \"waiting\", \"label\": \"Waiting\"},\n          {\"value\": \"completed\", \"label\": \"Completed\"},\n          {\"value\": \"confirmed\", \"label\": \"Confirmed\"},\n          {\"value\": \"notrequired\", \"label\": \"Not required\"}\n\t]}\n      ]\n}",
+        "validationRules": "validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = \"notrequired\" \nvalidation: notrequired == false action: files.hidden = false, notes.hidden = false, status = \"waiting\"\nvalidation: notrequired == false and files.count() > 0 action: status = \"completed\"",
+        "category": null,
+        "fields": [],
+        "isActive": true,
+        "usageCount": 0,
+        "templateCount": null,
+        "createdAt": "2025-09-01T03:45:36.477Z",
+        "updatedAt": "2025-09-01T03:45:37.255Z"
+      }
+    ],
+    "Workflows": [
+      {
+        "id": "95382949-3d02-4847-8ed4-3c341c437c39",
+        "name": "New House Victoria",
+        "identifier": null,
+        "description": "Building permit application for new house in Victoria",
+        "rules": [
+          "{\"action\":\"document.LandSalesContract.status = \\\"waiting\\\"\",\"id\":\"rule_1\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.LandSalesContract.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.AwbConfirmation.status = \\\"waiting\\\"\",\"id\":\"rule_2\",\"validation\":\"document.ClientInformation.status = \\\"confirmed\\\" and \\ndocument.AwbConfirmation.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.AwbConfirmation.status = \\\"waiting\\\"\",\"id\":\"rule_3\",\"validation\":\"document.ProposedBuildingSiteAndAddress.status = \\\"confirmed\\\" and \\ndocument.AwbConfirmation.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.AwbConfirmation.status = \\\"waiting\\\"\",\"id\":\"rule_4\",\"validation\":\"document.JobInformation.status = \\\"confirmed\\\" and \\ndocument.AwbConfirmation.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.DesignGuidelines.status = \\\"waiting\\\"\",\"id\":\"rule_5\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.DesignGuidelines.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.PlanOfSubdivison.status = \\\"waiting\\\"\",\"id\":\"rule_6\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.PlanOfSubdivison.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.ConceptSketch.status = \\\"waiting\\\"\",\"id\":\"rule_7\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.ConceptSketch.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.Covenants.status = \\\"waiting\\\"\",\"id\":\"rule_8\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.Covenants.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.PropertyReport.status = \\\"waiting\\\"\",\"id\":\"rule_9\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.PropertyReport.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.PlanningReport.status = \\\"waiting\\\"\",\"id\":\"rule_10\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.PlanningReport.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.Mcp.status = \\\"waiting\\\"\",\"id\":\"rule_11\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.Mcp.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.EstateEngineeringPlan.status = \\\"waiting\\\"\",\"id\":\"rule_12\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.EstateEngineeringPlan.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.BuildersStandardSpecifications.status = \\\"waiting\\\"\",\"id\":\"rule_13\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.BuildersStandardSpecifications.status = \\\"queued\\\"\"}",
+          "{\"action\":\"document.TitleSearch.status = \\\"waiting\\\"\",\"id\":\"rule_14\",\"validation\":\"document.AwbConfirmation.status = \\\"confirmed\\\" and \\ndocument.TitleSearch.status = \\\"queued\\\"\"}"
+        ],
+        "actors": [
+          "project owner",
+          "project admin",
+          "builder",
+          "soil tester",
+          "draftperson"
+        ],
+        "isActive": true,
+        "createdAt": "2025-09-01T03:45:38.666Z",
+        "updatedAt": "2025-09-01T13:30:39.556Z"
+      }
+    ],
+    "Projects": [
+      {
+        "id": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "name": "Lovely project",
+        "identifier": "lovely_project",
+        "description": "asd asd asd asd ",
+        "ownerId": "8a4d749d-e233-4c9f-9c84-adccfdde22d2",
+        "adminUsers": [],
+        "workflowId": "95382949-3d02-4847-8ed4-3c341c437c39",
+        "status": "active",
+        "createdAt": "2025-09-01T03:59:30.983Z",
+        "updatedAt": "2025-09-01T04:57:39.604Z"
+      }
+    ],
+    "Documents": [
+      {
+        "id": "4dbc1839-da88-4f66-9d19-63856d1a1f02",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "d5c5bff8-1eaa-4f7e-bbe2-240a966d9937",
+        "formData": "{\"notrequired\":false,\"notes\":\"sdcsddcscsdc\",\"files\":[\"documents/4dbc1839-da88-4f66-9d19-63856d1a1f02/files/external_colour_scheme_1_10 - external_colour_scheme.jpg\"]}",
+        "status": "draft",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-02T10:40:57.176Z"
+      },
+      {
+        "id": "e0c58caf-87b5-489a-a6b4-2115740787f6",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "3ef989fd-1526-4b9f-b2e5-9c6dd84a6501",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.271Z",
+        "updatedAt": "2025-09-01T03:59:31.271Z"
+      },
+      {
+        "id": "5ed50192-4ec7-49b5-bf64-d9e386e36658",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "346602fb-e803-4c37-acb5-eb718d573ab7",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.269Z",
+        "updatedAt": "2025-09-01T03:59:31.269Z"
+      },
+      {
+        "id": "d1ac0ce4-3b29-4678-97fc-2b4517b511f1",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "a499d280-f936-4dca-a79f-e77517553366",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "0027f051-348c-47f9-bb05-32c864ff01fb",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "c836f495-8790-4fed-ad8b-f1abec37c1d6",
+        "formData": "{\"notrequired\":\"\",\"notes\":\"\",\"files\":[\"documents/0027f051-348c-47f9-bb05-32c864ff01fb/files/external_colour_scheme_1_10 - external_colour_scheme.jpg\"]}",
+        "status": "draft",
+        "createdAt": "2025-09-01T03:59:31.271Z",
+        "updatedAt": "2025-09-02T10:41:13.736Z"
+      },
+      {
+        "id": "8955378a-15fa-42b0-9903-fb6feb49b82c",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "9c3fc6dd-e35c-4d3d-b274-744ca2f2559b",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "8fc59b94-7234-4db9-bc85-099984fef574",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "9a3336a8-a38e-4f33-9c01-4936e624783f",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "eef7d3a1-ee49-4f5e-9d4c-76b98a3b1233",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "d4c8147d-33cd-43a2-a417-467fce12ba9e",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "f1250c8a-8055-4078-83da-fd6975022dbe",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "a860b254-277d-42ea-a58e-36a962afd47a",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.271Z",
+        "updatedAt": "2025-09-01T03:59:31.271Z"
+      },
+      {
+        "id": "c564c035-7ab4-4d2a-bab0-386906afc410",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "cd9ad9da-07a2-41d7-ba4e-534acfc35cda",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "8b1e5848-465f-430b-9b2c-d7a077a06b61",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "4f2de355-31ff-4481-bdb1-4c5225ba40bc",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "96f76d81-d252-441d-b0e6-7d4b5fc82946",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "a95693ba-1bd2-44f4-9037-56bd3595351d",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.270Z",
+        "updatedAt": "2025-09-01T03:59:31.270Z"
+      },
+      {
+        "id": "cce0c07d-cc18-4bb3-9e73-50d2d7d02db8",
+        "projectId": "1c131d37-b948-4259-9a6c-5e244efec564",
+        "documentType": "b40ac607-b8b6-4cf9-a64f-aef736751a6d",
+        "formData": null,
+        "status": "requested",
+        "createdAt": "2025-09-01T03:59:31.269Z",
+        "updatedAt": "2025-09-01T03:59:31.269Z"
+      }
+    ]
+  },
+  "statistics": {
+    "DocumentTypes": 14,
+    "Workflows": 1,
+    "Projects": 1,
+    "Documents": 13,
+    "totalRecords": 29
+  }
+}

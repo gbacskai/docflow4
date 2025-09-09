@@ -1,0 +1,72 @@
+@import '../../../styles.less';
+@import './buttons.less';
+
+// Search wrapper pattern (used in page header and sidebar)
+.search-wrapper, .search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  
+  .search-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    padding-right: 2.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    
+    &:focus {
+      outline: none;
+      border-color: @primary-color;
+      box-shadow: 0 0 0 2px rgba(@primary-color, 0.1);
+    }
+    
+    &::placeholder { color: #7f8c8d; }
+    
+    &:disabled {
+      background-color: #f8f9fa;
+      cursor: not-allowed;
+    }
+  }
+  
+  .clear-search-btn {
+    .btn-clear-search;
+    
+    &.header-search {
+      .btn-clear-search.medium;
+    }
+    
+    &.sidebar-search {
+      .btn-clear-search.small;
+    }
+  }
+  
+  .search-spinner {
+    position: absolute;
+    right: 0.75rem;
+    font-size: 0.9rem;
+    animation: spin 1s linear infinite;
+    color: @primary-color;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+}
+
+// Search input sizing variants
+.search-wrapper {
+  &.header-search .search-input {
+    width: 300px;
+  }
+  
+  &.sidebar-search .search-input {
+    width: 100%;
+  }
+  
+  &.full-width .search-input {
+    width: 100%;
+  }
+}

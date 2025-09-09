@@ -17,9 +17,11 @@ export class Verify implements OnInit {
   private route = inject(ActivatedRoute);
 
   processing = signal(false);
-  errorMessage = signal('');
-  successMessage = signal('');
   pendingEmail = signal('');
+  
+  // Use service-based error and success messages (persistent across component recreations)
+  errorMessage = this.authService.authError;
+  successMessage = this.authService.authSuccess;
 
   verifyForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -39,8 +41,7 @@ export class Verify implements OnInit {
   }
 
   private clearMessages() {
-    this.errorMessage.set('');
-    this.successMessage.set('');
+    this.authService.clearAuthMessages();
   }
 
   async onVerify() {
@@ -53,7 +54,7 @@ export class Verify implements OnInit {
     const result = await this.authService.confirmSignUp(email, confirmationCode);
 
     if (result.success) {
-      this.successMessage.set('Email verified successfully! Redirecting to sign in...');
+      this.authService.setAuthSuccess('Email verified successfully! Redirecting to sign in...');
       this.pendingEmail.set('');
       this.verifyForm.reset();
       setTimeout(() => {
@@ -62,7 +63,7 @@ export class Verify implements OnInit {
         });
       }, 2000);
     } else {
-      this.errorMessage.set(result.error || 'Verification failed');
+      this.authService.setAuthError(result.error || 'Verification failed');
       this.verifyForm.patchValue({ confirmationCode: '' });
     }
 
@@ -72,7 +73,7 @@ export class Verify implements OnInit {
   async resendVerificationCode() {
     const email = this.verifyForm.get('email')?.value;
     if (!email) {
-      this.errorMessage.set('Please enter your email address first');
+      this.authService.setAuthError('Please enter your email address first');
       return;
     }
 
@@ -82,15 +83,12 @@ export class Verify implements OnInit {
     const result = await this.authService.resendConfirmationCode(email);
 
     if (result.success) {
-      this.successMessage.set('Verification code sent! Please check your email.');
+      this.authService.setAuthSuccess('Verification code sent! Please check your email.');
     } else {
-      this.successMessage.set('Verification code sent if you are registered.');
+      this.authService.setAuthSuccess('Verification code sent if you are registered.');
     }
 
     this.processing.set(false);
-    
-    // Ensure we stay on verify page
-    console.log('🔐 Resend verification completed, staying on verify page');
   }
 
   navigateToLogin() {

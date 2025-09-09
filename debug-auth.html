@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Auth</title>
+    <script type="module">
+        import { Amplify } from 'https://cdn.skypack.dev/aws-amplify@6';
+        import { signIn } from 'https://cdn.skypack.dev/aws-amplify@6/auth';
+        
+        // Configure Amplify
+        const outputs = {
+            "auth": {
+                "user_pool_id": "ap-southeast-2_jGRBN9dJi",
+                "aws_region": "ap-southeast-2",
+                "user_pool_client_id": "3vg4aefie5coerirlaequgb78o",
+                "identity_pool_id": "ap-southeast-2:e3ddc73c-a053-4cf1-a910-9f7db7fdbd45",
+                "mfa_methods": [],
+                "standard_required_attributes": ["email"],
+                "username_attributes": ["email"],
+                "user_verification_types": ["email"],
+                "groups": [],
+                "mfa_configuration": "NONE",
+                "password_policy": {
+                    "min_length": 8,
+                    "require_lowercase": true,
+                    "require_numbers": true,
+                    "require_symbols": true,
+                    "require_uppercase": true
+                },
+                "unauthenticated_identities_enabled": true
+            }
+        };
+        
+        Amplify.configure(outputs);
+        console.log('Amplify configured');
+        
+        window.testLogin = async function() {
+            try {
+                console.log('Attempting to sign in...');
+                const result = await signIn({
+                    username: 'test_admin@docflow4.com',
+                    password: 'TestPass123!'
+                });
+                console.log('Sign in successful:', result);
+            } catch (error) {
+                console.error('Sign in failed:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Auth Debug</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <p>Check browser console for results</p>
+</body>
+</html>

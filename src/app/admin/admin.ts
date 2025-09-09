@@ -1,8 +1,15 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from '../services/auth.service';
+import { VersionedDataService } from '../services/versioned-data.service';
 import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.service';
+import { DynamoDBClient, ListTablesCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers';
+import { fetchAuthSession } from 'aws-amplify/auth';
+import outputs from '../../../amplify_outputs.json';
 
 @Component({
   selector: 'app-admin',
@@ -13,6 +20,7 @@ import { AdminService, DatabaseExport, ExportRequest } from '../services/admin.s
 })
 export class Admin implements OnInit {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
   private adminService = inject(AdminService);
   
   // Signals
@@ -27,12 +35,41 @@ export class Admin implements OnInit {
   importLoading = signal(false);
   exportStatus = signal<string>('');
   importStatus = signal<string>('');
-  exportStats = signal<{[key: string]: number}>({});
+  
+  // Sample data initialization
+  initSampleDataLoading = signal(false);
+  initSampleDataStatus = signal<string>('');
   
   // Dialog states
   showExportDialog = false;
   showImportDialog = false;
   selectedFile: File | null = null;
+  
+  // Backup/Restore functionality
+  backupLoading = signal(false);
+  restoreLoading = signal(false);
+  backupStatus = signal<string>('');
+  restoreStatus = signal<string>('');
+  selectedBackupFile: File | null = null;
+  
+  // Clear database functionality
+  clearDatabaseLoading = signal(false);
+  clearDatabaseStatus = signal<string>('');
+  
+  backupOptions = {
+    documentTypes: true,
+    workflows: true,
+    projects: true,
+    documents: true
+  };
+  
+  restoreOptions = {
+    documentTypes: false,
+    workflows: false,
+    projects: false,
+    documents: false,
+    conflictResolution: 'ignore' as 'ignore' | 'update'
+  };
   
   // Form data
   exportForm: ExportRequest = {
@@ -42,24 +79,22 @@ export class Admin implements OnInit {
   // Current user
   currentUser = this.authService.currentUser;
   
+  // AWS Resources
+  tableNames = signal<{[key: string]: string}>({});
+  awsResources = signal<{[key: string]: string}>({});
+  lambdaFunctions = signal<string[]>([]);
+  tablesLoading = signal<boolean>(false);
+  
   constructor() {
-    this.loadExportStats();
+    this.loadAwsResources();
+    this.loadLambdaFunctions();
   }
 
   async ngOnInit() {
     await this.loadExports();
+    await this.loadTableNames();
   }
   
-  async loadExportStats() {
-    // Mock statistics for demonstration
-    this.exportStats.set({
-      Projects: 4,
-      Domains: 3,
-      DocumentTypes: 5,
-      Users: 4,
-      Documents: 12
-    });
-  }
 
   async loadExports() {
     this.isLoading.set(true);
@@ -192,13 +227,8 @@ export class Admin implements OnInit {
       // Mock export data
       const mockData = {
         Projects: [
-          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', defaultDomain: '1' },
-          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', defaultDomain: '2' },
-        ],
-        Domains: [
-          { id: '1', name: 'Development' },
-          { id: '2', name: 'Marketing' },
-          { id: '3', name: 'Operations' }
+          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15' },
+          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10' },
         ],
         DocumentTypes: [
           { id: '1', name: 'Requirements' },
@@ -222,11 +252,10 @@ export class Admin implements OnInit {
         tables: mockData,
         statistics: {
           Projects: mockData.Projects.length,
-          Domains: mockData.Domains.length,
           DocumentTypes: mockData.DocumentTypes.length,
           Users: mockData.Users.length,
           Documents: mockData.Documents.length,
-          totalRecords: mockData.Projects.length + mockData.Domains.length + mockData.DocumentTypes.length + mockData.Users.length + mockData.Documents.length
+          totalRecords: mockData.Projects.length + mockData.DocumentTypes.length + mockData.Users.length + mockData.Documents.length
         }
       };
       
@@ -299,12 +328,6 @@ export class Admin implements OnInit {
       // Simulate import process
       const tables = importData.tables;
       
-      // Simulate importing each table with delays
-      if (tables.Domains && Array.isArray(tables.Domains)) {
-        this.importStatus.set('Importing Domains...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        importedCount += tables.Domains.length;
-      }
       
       if (tables.Users && Array.isArray(tables.Users)) {
         this.importStatus.set('Importing Users...');
@@ -341,8 +364,6 @@ export class Admin implements OnInit {
         this.importStatus.set(`✅ Import completed successfully! ${importedCount} records imported.`);
       }
       
-      // Refresh stats
-      await this.loadExportStats();
       
     } catch (error) {
       console.error('Import failed:', error);
@@ -367,5 +388,827 @@ export class Admin implements OnInit {
   clearMessages() {
     this.exportStatus.set('');
     this.importStatus.set('');
+  }
+
+  async loadTableNames() {
+    this.tablesLoading.set(true);
+    
+    try {
+      // Get current branch/environment from various sources
+      const envName = this.getCurrentEnvironmentName();
+      console.log('🎯 Using environment name for table filtering:', envName);
+      
+      // Get AWS credentials from Amplify
+      const session = await fetchAuthSession();
+      const credentials = session.credentials;
+      
+      if (!credentials) {
+        console.error('No AWS credentials available');
+        this.setFallbackTableNames();
+        return;
+      }
+
+      // Create DynamoDB client with Amplify credentials
+      const dynamoClient = new DynamoDBClient({
+        region: 'ap-southeast-2',
+        credentials: {
+          accessKeyId: credentials.accessKeyId,
+          secretAccessKey: credentials.secretAccessKey,
+          sessionToken: credentials.sessionToken
+        }
+      });
+
+      // List all tables
+      const listTablesCommand = new ListTablesCommand({});
+      const tablesResult = await dynamoClient.send(listTablesCommand);
+      
+      if (!tablesResult.TableNames) {
+        console.warn('No tables returned from DynamoDB');
+        this.setFallbackTableNames();
+        return;
+      }
+
+      // Filter for DocFlow4 related tables with proper environment naming
+      const docflowTables = tablesResult.TableNames.filter(tableName => {
+        if (!tableName) return false;
+        const lowerName = tableName.toLowerCase();
+        
+        // Check for DocFlow4 model names
+        const isDocFlowModel = lowerName.includes('project') ||
+                              lowerName.includes('document') ||
+                              lowerName.includes('user') ||
+                              lowerName.includes('workflow') ||
+                              lowerName.includes('chatroom') ||
+                              lowerName.includes('chatmessage');
+        
+        // Check for DocFlow4 app name or environment
+        const isDocFlowApp = lowerName.includes('docflow') ||
+                            lowerName.includes(envName.toLowerCase());
+        
+        // Include tables that match our naming pattern or contain our models
+        return isDocFlowModel || isDocFlowApp;
+      });
+
+      const tableNamesMap: {[key: string]: string} = {};
+      
+      // Get details for each table
+      for (const tableName of docflowTables) {
+        if (!tableName) continue;
+        
+        try {
+          const describeCommand = new DescribeTableCommand({
+            TableName: tableName
+          });
+          const tableDetails = await dynamoClient.send(describeCommand);
+          
+          // Categorize tables based on name patterns (case-insensitive)
+          const lowerTableName = tableName.toLowerCase();
+          let category = 'Unknown';
+          if (lowerTableName.includes('project')) category = 'Project';
+          else if (lowerTableName.includes('document') && !lowerTableName.includes('documenttype')) category = 'Document';
+          else if (lowerTableName.includes('documenttype')) category = 'DocumentType';
+          else if (lowerTableName.includes('user')) category = 'User';
+          else if (lowerTableName.includes('chatroom')) category = 'ChatRoom';
+          else if (lowerTableName.includes('chatmessage')) category = 'ChatMessage';
+          else if (lowerTableName.includes('workflow')) category = 'Workflow';
+          else if (lowerTableName.includes('amplify')) category = 'Amplify Infrastructure';
+          
+          const itemCount = tableDetails.Table?.ItemCount ?? 0;
+          const status = tableDetails.Table?.TableStatus ?? 'Unknown';
+          
+          // Extract environment from table name if possible
+          let displayName = tableName;
+          const envSuffix = tableName.includes(envName) ? ` (${envName})` : '';
+          
+          tableNamesMap[`${category} (${status})`] = `${displayName}${envSuffix} [${itemCount} items]`;
+          
+        } catch (error) {
+          console.warn(`Could not describe table ${tableName}:`, error);
+          tableNamesMap[tableName] = tableName;
+        }
+      }
+      
+      // Add other AWS resources
+      tableNamesMap['S3 Storage'] = 'docflow4-dev001-storage';
+      
+      this.tableNames.set(tableNamesMap);
+      
+    } catch (error) {
+      console.error('Error loading DynamoDB tables:', error);
+      this.setFallbackTableNames();
+    } finally {
+      this.tablesLoading.set(false);
+    }
+  }
+
+  private setFallbackTableNames() {
+    // Fallback to hardcoded names if DynamoDB access fails
+    const envName = this.getCurrentEnvironmentName();
+    const appName = 'docflow4';
+    
+    const fallbackTables = [
+      'Project', 'Document', 'User', 'DocumentType', 
+      'Workflow', 'ChatRoom', 'ChatMessage'
+    ];
+    
+    const tableNamesMap: {[key: string]: string} = {};
+    
+    fallbackTables.forEach(tableName => {
+      tableNamesMap[`${tableName} (Fallback)`] = `${appName}-${tableName}-${envName}`;
+    });
+    
+    tableNamesMap['S3 Storage'] = `${appName}-${envName}-storage`;
+    tableNamesMap['⚠️ Note'] = `Could not connect to DynamoDB - showing expected names for ${envName}`;
+    
+    this.tableNames.set(tableNamesMap);
+  }
+
+  loadAwsResources() {
+    const envName = this.getCurrentEnvironmentName();
+    const appName = 'docflow4';
+    const region = 'ap-southeast-2';
+    
+    const resources: {[key: string]: string} = {};
+    
+    // AWS Cognito Resources
+    resources['Cognito User Pool ID'] = 'ap-southeast-2_8Nq1yjUAM';
+    resources['Cognito Identity Pool'] = `${appName}-${envName}-identity-pool`;
+    resources['Cognito App Client'] = `${appName}-${envName}-app-client`;
+    
+    // AppSync API
+    resources['AppSync API Endpoint'] = 'https://ndfwruoxnbeftcrlyijl3on3pu.appsync-api.ap-southeast-2.amazonaws.com/graphql';
+    resources['AppSync API Key'] = 'da2-**** (expires in 30 days)';
+    
+    // S3 Storage
+    resources['S3 Storage Bucket'] = `${appName}-${envName}-storage`;
+    
+    // AWS Region
+    resources['AWS Region'] = region;
+    resources['Environment'] = envName;
+    
+    this.awsResources.set(resources);
+  }
+
+  loadLambdaFunctions() {
+    // List all Lambda functions used in this project
+    const functions = [
+      // Active Lambda Functions
+      'active-record-processor-lambda - DynamoDB stream processor for managing active record states',
+      'create-test-users-lambda - Creates test users for development and testing',
+      
+      // AI/ML Functions  
+      'validateWorkflow - Claude 3 Sonnet AI function for intelligent workflow validation',
+      
+      // Temporarily Disabled Functions
+      'check-email-duplicate-lambda (DISABLED) - Email duplication check function',
+      'delete-all-cognito-users-lambda (DISABLED) - Cognito user pool cleanup function',
+      'chat-stream-handler-lambda (DISABLED) - Real-time chat message stream processor',
+      
+      // AWS Amplify Infrastructure Functions
+      'amplify-*-branch-linker - Amplify deployment branch management',
+      'amplify-*-bucket-deployment - S3 bucket deployment automation',
+      'amplify-*-table-manager - DynamoDB table lifecycle management'
+    ];
+    
+    this.lambdaFunctions.set(functions);
+  }
+
+  private getCurrentEnvironmentName(): string {
+    // Get environment name from Amplify outputs
+    try {
+      const environmentName = (outputs as any)?.custom?.environmentName;
+      if (environmentName) {
+        console.log('🎯 Found environment from Amplify outputs:', environmentName);
+        return environmentName;
+      }
+    } catch (error) {
+      console.log('Error reading environment from Amplify outputs:', error);
+    }
+    
+    // Default fallback - should match backend default
+    const defaultEnv = 'dev001';
+    console.log('🔧 Using default environment:', defaultEnv);
+    return defaultEnv;
+  }
+
+  async initializeSampleData() {
+    if (!confirm('This will create sample document types. Existing records will not be duplicated. Do you want to proceed?')) {
+      return;
+    }
+
+    this.initSampleDataLoading.set(true);
+    this.initSampleDataStatus.set('Initializing sample data...');
+    this.errorMessage.set('');
+
+    try {
+      const result = await this.adminService.initializeSampleData();
+      
+      if (result.success) {
+        const results = result.results;
+        let statusMessage = '✅ Sample data initialization completed!\n\n';
+        
+        if (results?.documentTypes) {
+          statusMessage += `Document Types: ${results.documentTypes.created} created, ${results.documentTypes.skipped} skipped\n`;
+        }
+
+        if (results?.documentTypes?.errors?.length > 0) {
+          statusMessage += '\nErrors occurred:\n';
+          results.documentTypes.errors?.forEach((error: string) => {
+            statusMessage += `• ${error}\n`;
+          });
+        }
+        
+        this.initSampleDataStatus.set(statusMessage);
+        this.successMessage.set('Sample data initialization completed successfully');
+      } else {
+        const errorMsg = result.message || result.error || 'Unknown error occurred';
+        this.initSampleDataStatus.set(`❌ Initialization failed: ${errorMsg}`);
+        this.errorMessage.set(`Failed to initialize sample data: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('Sample data initialization error:', error);
+      this.initSampleDataStatus.set('❌ An error occurred during sample data initialization');
+      this.errorMessage.set('An unexpected error occurred while initializing sample data');
+    } finally {
+      this.initSampleDataLoading.set(false);
+    }
+  }
+
+  clearInitSampleDataStatus() {
+    this.initSampleDataStatus.set('');
+  }
+
+  hasBackupSelection(): boolean {
+    return this.backupOptions.documentTypes || this.backupOptions.workflows || this.backupOptions.projects || this.backupOptions.documents;
+  }
+
+  hasRestoreSelection(): boolean {
+    return this.restoreOptions.documentTypes || this.restoreOptions.workflows || this.restoreOptions.projects || this.restoreOptions.documents;
+  }
+
+  async createBackup() {
+    if (!this.hasBackupSelection()) {
+      alert('Please select at least one data type to backup.');
+      return;
+    }
+
+    this.backupLoading.set(true);
+    this.backupStatus.set('Creating backup...');
+    this.errorMessage.set('');
+
+    try {
+      const client = generateClient<Schema>();
+      const backupData: any = {
+        exportDate: new Date().toISOString(),
+        exportedBy: this.currentUser()?.username || 'Unknown',
+        version: '1.0',
+        tables: {},
+        statistics: {}
+      };
+
+      let totalRecords = 0;
+
+      // Backup Document Types
+      if (this.backupOptions.documentTypes) {
+        this.backupStatus.set('Backing up Document Types...');
+        const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
+        if (result.success && result.data) {
+          backupData.tables.DocumentTypes = result.data;
+          backupData.statistics.DocumentTypes = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      // Backup Workflows
+      if (this.backupOptions.workflows) {
+        this.backupStatus.set('Backing up Workflows...');
+        const result = await this.versionedDataService.getAllLatestVersions('Workflow');
+        if (result.success && result.data) {
+          backupData.tables.Workflows = result.data;
+          backupData.statistics.Workflows = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      // Backup Projects
+      if (this.backupOptions.projects) {
+        this.backupStatus.set('Backing up Projects...');
+        const result = await this.versionedDataService.getAllLatestVersions('Project');
+        if (result.success && result.data) {
+          backupData.tables.Projects = result.data;
+          backupData.statistics.Projects = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      // Backup Documents
+      if (this.backupOptions.documents) {
+        this.backupStatus.set('Backing up Documents...');
+        const result = await this.versionedDataService.getAllLatestVersions('Document');
+        if (result.success && result.data) {
+          backupData.tables.Documents = result.data;
+          backupData.statistics.Documents = result.data.length;
+          totalRecords += result.data.length;
+        }
+      }
+
+      backupData.statistics.totalRecords = totalRecords;
+
+      // Create and download JSON file
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      
+      const selectedTypes = Object.entries(this.backupOptions)
+        .filter(([key, value]) => value)
+        .map(([key]) => key)
+        .join('-');
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `docflow4-backup-${selectedTypes}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      this.backupStatus.set(`✅ Backup completed successfully! ${totalRecords} records exported.`);
+      this.successMessage.set('Backup created and downloaded successfully');
+      
+    } catch (error) {
+      console.error('Backup failed:', error);
+      this.backupStatus.set('❌ Backup failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to create backup: ' + (error as Error).message);
+    } finally {
+      this.backupLoading.set(false);
+    }
+  }
+
+  onBackupFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    
+    if (file) {
+      if (!file.name.endsWith('.json')) {
+        alert('Please select a valid JSON backup file.');
+        return;
+      }
+      
+      this.selectedBackupFile = file;
+      this.restoreStatus.set('');
+      
+      // Reset restore options
+      this.restoreOptions = {
+        documentTypes: false,
+        workflows: false,
+        projects: false,
+        documents: false,
+        conflictResolution: 'ignore' as 'ignore' | 'update'
+      };
+    }
+  }
+
+  clearSelectedFile() {
+    this.selectedBackupFile = null;
+    this.restoreStatus.set('');
+    
+    // Clear the file input
+    const input = document.getElementById('backup-file-input') as HTMLInputElement;
+    if (input) input.value = '';
+  }
+
+  async restoreFromBackup() {
+    if (!this.selectedBackupFile) {
+      alert('Please select a backup file first.');
+      return;
+    }
+
+    if (!this.hasRestoreSelection()) {
+      alert('Please select at least one data type to restore.');
+      return;
+    }
+
+    const conflictAction = this.restoreOptions.conflictResolution === 'update' ? 'overwritten' : 'skipped';
+    const confirmRestore = confirm(
+      `This will restore the selected data types from the backup file. ` +
+      `Existing records will be ${conflictAction}. This operation cannot be undone. ` +
+      `Are you sure you want to proceed?`
+    );
+
+    if (!confirmRestore) {
+      return;
+    }
+
+    this.restoreLoading.set(true);
+    this.restoreStatus.set('Reading backup file...');
+    this.errorMessage.set('');
+
+    try {
+      // Read and parse the backup file
+      const fileContent = await this.readFileAsText(this.selectedBackupFile);
+      const backupData = JSON.parse(fileContent);
+
+      // Validate backup data structure
+      if (!backupData.tables || !backupData.version) {
+        throw new Error('Invalid backup file format');
+      }
+
+      this.restoreStatus.set('Validating backup data...');
+
+      const client = generateClient<Schema>();
+      let restoredCount = 0;
+      const errors: string[] = [];
+
+      // Restore Document Types
+      if (this.restoreOptions.documentTypes && backupData.tables.DocumentTypes) {
+        this.restoreStatus.set('Restoring Document Types...');
+        const documentTypes = backupData.tables.DocumentTypes;
+        
+        for (const docType of documentTypes) {
+          try {
+            // Find existing document type by identifier using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('DocumentType');
+            const allDocTypes = existingResult.success ? existingResult.data || [] : [];
+            const existingDocTypes = allDocTypes.filter(dt => dt.identifier === docType.identifier);
+            
+            const { id, createdAt, updatedAt, ...updateData } = docType;
+            
+            if (existingDocTypes && existingDocTypes.length > 0) {
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing document type
+                const existing = existingDocTypes[0];
+                const result = await this.versionedDataService.updateVersionedRecord('DocumentType', existing.id, {
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update DocumentType');
+                }
+              } else {
+                // Skip existing document type
+                continue;
+              }
+            } else {
+              // Create new document type using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
+              });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create DocumentType');
+              }
+            }
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Document Type "${docType.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Restore Workflows
+      if (this.restoreOptions.workflows && backupData.tables.Workflows) {
+        this.restoreStatus.set('Restoring Workflows...');
+        const workflows = backupData.tables.Workflows;
+        
+        for (const workflow of workflows) {
+          try {
+            // Find existing workflow by identifier using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('Workflow');
+            const allWorkflows = existingResult.success ? existingResult.data || [] : [];
+            const existingWorkflows = allWorkflows.filter(w => w.identifier === workflow.identifier);
+            
+            const { id, createdAt, updatedAt, ...updateData } = workflow;
+            
+            if (existingWorkflows && existingWorkflows.length > 0) {
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing workflow
+                const existing = existingWorkflows[0];
+                const result = await this.versionedDataService.updateVersionedRecord('Workflow', existing.id, {
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update Workflow');
+                }
+              } else {
+                // Skip existing workflow
+                continue;
+              }
+            } else {
+              // Create new workflow using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('Workflow', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
+              });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create Workflow');
+              }
+            }
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Workflow "${workflow.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Restore Projects
+      if (this.restoreOptions.projects && backupData.tables.Projects) {
+        this.restoreStatus.set('Restoring Projects...');
+        const projects = backupData.tables.Projects;
+        
+        for (const project of projects) {
+          try {
+            // Find existing project by identifier using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('Project');
+            const allProjects = existingResult.success ? existingResult.data || [] : [];
+            const existingProjects = allProjects.filter(p => p.identifier === project.identifier);
+            
+            const { id, createdAt, updatedAt, ...updateData } = project;
+            
+            if (existingProjects && existingProjects.length > 0) {
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing project
+                const existing = existingProjects[0];
+                const result = await this.versionedDataService.updateVersionedRecord('Project', existing.id, {
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update Project');
+                }
+              } else {
+                // Skip existing project
+                continue;
+              }
+            } else {
+              // Create new project using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('Project', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
+              });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create Project');
+              }
+            }
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Project "${project.name}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Restore Documents
+      if (this.restoreOptions.documents && backupData.tables.Documents) {
+        this.restoreStatus.set('Restoring Documents...');
+        const documents = backupData.tables.Documents;
+        
+        for (const document of documents) {
+          try {
+            // Find existing document by projectId and documentType combination using versioned service
+            const existingResult = await this.versionedDataService.getAllLatestVersions('Document');
+            const allDocuments = existingResult.success ? existingResult.data || [] : [];
+            const existingDocuments = allDocuments.filter(d => 
+              d.projectId === document.projectId && d.documentType === document.documentType
+            );
+            
+            const { id, createdAt, updatedAt, ...updateData } = document;
+            
+            if (existingDocuments && existingDocuments.length > 0) {
+              if (this.restoreOptions.conflictResolution === 'update') {
+                // Update existing document
+                const existing = existingDocuments[0];
+                const result = await this.versionedDataService.updateVersionedRecord('Document', existing.id, {
+                  ...updateData,
+                  updatedAt: new Date().toISOString()
+                });
+                if (!result.success) {
+                  throw new Error(result.error || 'Failed to update Document');
+                }
+              } else {
+                // Skip existing document
+                continue;
+              }
+            } else {
+              // Create new document using versioned service
+              const result = await this.versionedDataService.createVersionedRecord('Document', {
+                data: {
+                  ...updateData,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }
+              });
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to create Document');
+              }
+            }
+            restoredCount++;
+          } catch (error: any) {
+            errors.push(`Document "${document.documentType}" in project "${document.projectId}": ${error.message || 'Unknown error'}`);
+          }
+        }
+      }
+
+      // Show results
+      if (errors.length > 0) {
+        this.restoreStatus.set(
+          `⚠️ Restore completed with warnings. ${restoredCount} records restored successfully. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}`
+        );
+      } else {
+        this.restoreStatus.set(`✅ Restore completed successfully! ${restoredCount} records restored.`);
+        this.successMessage.set('Data restored successfully from backup');
+      }
+
+      // Clear the selected file
+      this.clearSelectedFile();
+      
+    } catch (error) {
+      console.error('Restore failed:', error);
+      this.restoreStatus.set('❌ Restore failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to restore from backup: ' + (error as Error).message);
+    } finally {
+      this.restoreLoading.set(false);
+    }
+  }
+
+  clearBackupStatus() {
+    this.backupStatus.set('');
+  }
+
+  clearRestoreStatus() {
+    this.restoreStatus.set('');
+  }
+
+  async clearDatabase() {
+    const confirmClear = confirm(
+      'This will permanently delete ALL data from the database including:\n' +
+      '• Document Types (all versions)\n' +
+      '• Workflows (all versions)\n' +
+      '• Projects (all versions)\n' +
+      '• Documents (all versions)\n' +
+      '• Chat Rooms (all versions)\n' +
+      '• Chat Messages (all versions)\n' +
+      '• Users (all versions)\n' +
+      '• Cognito user accounts (ALL users including admins)\n\n' +
+      'This operation will delete EVERY version of EVERY record AND all user accounts and cannot be undone. Are you absolutely sure you want to proceed?'
+    );
+
+    if (!confirmClear) {
+      return;
+    }
+
+    // Double confirmation for safety
+    const doubleConfirm = confirm(
+      'FINAL WARNING: This will delete ALL your data permanently. Type "DELETE ALL" and click OK to continue.'
+    );
+
+    if (!doubleConfirm) {
+      return;
+    }
+
+    this.clearDatabaseLoading.set(true);
+    this.clearDatabaseStatus.set('Starting database clear operation...');
+    this.errorMessage.set('');
+
+    try {
+      const client = generateClient<Schema>();
+      let deletedCount = 0;
+      const errors: string[] = [];
+
+      // Clear Documents first (to avoid foreign key constraints)
+      this.clearDatabaseStatus.set('Clearing Documents (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('Document');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Document records (all versions)...`);
+        } else {
+          errors.push(`Documents: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Documents: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Projects
+      this.clearDatabaseStatus.set('Clearing Projects (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('Project');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Project records (all versions)...`);
+        } else {
+          errors.push(`Projects: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Projects: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Workflows
+      this.clearDatabaseStatus.set('Clearing Workflows (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('Workflow');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Workflow records (all versions)...`);
+        } else {
+          errors.push(`Workflows: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Workflows: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Document Types last
+      this.clearDatabaseStatus.set('Clearing Document Types (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('DocumentType');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} DocumentType records (all versions)...`);
+        } else {
+          errors.push(`Document Types: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Document Types: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Chat data (ChatRooms and ChatMessages)
+      this.clearDatabaseStatus.set('Clearing Chat Messages (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatMessage');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatMessage records (all versions)...`);
+        } else {
+          errors.push(`Chat Messages: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Chat Messages: ${error.message || 'Unknown error'}`);
+      }
+
+      this.clearDatabaseStatus.set('Clearing Chat Rooms (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatRoom');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatRoom records (all versions)...`);
+        } else {
+          errors.push(`Chat Rooms: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Chat Rooms: ${error.message || 'Unknown error'}`);
+      }
+
+      // Clear Users (DynamoDB records and Cognito accounts)
+      this.clearDatabaseStatus.set('Clearing Users (all versions)...');
+      try {
+        const result = await this.versionedDataService.deleteAllVersionsAllRecords('User');
+        if (result.success) {
+          deletedCount += result.deletedCount || 0;
+          this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} User records (all versions)...`);
+        } else {
+          errors.push(`Users: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error: any) {
+        errors.push(`Users: ${error.message || 'Unknown error'}`);
+      }
+
+      // Note: Cognito users require manual deletion from AWS Console
+      this.clearDatabaseStatus.set('Note: Cognito user accounts require manual deletion from AWS Console...');
+
+      // Show results
+      if (errors.length > 0) {
+        this.clearDatabaseStatus.set(
+          `⚠️ Database clear completed with warnings. ${deletedCount} DynamoDB records deleted. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}\n\n` +
+          `⚠️ IMPORTANT: Cognito user accounts must be manually deleted from AWS Console.`
+        );
+      } else {
+        this.clearDatabaseStatus.set(
+          `✅ Database cleared successfully! ${deletedCount} DynamoDB records deleted.\n\n` +
+          `⚠️ IMPORTANT: Cognito user accounts must be manually deleted from AWS Console.`
+        );
+        this.successMessage.set('Database cleared successfully - DynamoDB data removed');
+      }
+      
+    } catch (error) {
+      console.error('Clear database failed:', error);
+      this.clearDatabaseStatus.set('❌ Clear database failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to clear database: ' + (error as Error).message);
+    } finally {
+      this.clearDatabaseLoading.set(false);
+    }
+  }
+
+  clearClearDatabaseStatus() {
+    this.clearDatabaseStatus.set('');
   }
 }

@@ -1,0 +1,106 @@
+@import '../../../styles.less';
+@import './buttons.less';
+
+// Overlay pattern (used for sidebars and modals)
+.overlay-base {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+}
+
+// Sidebar pattern
+.sidebar-base {
+  background: white;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  
+  .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+    background: #f8f9fa;
+    
+    h3 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 1.2rem;
+    }
+    
+    .close-sidebar-btn {
+      .btn-close-circular;
+      width: 30px; height: 30px;
+      font-size: 1rem;
+    }
+  }
+  
+  .sidebar-content { 
+    flex: 1; 
+    padding: 0; 
+  }
+  
+  .sidebar-footer {
+    border-top: 1px solid #e9ecef;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    
+    .selection-summary {
+      color: #2c3e50;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    
+    .sidebar-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      
+      .btn-cancel {
+        .btn-interactive;
+        background: #95a5a6;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        
+        &:hover { background: #7f8c8d; }
+      }
+      
+      .btn-apply {
+        .btn-interactive;
+        background: #27ae60;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        
+        &:hover { background: #229954; }
+      }
+    }
+  }
+}
+
+// Right-aligned sidebar (400px width)
+.sidebar-right {
+  .overlay-base;
+  justify-content: flex-end;
+  
+  .domain-sidebar {
+    .sidebar-base;
+    width: 400px;
+  }
+}
+
+// Sidebar search section
+.sidebar-search {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  background: white;
+}

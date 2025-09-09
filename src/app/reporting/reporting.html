@@ -1,0 +1,160 @@
+<div class="reporting-page">
+  <header class="page-header">
+    <div class="header-content">
+      <div class="title-section">
+        <h1>📊 Reporting</h1>
+        <p>Project and document workflow status matrix</p>
+      </div>
+      <div class="header-controls">
+        <button 
+          class="toggle-btn" 
+          (click)="toggleShowAllProjects()"
+          [class.active]="showAllProjects()"
+        >
+          {{ showAllProjects() ? '📋 Show Active Only' : '📁 Show All Projects' }}
+        </button>
+      </div>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <p>Loading reporting data...</p>
+    </div>
+  } @else {
+    <div class="reporting-content">
+      <!-- Legend -->
+      <div class="status-legend">
+        <h3>Status Legend</h3>
+        <div class="legend-items">
+          <div class="legend-item">
+            <span class="status-icon" style="color: #95a5a6;">⏳</span>
+            <span>Queued</span>
+          </div>
+          <div class="legend-item">
+            <span class="status-icon" style="color: #f39c12;">⏰</span>
+            <span>Waiting</span>
+          </div>
+          <div class="legend-item">
+            <span class="status-icon" style="color: #27ae60;">✅</span>
+            <span>Completed</span>
+          </div>
+          <div class="legend-item">
+            <span class="status-icon" style="color: #27ae60;">✅</span>
+            <span>Confirmed</span>
+          </div>
+          <div class="legend-item">
+            <span class="status-icon" style="color: #34495e;">🚫</span>
+            <span>Not Required</span>
+          </div>
+          <div class="legend-item">
+            <span class="status-icon" style="color: #e67e22;">⚠️</span>
+            <span>Missing Status</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matrix Table -->
+      <div class="matrix-container">
+        <div class="matrix-table">
+          <!-- Header Row -->
+          <div class="matrix-header">
+            <div class="header-cell project-header">Projects</div>
+            @for (docType of orderedDocumentTypes(); track docType.id) {
+              <div class="header-cell doc-type-header" [title]="docType.name">
+                {{ docType.name }}
+              </div>
+            }
+          </div>
+
+          <!-- Project Rows -->
+          @for (row of projectMatrix(); track row.project.id) {
+            <div class="matrix-row">
+              <div class="project-cell" [title]="row.project.name">
+                {{ row.project.name }}
+              </div>
+              @for (cell of row.cells; track $index) {
+                <div 
+                  class="status-cell"
+                  [style.color]="cell.status.color"
+                  [title]="cell.document ? (getDocumentTypeName(cell.document.documentType) + ' - ' + cell.status.status) : 'No document created'"
+                  (click)="openDocumentModal(cell.document)"
+                  [class.clickable]="!!cell.document"
+                >
+                  {{ cell.status.icon }}
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (projectMatrix().length === 0) {
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <h2>No Data Available</h2>
+          <p>No projects or documents found to display in the matrix.</p>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Document Modal -->
+  @if (showDocumentModal() && selectedDocument()) {
+    <div class="modal-overlay" (click)="closeDocumentModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ getProjectName(selectedDocument()!.projectId) }} - {{ getDocumentTypeName(selectedDocument()!.documentType) }}</h3>
+          <button class="close-btn" (click)="closeDocumentModal()">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <!-- Dynamic Form -->
+          @if (dynamicFormService.dynamicFormGroup() && dynamicFormService.dynamicFormFields().length > 0) {
+            <div class="dynamic-form-container">
+              <app-dynamic-form
+                title=""
+                [showTitle]="false"
+                [isTestMode]="true"
+                [allowArrayEditing]="true"
+                [allowFileUpload]="true"
+                [showValidationResults]="false"
+                [onFileChange]="dynamicFormService.onFileChange"
+                [getFileNames]="dynamicFormService.getFileNames"
+                [removeSingleFile]="dynamicFormService.removeSingleFile"
+                [isExistingFile]="dynamicFormService.isExistingFile"
+                [openExistingFile]="dynamicFormService.openExistingFile"
+              />
+            </div>
+          } @else {
+            <div class="no-form-message">
+              <p>No form definition available for this document type.</p>
+            </div>
+          }
+        </div>
+        
+        <div class="modal-footer">
+          <button class="btn-secondary" (click)="closeDocumentModal()" [disabled]="saving()">
+            Cancel
+          </button>
+          @if (dynamicFormService.dynamicFormGroup()) {
+            <button 
+              class="btn-primary" 
+              (click)="saveDocument()" 
+              [disabled]="saving() || executingWorkflow() || !isFormValid"
+            >
+              @if (executingWorkflow()) {
+                🔄 Running Workflow...
+              } @else if (saving()) {
+                💾 Saving...
+              } @else {
+                💾 Save & Run Workflow
+              }
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,17 @@
+{
+  "name": "check-email-duplicate-function",
+  "version": "1.0.0",
+  "description": "Lambda function to check for duplicate email addresses in Users DynamoDB table",
+  "main": "handler.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.484.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.131",
+    "typescript": "^5.3.3"
+  }
+}

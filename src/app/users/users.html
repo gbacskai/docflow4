@@ -2,9 +2,14 @@
   <header class="page-header">
     <h1>Users</h1>
     <div class="header-actions">
-      <button class="invite-button" (click)="openInviteForm()">
+      <!-- <button class="invite-button" (click)="openInviteForm()">
         ✉️ Invite User
-      </button>
+      </button> -->
+      @if (isCurrentUserAdmin()) {
+        <button class="create-button" (click)="openCreateForm()">
+          👤 Create User
+        </button>
+      }
     </div>
   </header>
 
@@ -23,7 +28,15 @@
             <div class="view-section">
               <div class="view-details">
                 <div class="user-info">
-                  <p class="email">{{ selectedUser()?.email }}</p>
+                  <p class="email">
+                    {{ selectedUser()?.email }}
+                    <span 
+                      class="email-validation-icon {{ getEmailValidationClass(selectedUser()!) }}"
+                      [title]="getEmailValidationTitle(selectedUser()!)"
+                    >
+                      {{ getEmailValidationIcon(selectedUser()!) }}
+                    </span>
+                  </p>
                   <div class="user-badges">
                     @if (isCurrentUserAdmin()) {
                       <span class="user-type {{ getUserTypeColor(selectedUser()?.userType) }}">
@@ -59,12 +72,14 @@
               Edit User
             } @else if (currentMode() === 'invite') {
               Invite User
+            } @else if (currentMode() === 'create') {
+              Create User
             }
           </h2>
           <button class="close-btn" (click)="closeForm()">✕</button>
         </div>
 
-        <form [formGroup]="currentMode() === 'invite' ? inviteForm : userForm" (ngSubmit)="onSubmitForm()">
+        <form [formGroup]="currentMode() === 'invite' ? inviteForm : currentMode() === 'create' ? createForm : userForm" (ngSubmit)="onSubmitForm()">
           @if (currentMode() === 'invite') {
             <!-- Simplified Invite Form - Email Only -->
             <div class="form-group">
@@ -91,6 +106,132 @@
                 rows="3"
               ></textarea>
               <div class="help-text">This message will be included in the invitation email</div>
+            </div>
+          } @else if (currentMode() === 'create') {
+            <!-- Full Create Form -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="email">Email *</label>
+                <input 
+                  id="email" 
+                  type="email" 
+                  formControlName="email" 
+                  placeholder="Enter user email"
+                  [class.error]="createForm.get('email')?.invalid && createForm.get('email')?.touched"
+                />
+                @if (createForm.get('email')?.invalid && createForm.get('email')?.touched) {
+                  <div class="error-message">Valid email is required</div>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="firstName">First Name *</label>
+                <input 
+                  id="firstName" 
+                  type="text" 
+                  formControlName="firstName" 
+                  placeholder="Enter first name"
+                  [class.error]="createForm.get('firstName')?.invalid && createForm.get('firstName')?.touched"
+                />
+                @if (createForm.get('firstName')?.invalid && createForm.get('firstName')?.touched) {
+                  <div class="error-message">First name is required (min 2 characters)</div>
+                }
+              </div>
+              <div class="form-group">
+                <label for="lastName">Last Name *</label>
+                <input 
+                  id="lastName" 
+                  type="text" 
+                  formControlName="lastName" 
+                  placeholder="Enter last name"
+                  [class.error]="createForm.get('lastName')?.invalid && createForm.get('lastName')?.touched"
+                />
+                @if (createForm.get('lastName')?.invalid && createForm.get('lastName')?.touched) {
+                  <div class="error-message">Last name is required (min 2 characters)</div>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="password">Password *</label>
+                <input 
+                  id="password" 
+                  type="password" 
+                  formControlName="password" 
+                  placeholder="Enter password"
+                  [class.error]="createForm.get('password')?.invalid && createForm.get('password')?.touched"
+                />
+                @if (createForm.get('password')?.invalid && createForm.get('password')?.touched) {
+                  <div class="error-message">Password is required (min 8 characters)</div>
+                }
+              </div>
+              <div class="form-group">
+                <label for="confirmPassword">Confirm Password *</label>
+                <input 
+                  id="confirmPassword" 
+                  type="password" 
+                  formControlName="confirmPassword" 
+                  placeholder="Confirm password"
+                  [class.error]="createForm.get('confirmPassword')?.invalid && createForm.get('confirmPassword')?.touched"
+                />
+                @if (createForm.get('confirmPassword')?.invalid && createForm.get('confirmPassword')?.touched) {
+                  <div class="error-message">Password confirmation is required</div>
+                }
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="userType">User Type *</label>
+                <select id="userType" formControlName="userType">
+                  <option value="client">Client</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="status">Status *</label>
+                <select id="status" formControlName="status">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Document Types</label>
+              <div class="document-types-selector">
+                <button 
+                  type="button"
+                  class="select-document-types-btn" 
+                  (click)="openDocumentTypesSidebar()"
+                >
+                  📋 Select Document Types
+                </button>
+                @if (createForm.get('interestedDocumentTypes')?.value?.length > 0) {
+                  <div class="selected-document-types-display">
+                    <h4>Selected Document Types:</h4>
+                    <div class="selected-document-types-list">
+                      @for (docTypeId of createForm.get('interestedDocumentTypes')?.value; track docTypeId) {
+                        <div class="selected-document-type-item">
+                          <div class="document-type-name">{{ getDocumentTypeName(docTypeId) }}</div>
+                        </div>
+                      }
+                    </div>
+                    <div class="selection-count">
+                      {{ createForm.get('interestedDocumentTypes')?.value?.length }} document type(s) selected
+                    </div>
+                  </div>
+                } @else {
+                  <div class="no-document-types-message">
+                    <small>No document types selected</small>
+                  </div>
+                }
+              </div>
+              <div class="help-text">Optional: Select document types this user is interested in</div>
             </div>
           } @else {
             <!-- Full Edit Form -->
@@ -177,7 +318,6 @@
                         @for (docTypeId of userForm.get('interestedDocumentTypes')?.value; track docTypeId) {
                           <div class="selected-document-type-item">
                             <div class="document-type-name">{{ getDocumentTypeName(docTypeId) }}</div>
-                            <div class="document-type-description">{{ getDocumentTypeDescription(docTypeId) }}</div>
                           </div>
                         }
                       </div>
@@ -208,7 +348,7 @@
             <button 
               type="submit" 
               class="btn-submit" 
-              [disabled]="!(currentMode() === 'invite' ? inviteForm : userForm).valid || processing()"
+              [disabled]="!(currentMode() === 'invite' ? inviteForm : currentMode() === 'create' ? createForm : userForm).valid || processing()"
             >
               @if (processing()) {
                 Processing...
@@ -216,6 +356,8 @@
                 Update User
               } @else if (currentMode() === 'invite') {
                 Send Invitation
+              } @else if (currentMode() === 'create') {
+                Create User
               }
             </button>
           </div>
@@ -327,7 +469,6 @@
                     </div>
                     <div class="document-type-details">
                       <h4>{{ docType.name }}</h4>
-                      <p>{{ docType.description }}</p>
                       @if (docType.category) {
                         <span class="document-type-category">{{ docType.category }}</span>
                       }

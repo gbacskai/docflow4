@@ -2,12 +2,14 @@ import { Injectable, signal, inject } from '@angular/core';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { AuthService } from './auth.service';
+import { VersionedDataService } from './versioned-data.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserDataService {
   private authService = inject(AuthService);
+  private versionedDataService = inject(VersionedDataService);
   private _currentUserData = signal<Schema['User']['type'] | null>(null);
   private _loading = signal(true);
 
@@ -44,11 +46,14 @@ export class UserDataService {
         return;
       }
 
-      const client = generateClient<Schema>();
-      const { data: users } = await client.models.User.list();
+      const result = await this.versionedDataService.getAllLatestVersions('User');
       
-      const currentUser = users.find(user => user.cognitoUserId === currentUserId);
-      this._currentUserData.set(currentUser || null);
+      if (result.success && result.data) {
+        const currentUser = result.data.find(user => user.cognitoUserId === currentUserId);
+        this._currentUserData.set(currentUser || null);
+      } else {
+        this._currentUserData.set(null);
+      }
     } catch (error) {
       console.error('Error loading current user data:', error);
       this._currentUserData.set(null);
