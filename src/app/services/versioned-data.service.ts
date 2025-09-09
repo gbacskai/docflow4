@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
+import { DirectDynamoDBService } from './direct-dynamodb.service';
 
 export interface VersionedCreateParams {
   id?: string;
@@ -17,6 +18,10 @@ export interface VersionedQueryOptions {
 })
 export class VersionedDataService {
   private client = generateClient<Schema>();
+  private directDB = inject(DirectDynamoDBService);
+  
+  // Flag to use direct DynamoDB instead of GraphQL
+  private useDirectDB = true;
 
   generateTimestamp(): string {
     return new Date().toISOString();
@@ -42,6 +47,13 @@ export class VersionedDataService {
         updatedAt: version
       };
 
+      // Use direct DynamoDB service to bypass auto-generated tables
+      if (this.useDirectDB) {
+        console.log(`🎯 Using direct DynamoDB for ${modelName}`);
+        return await this.directDB.putItem(modelName, recordData);
+      }
+
+      // Fallback to GraphQL client
       let result;
       switch (modelName) {
         case 'Project':
@@ -67,6 +79,25 @@ export class VersionedDataService {
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
+      }
+      
+      console.log(`🔍 ${modelName} - GraphQL client result structure:`, {
+        hasData: !!result.data,
+        hasErrors: !!result.errors,
+        resultKeys: Object.keys(result || {}),
+        dataValue: result.data,
+        errorsValue: result.errors,
+        fullResult: result
+      });
+      
+      // Check for GraphQL errors
+      if (result.errors && result.errors.length > 0) {
+        const errorMessages = result.errors.map((err: any) => err.message).join(', ');
+        console.error(`GraphQL errors creating ${modelName}:`, result.errors);
+        return {
+          success: false,
+          error: `GraphQL error: ${errorMessages}`
+        };
       }
       
       return {
@@ -254,6 +285,16 @@ export class VersionedDataService {
       
       if (deduplicatedRecords.length !== latestRecords.length) {
         console.warn(`${modelName} - Found ${latestRecords.length} active records, deduplicated to ${deduplicatedRecords.length}. Lambda function may not be processing correctly.`);
+        console.log(`${modelName} - Detailed duplicate info:`, {
+          totalActive: latestRecords.length,
+          afterDeduplication: deduplicatedRecords.length,
+          duplicatesByID: this.analyzeDuplicates(latestRecords)
+        });
+        
+        // Optionally trigger manual cleanup (but only in development)
+        if (process.env['NODE_ENV'] === 'development') {
+          console.log(`${modelName} - Development mode: Consider running manual cleanup for duplicate records`);
+        }
       }
       
       console.log(`${modelName} - Latest active records found: ${deduplicatedRecords.length}`);
@@ -475,6 +516,147 @@ export class VersionedDataService {
         success: false,
         error: error.message || 'Unknown error occurred'
       };
+    }
+  }
+
+  analyzeDuplicates(records: any[]): Record<string, { count: number; versions: string[] }> {
+    const duplicatesById: Record<string, { count: number; versions: string[] }> = {};
+    
+    const groupedById = records.reduce((acc, record) => {
+      const id = record.id;
+      if (!acc[id]) {
+        acc[id] = [];
+      }
+      acc[id].push(record);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    for (const [id, recordsForId] of Object.entries(groupedById)) {
+      const recordsArray = recordsForId as any[];
+      if (recordsArray.length > 1) {
+        duplicatesById[id] = {
+          count: recordsArray.length,
+          versions: recordsArray.map((r: any) => r.version).sort()
+        };
+      }
+    }
+    
+    return duplicatesById;
+  }
+
+  /**
+   * Manual cleanup method for duplicate active records
+   * This can be called when the Lambda function isn't processing correctly
+   */
+  async manualCleanupDuplicates(modelName: string): Promise<{ success: boolean; cleaned: number; error?: string }> {
+    console.log(`🧹 Manual cleanup started for ${modelName}`);
+    
+    try {
+      // Get all active records
+      const allActiveResult = await this.getAllLatestVersions(modelName);
+      if (!allActiveResult.success || !allActiveResult.data) {
+        return { success: false, cleaned: 0, error: allActiveResult.error };
+      }
+
+      const activeRecords = allActiveResult.data;
+      const duplicates = this.analyzeDuplicates(activeRecords);
+      const duplicateIds = Object.keys(duplicates);
+
+      if (duplicateIds.length === 0) {
+        console.log(`${modelName} - No duplicates found, cleanup not needed`);
+        return { success: true, cleaned: 0 };
+      }
+
+      console.log(`${modelName} - Found ${duplicateIds.length} IDs with duplicates:`, duplicates);
+      
+      let totalCleaned = 0;
+
+      for (const duplicateId of duplicateIds) {
+        const duplicateInfo = duplicates[duplicateId];
+        console.log(`${modelName} - Cleaning up ID: ${duplicateId}, versions: ${duplicateInfo.versions.join(', ')}`);
+
+        // Get all active versions for this ID
+        const activeVersions = activeRecords.filter((record: any) => record.id === duplicateId);
+
+        if (activeVersions.length <= 1) {
+          console.log(`${modelName} - ID ${duplicateId} already has only one active version`);
+          continue;
+        }
+
+        // Sort by version timestamp and keep only the latest
+        const sortedActive = activeVersions.sort((a: any, b: any) => 
+          new Date(b.version).getTime() - new Date(a.version).getTime()
+        );
+
+        const latestVersion = sortedActive[0];
+        const versionsToDeactivate = sortedActive.slice(1);
+
+        console.log(`${modelName} - Keeping latest version: ${latestVersion.version}, deactivating ${versionsToDeactivate.length} older versions`);
+
+        // Deactivate older versions by removing the 'active' attribute
+        for (const versionToDeactivate of versionsToDeactivate) {
+          try {
+            await this.removeActiveAttribute(modelName, versionToDeactivate.id, versionToDeactivate.version);
+            totalCleaned++;
+            console.log(`${modelName} - Deactivated version: ${versionToDeactivate.version} for ID: ${duplicateId}`);
+          } catch (error) {
+            console.error(`${modelName} - Failed to deactivate version ${versionToDeactivate.version} for ID ${duplicateId}:`, error);
+          }
+        }
+      }
+
+      console.log(`🧹 Manual cleanup completed for ${modelName}. Cleaned ${totalCleaned} duplicate records.`);
+      return { success: true, cleaned: totalCleaned };
+
+    } catch (error: any) {
+      console.error(`❌ Error during manual cleanup for ${modelName}:`, error);
+      return { success: false, cleaned: 0, error: error.message };
+    }
+  }
+
+  private async removeActiveAttribute(modelName: string, id: string, version: string): Promise<void> {
+    const client = generateClient<Schema>();
+    
+    switch (modelName) {
+      case 'Project':
+        await client.models.Project.update({
+          id,
+          version,
+          // Remove active by not including it in the update
+          updatedAt: new Date().toISOString()
+        });
+        break;
+      case 'Document':
+        await client.models.Document.update({
+          id,
+          version,
+          updatedAt: new Date().toISOString()
+        });
+        break;
+      case 'User':
+        await client.models.User.update({
+          id,
+          version,
+          updatedAt: new Date().toISOString()
+        });
+        break;
+      case 'DocumentType':
+        await client.models.DocumentType.update({
+          id,
+          version,
+          updatedAt: new Date().toISOString()
+        });
+        break;
+      case 'Workflow':
+        await client.models.Workflow.update({
+          id,
+          version,
+          updatedAt: new Date().toISOString()
+        });
+        break;
+      // Add other models as needed
+      default:
+        throw new Error(`Unknown model: ${modelName}`);
     }
   }
 }

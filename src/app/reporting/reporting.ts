@@ -4,6 +4,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { DynamicFormService } from '../services/dynamic-form.service';
 import { VersionedDataService } from '../services/versioned-data.service';
+import { WorkflowService } from '../services/workflow.service';
 import { DynamicFormComponent } from '../shared/dynamic-form.component';
 
 interface DocumentStatus {
@@ -40,10 +41,12 @@ export class Reporting implements OnInit {
   selectedDocument = signal<Schema['Document']['type'] | null>(null);
   showDocumentModal = signal(false);
   saving = signal(false);
+  executingWorkflow = signal(false);
   showAllProjects = signal(false); // By default, show only active projects
   
   dynamicFormService = inject(DynamicFormService);
   versionedDataService = inject(VersionedDataService);
+  workflowService = inject(WorkflowService);
 
   get isFormValid(): boolean {
     return this.dynamicFormService.isFormValid();
@@ -557,6 +560,43 @@ export class Reporting implements OnInit {
       
       // Update only the affected matrix cells without rebuilding the entire matrix
       this.updateMatrixForDocument(document.id!, dynamicFormValue);
+      
+      // Execute workflow rules for the project after document save
+      console.log('🔄 Running workflow rules after document save...');
+      this.executingWorkflow.set(true);
+      try {
+        const workflowResult = await this.workflowService.executeWorkflowRulesForProject(
+          document.projectId!, 
+          document.id
+        );
+        
+        if (workflowResult.success) {
+          console.log(`✅ Workflow execution completed: ${workflowResult.executedRules} rules executed`);
+          if (workflowResult.appliedActions.length > 0) {
+            console.log('📋 Applied actions:', workflowResult.appliedActions);
+            
+            // Show user feedback about workflow execution
+            const actionCount = workflowResult.appliedActions.length;
+            const documentCount = workflowResult.updatedDocuments.length;
+            alert(`Workflow executed successfully!\n${workflowResult.executedRules} rules processed\n${actionCount} actions applied\n${documentCount} documents updated`);
+            
+            // If workflow rules updated other documents, refresh the data
+            if (workflowResult.updatedDocuments.length > 0) {
+              console.log('🔄 Refreshing data due to workflow updates...');
+              await this.loadAllData();
+              this.buildMatrix();
+            }
+          }
+        } else {
+          console.error('❌ Workflow execution failed:', workflowResult.error);
+          alert(`Workflow execution failed: ${workflowResult.error}`);
+        }
+      } catch (error) {
+        console.error('❌ Error running workflow rules:', error);
+        alert(`Error running workflow rules: ${error}`);
+      } finally {
+        this.executingWorkflow.set(false);
+      }
       
       // Close modal
       this.closeDocumentModal();

@@ -142,9 +142,15 @@
             <button 
               class="btn-primary" 
               (click)="saveDocument()" 
-              [disabled]="saving() || !isFormValid"
+              [disabled]="saving() || executingWorkflow() || !isFormValid"
             >
-              {{ saving() ? 'Saving...' : 'Save Changes' }}
+              @if (executingWorkflow()) {
+                🔄 Running Workflow...
+              } @else if (saving()) {
+                💾 Saving...
+              } @else {
+                💾 Save & Run Workflow
+              }
             </button>
           }
         </div>

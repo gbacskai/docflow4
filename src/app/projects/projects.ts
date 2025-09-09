@@ -819,17 +819,31 @@ export class Projects implements OnInit, OnDestroy {
         console.log('Project created:', createdProject);
         console.log('Available document types:', this.documentTypes());
         
-        // Get all active document types
-        const associatedDocumentTypes = this.documentTypes().filter(docType => {
-          console.log(`Checking docType: ${docType.name}`);
-          return docType.isActive;
-        });
+        // Get document types that are referenced in the selected workflow's rules
+        const selectedWorkflow = this.workflows().find(w => w.id === this.newProjectForm.value.workflowId);
+        
+        console.log('🔍 Selected workflow:', selectedWorkflow);
+        console.log('🔍 Workflow rules:', selectedWorkflow?.rules);
+        console.log('🔍 Available document types:', this.documentTypes().map(dt => ({ name: dt.name, identifier: dt.identifier, id: dt.id })));
+        
+        const associatedDocumentTypes = this.getDocumentTypesFromWorkflow(selectedWorkflow);
 
-        console.log('Associated document types found:', associatedDocumentTypes);
+        console.log('📋 Associated document types found:', associatedDocumentTypes.length);
+        console.log('📋 Associated document types details:', associatedDocumentTypes.map(dt => ({ name: dt.name, identifier: dt.identifier, id: dt.id })));
 
-        if (associatedDocumentTypes.length > 0) {
-          // Create documents for each associated document type with validation
-          const documentPromises = associatedDocumentTypes.map(async (docType) => {
+        // FALLBACK: If no workflow-specific document types found, use all active document types
+        const finalDocumentTypes = associatedDocumentTypes.length > 0 
+          ? associatedDocumentTypes 
+          : this.documentTypes().filter(dt => dt.isActive !== false);
+          
+        if (finalDocumentTypes !== associatedDocumentTypes) {
+          console.log('⚠️  No workflow-specific document types found, falling back to all active document types');
+          console.log('📋 Using all active document types:', finalDocumentTypes.map(dt => ({ name: dt.name, identifier: dt.identifier, id: dt.id })));
+        }
+
+        if (finalDocumentTypes.length > 0) {
+          // Create documents for each document type with validation
+          const documentPromises = finalDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
             console.log(`Creating document for type: ${docType.name}`);
             
             try {
@@ -884,7 +898,6 @@ export class Projects implements OnInit, OnDestroy {
                   projectId: createdProject.id,
                   documentType: docType.id,
                   formData: JSON.stringify(initialFormData),
-                  status: initialFormData.status || 'draft',
                   createdAt: new Date().toISOString()
                 }
               });
@@ -895,7 +908,6 @@ export class Projects implements OnInit, OnDestroy {
                 data: {
                   projectId: createdProject.id,
                   documentType: docType.id,
-                  status: 'draft',
                   createdAt: new Date().toISOString()
                 }
               });
@@ -905,7 +917,7 @@ export class Projects implements OnInit, OnDestroy {
           // Wait for all documents to be created
           await Promise.all(documentPromises);
           
-          console.log(`Successfully created ${associatedDocumentTypes.length} documents for project: ${createdProject.name}`);
+          console.log(`Successfully created ${finalDocumentTypes.length} documents for project: ${createdProject.name}`);
         } else {
           console.log('No document types found.');
         }
@@ -926,9 +938,144 @@ export class Projects implements OnInit, OnDestroy {
         throw new Error(result.error || 'Failed to update project');
       }
       
+      const updatedProject = result.data;
+      console.log('Project updated:', updatedProject);
+
+      // Check and create missing documents if workflow is assigned
+      if (updatedProject && updatedProject.workflowId) {
+        console.log('Checking for missing documents in updated project...');
+        await this.ensureProjectDocuments(updatedProject);
+      }
+      
       await this.loadProjects();
     } catch (error) {
       console.error('Error updating project:', error);
+    }
+  }
+
+  /**
+   * Ensure all required documents exist for a project based on its workflow
+   */
+  async ensureProjectDocuments(project: Schema['Project']['type']) {
+    try {
+      console.log('📋 Ensuring documents for project:', project.name);
+      
+      // Get workflow-specific document types
+      const selectedWorkflow = this.workflows().find(w => w.id === project.workflowId);
+      const requiredDocumentTypes = this.getDocumentTypesFromWorkflow(selectedWorkflow);
+      
+      console.log('📋 Required document types:', requiredDocumentTypes.map(dt => dt.name));
+      
+      if (requiredDocumentTypes.length === 0) {
+        console.log('📋 No document types required by workflow');
+        return;
+      }
+
+      // Get existing documents for this project
+      const client = generateClient<Schema>();
+      const allDocumentsResult = await client.models.Document.list();
+      const existingDocuments = allDocumentsResult.data?.filter((doc: any) => doc.projectId === project.id) || [];
+      console.log('📋 Existing documents:', existingDocuments.map((doc: any) => doc.documentType));
+
+      // Find missing document types  
+      const existingDocumentTypes = new Set(existingDocuments.map((doc: any) => doc.documentType));
+      const missingDocumentTypes = requiredDocumentTypes.filter(docType => 
+        !existingDocumentTypes.has(docType.name)
+      );
+
+      console.log('📋 Missing document types:', missingDocumentTypes.map(dt => dt.name));
+
+      if (missingDocumentTypes.length === 0) {
+        console.log('📋 All required documents already exist');
+        return;
+      }
+
+      // Create missing documents
+      const documentPromises = missingDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
+        console.log(`📋 Creating missing document for type: ${docType.name}`);
+        
+        try {
+          // Parse document type definition to create initial form data
+          let initialFormData: any = {};
+          if (docType.definition) {
+            try {
+              const definition = JSON.parse(docType.definition);
+              if (definition.fields && Array.isArray(definition.fields)) {
+                // Initialize form data with default values from definition
+                definition.fields.forEach((field: any) => {
+                  if (field.defaultValue !== undefined) {
+                    initialFormData[field.name] = field.defaultValue;
+                  } else if (field.type === 'boolean' || field.type === 'checkbox') {
+                    initialFormData[field.name] = false;
+                  } else {
+                    initialFormData[field.name] = undefined;
+                  }
+                });
+              }
+            } catch (parseError) {
+              console.warn(`Failed to parse definition for ${docType.name}:`, parseError);
+            }
+          }
+          
+          const documentResult = await this.versionedDataService.createVersionedRecord('Document', {
+            data: {
+              projectId: project.id,
+              documentType: docType.id,
+              formData: JSON.stringify(initialFormData),
+              createdAt: new Date().toISOString()
+            }
+          });
+
+          console.log(`📄 Document creation result for ${docType.name}:`, {
+            success: documentResult.success,
+            data: documentResult.data,
+            error: documentResult.error,
+            fullResult: documentResult
+          });
+
+          if (documentResult.success) {
+            console.log(`✅ Created missing document: ${docType.name}`);
+            return documentResult.data;
+          } else {
+            console.error(`❌ Failed to create document for ${docType.name}:`, documentResult.error);
+            return null;
+          }
+        } catch (error) {
+          console.error(`❌ Error creating document for ${docType.name}:`, error);
+          return null;
+        }
+      });
+
+      // Wait for all missing documents to be created
+      const createdDocuments = await Promise.all(documentPromises);
+      
+      console.log('📋 Raw creation results details:');
+      createdDocuments.forEach((doc, index) => {
+        console.log(`  [${index}]:`, {
+          result: doc,
+          type: typeof doc,
+          isNull: doc === null,
+          isUndefined: doc === undefined,
+          isTruthy: !!doc,
+          stringified: JSON.stringify(doc, null, 2)
+        });
+      });
+      
+      const successfullyCreated = createdDocuments.filter(doc => doc !== null && doc !== undefined);
+      
+      console.log(`📋 Document creation results:`, {
+        attempted: missingDocumentTypes.length,
+        succeeded: successfullyCreated.length,
+        failed: createdDocuments.length - successfullyCreated.length
+      });
+      
+      console.log(`📋 Successfully created ${successfullyCreated.length} missing documents for project: ${project.name}`);
+      
+      // No need to reload documents in projects component
+      // Documents will be automatically available when the documents component loads
+      
+    } catch (error) {
+      console.error('❌ Error ensuring project documents:', error);
     }
   }
 
@@ -1092,5 +1239,116 @@ export class Projects implements OnInit, OnDestroy {
     }
     
     return updates;
+  }
+
+  /**
+   * Extract document types that are referenced in a workflow's rules
+   */
+  getDocumentTypesFromWorkflow(workflow?: Schema['Workflow']['type'] | null): Array<Schema['DocumentType']['type']> {
+    if (!workflow || !workflow.rules || workflow.rules.length === 0) {
+      console.log('No workflow or workflow rules found, returning empty array');
+      return [];
+    }
+
+    const docTypeNames = new Set<string>();
+    
+    // Extract document type names from workflow rules
+    workflow.rules.forEach((ruleString: any) => {
+      try {
+        const rule = typeof ruleString === 'string' ? JSON.parse(ruleString) : ruleString;
+        const validation = rule.validation || '';
+        const action = rule.action || '';
+        
+        // Extract document types from validation and action rules
+        this.extractDocTypeNamesFromText(validation, docTypeNames);
+        this.extractDocTypeNamesFromText(action, docTypeNames);
+      } catch (error) {
+        console.error('Error parsing workflow rule:', ruleString, error);
+      }
+    });
+
+    console.log('Document type names extracted from workflow:', Array.from(docTypeNames));
+
+    // Find matching DocumentType objects from the available document types
+    const matchedDocTypes = this.documentTypes().filter(docType => {
+      const isActive = docType.isActive;
+      
+      // Try multiple matching strategies, prioritizing identifier
+      let isReferenced = false;
+      let matchedBy = '';
+      
+      // Strategy 1: Match by identifier first (primary matching method)
+      if (docType.identifier && docTypeNames.has(docType.identifier)) {
+        isReferenced = true;
+        matchedBy = 'identifier exact';
+      }
+      
+      // Strategy 2: Normalize identifier and compare (remove spaces, lowercase)
+      if (!isReferenced && docType.identifier) {
+        const normalizedIdentifier = docType.identifier.replace(/\s+/g, '').toLowerCase();
+        
+        for (const extractedName of docTypeNames) {
+          const normalizedExtracted = extractedName.replace(/\s+/g, '').toLowerCase();
+          if (normalizedExtracted === normalizedIdentifier) {
+            isReferenced = true;
+            matchedBy = 'identifier normalized';
+            console.log(`✅ Matched "${docType.name}" (identifier: "${docType.identifier}") with extracted "${extractedName}" via identifier normalization`);
+            break;
+          }
+        }
+      }
+      
+      // Strategy 3: Fallback to name matching only if no identifier match
+      if (!isReferenced) {
+        if (docTypeNames.has(docType.name)) {
+          isReferenced = true;
+          matchedBy = 'name exact';
+        }
+      }
+      
+      // Strategy 4: Normalize name as final fallback
+      if (!isReferenced) {
+        const normalizedDocTypeName = docType.name.replace(/\s+/g, '').toLowerCase();
+        
+        for (const extractedName of docTypeNames) {
+          const normalizedExtracted = extractedName.replace(/\s+/g, '').toLowerCase();
+          if (normalizedExtracted === normalizedDocTypeName) {
+            isReferenced = true;
+            matchedBy = 'name normalized';
+            console.log(`✅ Matched "${docType.name}" with extracted "${extractedName}" via name normalization`);
+            break;
+          }
+        }
+      }
+      
+      console.log(`Document type ${docType.name} (identifier: ${docType.identifier}): isActive=${isActive}, isReferenced=${isReferenced} (${matchedBy})`);
+      return isActive && isReferenced;
+    });
+
+    console.log('Matched document types for workflow:', matchedDocTypes.map(dt => dt.name));
+    return matchedDocTypes;
+  }
+
+  /**
+   * Extract document type names from workflow rule text
+   */
+  private extractDocTypeNamesFromText(text: string, docTypeNames: Set<string>) {
+    console.log(`🔍 Extracting doc types from text: "${text}"`);
+    
+    // Pattern: document.DocumentTypeName.status or DocumentTypeName.status
+    const docTypePatterns = [
+      /document\.([A-Z][a-zA-Z0-9]*)\./g,  // document.DocumentTypeName.status
+      /([A-Z][a-zA-Z0-9]+)\.(?:status|value|hidden|disabled)/g  // DocumentTypeName.status
+    ];
+    
+    docTypePatterns.forEach((pattern, index) => {
+      console.log(`🔍 Trying pattern ${index + 1}: ${pattern}`);
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const docTypeName = match[1];
+        console.log(`✅ Found document type name: "${docTypeName}" using pattern ${index + 1}`);
+        docTypeNames.add(docTypeName);
+      }
+    });
   }
 }

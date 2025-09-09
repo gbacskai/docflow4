@@ -141,6 +141,7 @@ const schema = a.schema({
 
   // TypeScript-only model definitions - these provide types but don't create tables
   // since we override the data sources to point to our custom tables in backend.ts
+  // NOTE: These models may still create auto-generated tables in some cases
   Project: a.model({
       id: a.string().required(),
       version: a.datetime().required(),

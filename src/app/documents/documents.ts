@@ -242,8 +242,7 @@ export class Documents implements OnInit {
         const documentData = {
           projectId: formValue.projectId,
           documentType: formValue.documentType,
-          formData: JSON.stringify(dynamicFormValue),
-          status: 'draft'
+          formData: JSON.stringify(dynamicFormValue)
         };
         const newDocument = await this.createDocument(documentData);
         
