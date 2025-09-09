@@ -414,16 +414,13 @@
                 <div class="dynamic-form-preview">
                   <div class="preview-header">
                     <h5>Form Preview</h5>
-                    <button type="button" class="test-form-btn" (click)="toggleFormTestMode()">
-                      {{ isTestMode() ? '🔒 Lock' : '🔓 Test' }}
-                    </button>
                   </div>
                   
                   <app-dynamic-form
                     title=""
                     [showTitle]="false"
-                    [isTestMode]="isTestMode()"
-                    [allowArrayEditing]="isTestMode()"
+                    [isTestMode]="true"
+                    [allowArrayEditing]="true"
                     [allowFileUpload]="false"
                     [showValidationResults]="false"
                     [onFileChange]="dynamicFormService.onFileChange"
