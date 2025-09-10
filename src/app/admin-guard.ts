@@ -16,8 +16,8 @@ export const adminGuard: CanActivateFn = (route, state) => {
 
   // Then check if user is admin
   if (!userDataService.isCurrentUserAdmin()) {
-    // Redirect to dashboard if authenticated but not admin
-    router.navigate(['/dashboard']);
+    // Redirect to reporting if authenticated but not admin
+    router.navigate(['/reporting']);
     return false;
   }
 

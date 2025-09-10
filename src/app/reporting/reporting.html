@@ -1,21 +1,4 @@
 <div class="reporting-page">
-  <header class="page-header">
-    <div class="header-content">
-      <div class="title-section">
-        <h1>📊 Reporting</h1>
-        <p>Project and document workflow status matrix</p>
-      </div>
-      <div class="header-controls">
-        <button 
-          class="toggle-btn" 
-          (click)="toggleShowAllProjects()"
-          [class.active]="showAllProjects()"
-        >
-          {{ showAllProjects() ? '📋 Show Active Only' : '📁 Show All Projects' }}
-        </button>
-      </div>
-    </div>
-  </header>
 
   @if (loading()) {
     <div class="loading">
@@ -56,7 +39,6 @@
         <div class="matrix-table">
           <!-- Header Row -->
           <div class="matrix-header">
-            <div class="header-cell chat-header">Chat</div>
             <div class="header-cell project-header">Projects</div>
             @for (docType of orderedDocumentTypes(); track docType.id) {
               <div class="header-cell doc-type-header" [title]="docType.name">
@@ -68,14 +50,20 @@
           <!-- Project Rows -->
           @for (row of projectMatrix(); track row.project.id) {
             <div class="matrix-row">
-              <div class="chat-cell" 
-                   (click)="navigateToProjectChat(row.project)" 
-                   [title]="'Open chat for ' + row.project.name"
-                   class="clickable">
-                💬
-              </div>
               <div class="project-cell" [title]="row.project.name">
                 {{ row.project.name }}
+                <div class="project-actions">
+                  <span class="edit-icon" 
+                        (click)="openEditProjectModal(row.project)" 
+                        [title]="'Edit ' + row.project.name">
+                    ✏️
+                  </span>
+                  <span class="chat-icon" 
+                        (click)="navigateToProjectChat(row.project)" 
+                        [title]="'Open chat for ' + row.project.name">
+                    💬
+                  </span>
+                </div>
               </div>
               @for (cell of row.cells; track $index) {
                 <div 
@@ -157,6 +145,142 @@
             </button>
           }
         </div>
+      </div>
+    </div>
+  }
+
+  <!-- New Project Modal -->
+  @if (showNewProjectModal()) {
+    <div class="modal-overlay" (click)="closeNewProjectModal()">
+      <div class="modal-content new-project-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ currentMode() === 'create' ? '➕ Create New Project' : '✏️ Edit Project' }}</h3>
+          <button class="close-btn" (click)="closeNewProjectModal()">✕</button>
+        </div>
+        
+        <form [formGroup]="newProjectForm" (ngSubmit)="onSubmitNewProject()">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="projectName">Project Name *</label>
+              <input 
+                type="text" 
+                id="projectName"
+                formControlName="name" 
+                class="form-control"
+                placeholder="Enter project name"
+                [class.error]="newProjectForm.get('name')?.invalid && newProjectForm.get('name')?.touched"
+              />
+              @if (newProjectForm.get('name')?.invalid && newProjectForm.get('name')?.touched) {
+                <div class="error-text">
+                  @if (newProjectForm.get('name')?.errors?.['required']) {
+                    Project name is required
+                  }
+                  @if (newProjectForm.get('name')?.errors?.['minlength']) {
+                    Project name must be at least 3 characters
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="projectDescription">Description *</label>
+              <textarea 
+                id="projectDescription"
+                formControlName="description" 
+                class="form-control"
+                rows="3"
+                placeholder="Enter project description"
+                [class.error]="newProjectForm.get('description')?.invalid && newProjectForm.get('description')?.touched"
+              ></textarea>
+              @if (newProjectForm.get('description')?.invalid && newProjectForm.get('description')?.touched) {
+                <div class="error-text">
+                  @if (newProjectForm.get('description')?.errors?.['required']) {
+                    Description is required
+                  }
+                  @if (newProjectForm.get('description')?.errors?.['minlength']) {
+                    Description must be at least 10 characters
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="projectOwner">Project Owner *</label>
+              <select 
+                id="projectOwner"
+                formControlName="ownerId" 
+                class="form-control"
+                [class.error]="newProjectForm.get('ownerId')?.invalid && newProjectForm.get('ownerId')?.touched"
+              >
+                <option value="">Select project owner</option>
+                @for (user of users(); track user.id) {
+                  <option [value]="user.id">{{ getUserName(user.id) }}</option>
+                }
+              </select>
+              @if (newProjectForm.get('ownerId')?.invalid && newProjectForm.get('ownerId')?.touched) {
+                <div class="error-text">Project owner is required</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="projectWorkflow">Workflow *</label>
+              <select 
+                id="projectWorkflow"
+                formControlName="workflowId" 
+                class="form-control"
+                [class.error]="newProjectForm.get('workflowId')?.invalid && newProjectForm.get('workflowId')?.touched"
+              >
+                <option value="">Select workflow</option>
+                @for (workflow of workflows(); track workflow.id) {
+                  @if (workflow.isActive !== false) {
+                    <option [value]="workflow.id">{{ workflow.name }}</option>
+                  }
+                }
+              </select>
+              @if (newProjectForm.get('workflowId')?.invalid && newProjectForm.get('workflowId')?.touched) {
+                <div class="error-text">Workflow is required</div>
+              }
+            </div>
+
+            <div class="form-group">
+              <label for="projectStatus">Status</label>
+              <select 
+                id="projectStatus"
+                formControlName="status" 
+                class="form-control"
+              >
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" (click)="closeNewProjectModal()" [disabled]="creatingProject() || editingProject()">
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              class="btn-primary" 
+              [disabled]="!newProjectForm.valid || creatingProject() || editingProject()"
+            >
+              @if (currentMode() === 'create') {
+                @if (creatingProject()) {
+                  🔄 Creating...
+                } @else {
+                  ➕ Create Project
+                }
+              } @else {
+                @if (editingProject()) {
+                  🔄 Updating...
+                } @else {
+                  ✏️ Update Project
+                }
+              }
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   }

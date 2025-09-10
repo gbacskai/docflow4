@@ -37,18 +37,22 @@
           </a>
         </li>
       }
-      <li>
-        <a routerLink="/projects" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">📁</i>
-          Projects
-        </a>
-      </li>
-      <li>
-        <a routerLink="/documents" routerLinkActive="active" (click)="onNavigationClick()">
-          <i class="icon">📝</i>
-          Documents
-        </a>
-      </li>
+      @if (isCurrentUserAdmin()) {
+        <li>
+          <a routerLink="/projects" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">📁</i>
+            Projects
+          </a>
+        </li>
+      }
+      @if (isCurrentUserAdmin()) {
+        <li>
+          <a routerLink="/documents" routerLinkActive="active" (click)="onNavigationClick()">
+            <i class="icon">📝</i>
+            Documents
+          </a>
+        </li>
+      }
       <li>
         <a routerLink="/reporting" routerLinkActive="active" (click)="onNavigationClick()">
           <i class="icon">📊</i>

@@ -506,7 +506,7 @@ export class Users implements OnInit, OnDestroy {
       console.log('TODO: Send email verification to:', userData.email);
       
       // TODO: Implement actual AWS Cognito user creation
-      alert(`User created successfully. Email verification will be sent to ${userData.email}`);
+      // alert(`User created successfully. Email verification will be sent to ${userData.email}`);
       
     } catch (error) {
       console.error('Error creating user:', error);
