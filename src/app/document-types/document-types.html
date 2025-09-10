@@ -146,24 +146,18 @@
               </div>
               <div class="example-buttons">
                 <span class="examples-label">Examples:</span>
-                <button type="button" class="example-btn" (click)="loadExampleDefinition('BuildingPermit')" title="Building Permit Application">
-                  🏗️ Building
-                </button>
-                <button type="button" class="example-btn" (click)="loadExampleDefinition('business_license')" title="Business License Application">
-                  🏢 Business
-                </button>
-                <button type="button" class="example-btn" (click)="loadExampleDefinition('event_permit')" title="Event Permit Application">
-                  🎉 Event
-                </button>
-                <button type="button" class="example-btn" (click)="loadExampleDefinition('health_inspection')" title="Health Inspection Form">
-                  🏥 Health
-                </button>
-                <button type="button" class="example-btn" (click)="loadExampleDefinition('simple_form')" title="Simple Text Format">
-                  📝 Simple
-                </button>
-                <button type="button" class="example-btn" (click)="loadExampleDefinition('invoice_form')" title="Invoice with Multiple Items">
-                  🧾 Invoice
-                </button>
+                <select class="example-dropdown" (change)="onExampleChange($event)" [value]="''">
+                  <option value="" disabled>Select an example...</option>
+                  <option value="YesNo">✅ Yes/No</option>
+                  <option value="NotesFile">📄 Notes, *File</option>
+                  <option value="NotRequired">📋 NotRequired - Notes - File</option>
+                  <option value="BuildingPermit">🏗️ Building Permit Application</option>
+                  <option value="business_license">🏢 Business License Application</option>
+                  <option value="event_permit">🎉 Event Permit Application</option>
+                  <option value="health_inspection">🏥 Health Inspection Form</option>
+                  <option value="simple_form">📝 Simple Text Format</option>
+                  <option value="invoice_form">🧾 Invoice with Multiple Items</option>
+                </select>
               </div>
             </div>
             <textarea 
@@ -358,9 +352,15 @@
                   </div>
                   <div class="example-buttons">
                     <span class="examples-label">Examples:</span>
-                    <button type="button" class="example-btn" (click)="loadExampleDefinition('BuildingPermit')" title="Building Permit">🏗️</button>
-                    <button type="button" class="example-btn" (click)="loadExampleDefinition('business_license')" title="Business License">🏢</button>
-                    <button type="button" class="example-btn" (click)="loadExampleDefinition('simple_form')" title="Simple Form">📝</button>
+                    <select class="example-dropdown" (change)="onExampleChange($event)" [value]="''">
+                      <option value="" disabled>Select...</option>
+                      <option value="YesNo">✅ Yes/No</option>
+                      <option value="NotesFile">📄 Notes, *File</option>
+                      <option value="NotRequired">📋 NotRequired</option>
+                      <option value="BuildingPermit">🏗️ Building</option>
+                      <option value="business_license">🏢 Business</option>
+                      <option value="simple_form">📝 Simple</option>
+                    </select>
                   </div>
                 </div>
                 <textarea 

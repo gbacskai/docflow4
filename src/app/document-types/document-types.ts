@@ -717,6 +717,54 @@ export class DocumentTypes implements OnInit, OnDestroy {
     let definition = '';
     
     switch (exampleType) {
+      case 'YesNo':
+        definition = `{
+  "fields": [
+    {"key": "confirmed", "type": "checkbox", "label": "", "hidden": false, "placeholder": "Confirm"},
+    {"key": "status", "type": "select", "label": "Status", "required": true, "disabled": true, "options": [
+      {"value": "queued", "label": "Queued"},
+      {"value": "waiting", "label": "Waiting"},
+      {"value": "completed", "label": "Completed"},
+      {"value": "confirmed", "label": "Confirmed"},
+      {"value": "notrequired", "label": "Not required"}
+    ]}
+  ]
+}`;
+        break;
+
+      case 'NotesFile':
+        definition = `{
+  "fields": [
+    {"key": "notes", "type": "textarea", "label": "Notes", "hidden": false, "placeholder": "Notes"},
+    {"key": "files", "type": "file", "label": "", "description": "You can select multiple files", "required": true, "multiple": true},
+    {"key": "status", "type": "select", "label": "Status", "required": true, "disabled": true, "options": [
+      {"value": "queued", "label": "Queued"},
+      {"value": "waiting", "label": "Waiting"},
+      {"value": "completed", "label": "Completed"},
+      {"value": "confirmed", "label": "Confirmed"},
+      {"value": "notrequired", "label": "Not required"}
+    ]}
+  ]
+}`;
+        break;
+
+      case 'NotRequired':
+        definition = `{
+  "fields": [
+    {"key": "notrequired", "type": "checkbox", "label": "", "hidden": false, "placeholder": "Not Required"},
+    {"key": "notes", "type": "textarea", "label": "Notes", "hidden": false, "placeholder": "Notes"},
+    {"key": "files", "type": "file", "label": "", "description": "You can select multiple files", "required": true, "multiple": true},
+    {"key": "status", "type": "select", "label": "Status", "required": true, "disabled": true, "options": [
+      {"value": "queued", "label": "Queued"},
+      {"value": "waiting", "label": "Waiting"},
+      {"value": "completed", "label": "Completed"},
+      {"value": "confirmed", "label": "Confirmed"},
+      {"value": "notrequired", "label": "Not required"}
+    ]}
+  ]
+}`;
+        break;
+
       case 'BuildingPermit':
         definition = `{
   "fields": [
@@ -843,8 +891,40 @@ export class DocumentTypes implements OnInit, OnDestroy {
         break;
     }
     
-    this.documentTypeForm.patchValue({ definition });
+    // Load validation rules for examples
+    let validationRules = '';
+    if (exampleType === 'YesNo') {
+      validationRules = `validation: status == "" action: status = "queued"
+validation: confirmed == true action: status = "confirmed"
+validation: confirmed == false action: status = "queued"`;
+    } else if (exampleType === 'NotesFile') {
+      validationRules = `validation: status == null action: status = "queued"
+validation: files.count() > 0 action: status = "completed"
+validation: files.count() = 0 action: status = "waiting"`;
+    } else if (exampleType === 'NotRequired') {
+      validationRules = `validation: status == null action: status = "queued"
+validation: notrequired == true action: files.hidden = true, notes.hidden = true, status = "notrequired"
+validation: notrequired == false action: files.hidden = false, notes.hidden = false
+validation: notrequired == false and files.count() > 0 action: status = "completed"
+validation: notrequired == false and files.count() = 0 action: status = "waiting"`;
+    }
+    
+    this.documentTypeForm.patchValue({ 
+      definition,
+      validationRules 
+    });
     this.dynamicFormService.generateDynamicFormSchema(definition);
+  }
+
+  // Handle dropdown selection
+  onExampleChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    const exampleType = target.value;
+    if (exampleType) {
+      this.loadExampleDefinition(exampleType);
+      // Reset dropdown to placeholder
+      target.value = '';
+    }
   }
 
   // Test mode functionality
