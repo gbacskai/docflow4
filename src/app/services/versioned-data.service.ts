@@ -125,9 +125,6 @@ export class VersionedDataService {
           result = await this.client.models.User.create(userInput);
           break;
         case 'DocumentType':
-          console.log('🔍 DocumentType recordData being sent to GraphQL:', recordData);
-          console.log('🔍 DocumentType recordData keys:', Object.keys(recordData));
-          
           // Create a schema-compliant DocumentType object
           const documentTypeInput: any = {
             id: recordData.id,
@@ -148,7 +145,6 @@ export class VersionedDataService {
           if (recordData.usageCount !== undefined) documentTypeInput.usageCount = recordData.usageCount;
           if (recordData.templateCount !== undefined) documentTypeInput.templateCount = recordData.templateCount;
           
-          console.log('🔍 DocumentType filtered input:', documentTypeInput);
           result = await this.client.models.DocumentType.create(documentTypeInput);
           break;
         case 'Workflow':
@@ -190,9 +186,6 @@ export class VersionedDataService {
           if (recordData.participants) chatRoomInput.participants = recordData.participants;
           if (recordData.adminUsers) chatRoomInput.adminUsers = recordData.adminUsers;
           if (recordData.providerUsers) chatRoomInput.providerUsers = recordData.providerUsers;
-          if (recordData.lastMessage) chatRoomInput.lastMessage = recordData.lastMessage;
-          if (recordData.lastMessageTime) chatRoomInput.lastMessageTime = recordData.lastMessageTime;
-          if (recordData.lastMessageSender) chatRoomInput.lastMessageSender = recordData.lastMessageSender;
           if (recordData.messageCount !== undefined) chatRoomInput.messageCount = recordData.messageCount;
           if (recordData.unreadCount !== undefined) chatRoomInput.unreadCount = recordData.unreadCount;
           if (recordData.isActive !== undefined) chatRoomInput.isActive = recordData.isActive;
@@ -440,8 +433,11 @@ export class VersionedDataService {
       // But let's still deduplicate in case there are multiple active records (shouldn't happen with proper management)
       const latestByIdMap = new Map<string, any>();
       
+      // Filter out any null records that might be returned by GraphQL
+      const validRecords = activeRecords.filter(record => record != null && record.id != null);
+      
       // Group records by ID
-      const groupedById = activeRecords.reduce((acc, record) => {
+      const groupedById = validRecords.reduce((acc, record) => {
         const id = record.id;
         if (!acc[id]) {
           acc[id] = [];

@@ -95,9 +95,8 @@ export class Workflows implements OnInit, OnDestroy {
   async loadWorkflows() {
     try {
       this.loading.set(true);
-      const client = generateClient<Schema>();
       const result = await this.versionedDataService.getAllLatestVersions('Workflow');
-        const data = result.success ? result.data || [] : [];
+      const data = result.success ? result.data || [] : [];
       this.workflows.set(data);
       this.applyWorkflowSearch();
     } catch (error) {
@@ -327,9 +326,11 @@ export class Workflows implements OnInit, OnDestroy {
       const client = generateClient<Schema>();
       console.log('Creating workflow with client:', workflow);
       
+      const now = new Date().toISOString();
       const result = await client.models.Workflow.create({
         ...workflow,
-        updatedAt: new Date().toISOString()
+        version: now,
+        updatedAt: now
       });
       
       console.log('Workflow creation result:', result);
@@ -470,9 +471,8 @@ export class Workflows implements OnInit, OnDestroy {
 
   async loadDocumentTypes() {
     try {
-      const client = generateClient<Schema>();
       const result = await this.versionedDataService.getAllLatestVersions('DocumentType');
-        const data = result.success ? result.data || [] : [];
+      const data = result.success ? result.data || [] : [];
       const validDocTypes = data.filter(docType => docType != null);
       this.documentTypes.set(validDocTypes);
       this.filteredDocumentTypes.set(validDocTypes);
@@ -488,9 +488,8 @@ export class Workflows implements OnInit, OnDestroy {
 
   async loadProjects() {
     try {
-      const client = generateClient<Schema>();
       const result = await this.versionedDataService.getAllLatestVersions('Project');
-        const data = result.success ? result.data || [] : [];
+      const data = result.success ? result.data || [] : [];
       this.projects.set(data || []);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -573,7 +572,7 @@ export class Workflows implements OnInit, OnDestroy {
     });
     
     // Convert to array format expected by permissions matrix
-    return Array.from(docTypeNames).map((name, index) => ({
+    return Array.from(docTypeNames).map((name) => ({
       id: name.toLowerCase().replace(/[^a-z0-9]/g, ''), // Generate consistent ID
       name: name
     }));
@@ -847,19 +846,6 @@ export class Workflows implements OnInit, OnDestroy {
     this.flowchartConnections.set(connections);
   }
 
-  private extractDocumentTypeName(text: string): string {
-    // Extract document type name from patterns like:
-    // "document.BuildingPermit" -> "BuildingPermit"
-    // "process.BusinessLicense" -> "BusinessLicense"
-    const match = text.match(/(?:document)\.(\w+)/);
-    if (match) {
-      // Find the document type by identifier and return its name
-      const identifier = match[1];
-      const docType = this.documentTypes().find(dt => dt.identifier === identifier);
-      return docType?.name || identifier;
-    }
-    return '';
-  }
 
   private extractAllDocumentTypeNames(text: string): string[] {
     // Extract ALL document type names and field names from patterns like:

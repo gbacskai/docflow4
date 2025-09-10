@@ -529,7 +529,7 @@
 
   <!-- Document Type Sidebar -->
   @if (showDocumentTypeSidebar()) {
-    <div class="document-type-sidebar-overlay">
+    <div class="document-type-sidebar-overlay" (click)="closeDocumentTypeSidebar()">
       <div class="document-type-sidebar" (click)="$event.stopPropagation()">
         <div class="sidebar-header">
           <h3>Select Document Type</h3>
