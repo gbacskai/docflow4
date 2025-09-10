@@ -38,11 +38,7 @@
           </div>
           <div class="legend-item">
             <span class="status-icon" style="color: #27ae60;">✅</span>
-            <span>Completed</span>
-          </div>
-          <div class="legend-item">
-            <span class="status-icon" style="color: #27ae60;">✅</span>
-            <span>Confirmed</span>
+            <span>Completed, Confirmed</span>
           </div>
           <div class="legend-item">
             <span class="status-icon" style="color: #34495e;">🚫</span>
@@ -60,6 +56,7 @@
         <div class="matrix-table">
           <!-- Header Row -->
           <div class="matrix-header">
+            <div class="header-cell chat-header">Chat</div>
             <div class="header-cell project-header">Projects</div>
             @for (docType of orderedDocumentTypes(); track docType.id) {
               <div class="header-cell doc-type-header" [title]="docType.name">
@@ -71,6 +68,12 @@
           <!-- Project Rows -->
           @for (row of projectMatrix(); track row.project.id) {
             <div class="matrix-row">
+              <div class="chat-cell" 
+                   (click)="navigateToProjectChat(row.project)" 
+                   [title]="'Open chat for ' + row.project.name"
+                   class="clickable">
+                💬
+              </div>
               <div class="project-cell" [title]="row.project.name">
                 {{ row.project.name }}
               </div>

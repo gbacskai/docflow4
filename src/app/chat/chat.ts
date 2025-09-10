@@ -43,9 +43,6 @@ export interface ChatRoom {
   participants: string[];
   adminUsers?: string[];
   providerUsers?: string[];
-  lastMessage?: string;
-  lastMessageTime?: string;
-  lastMessageSender?: string;
   messageCount?: number;
   unreadCount: number;
   isActive: boolean;
@@ -96,16 +93,26 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
   async ngOnInit() {
     this.checkUserRole();
+    
+    // Wait for user data to be available before proceeding
+    await this.waitForUserData();
+    
     await this.initializeRealtimeConnection();
     await this.loadChatRooms();
     
     // Check for query parameters
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.subscribe(async params => {
       console.log('📨 Chat component received query params:', params);
       
       if (params['room']) {
         console.log('🎯 Attempting to select room:', params['room']);
         this.selectRoomById(params['room']);
+      }
+      
+      // Handle project-based navigation from reporting page
+      if (params['projectId'] && params['projectName']) {
+        console.log('🏢 Attempting to find/create project chat room:', params['projectName']);
+        await this.findOrCreateProjectChatRoom(params['projectId'], params['projectName']);
       }
       
       if (params['from']) {
@@ -119,6 +126,10 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           case 'documents':
             this.backRoute.set('/documents');
             this.backButtonText.set('Back to Documents');
+            break;
+          case 'reporting':
+            this.backRoute.set('/reporting');
+            this.backButtonText.set('Back to Reporting');
             break;
           default:
             this.backRoute.set('/dashboard');
@@ -138,6 +149,15 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
       this.scrollChatToBottom();
       this.scrollToBottom = false;
     }
+  }
+
+  private async waitForUserData(): Promise<void> {
+    // Wait for user data to be loaded
+    while (this.userDataService.loading() || !this.userDataService.getCurrentUserData()) {
+      console.log('⏳ Waiting for user data to be available...');
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.log('✅ User data is now available');
   }
 
   private checkUserRole() {
@@ -181,9 +201,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
           console.log('➕ Adding new message to chat:', message.message.substring(0, 30) + '...');
           this.messages.set([...currentMessages, message]);
           this.scrollToBottom = true;
-          
-          // Update room last message
-          this.updateRoomLastMessage(message);
         } else {
           console.log('🔄 Message already exists, skipping duplicate:', message.id);
         }
@@ -253,9 +270,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
         console.log('➕ Adding sent message to chat immediately');
         this.messages.set([...currentMessages, sentMessage]);
         this.scrollToBottom = true;
-        
-        // Update room last message
-        this.updateRoomLastMessage(sentMessage);
       }
       
       this.newMessage.set('');
@@ -265,21 +279,6 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  private updateRoomLastMessage(message: ChatMessage) {
-    const rooms = this.chatRooms();
-    const updatedRooms = rooms.map(room => {
-      if (room.id === message.chatRoomId) {
-        return {
-          ...room,
-          lastMessage: message.message,
-          lastMessageTime: message.timestamp,
-          unreadCount: room.id === this.selectedRoom()?.id ? 0 : room.unreadCount + 1
-        };
-      }
-      return room;
-    });
-    this.chatRooms.set(updatedRooms);
-  }
 
   private scrollChatToBottom() {
     if (this.chatMessagesContainer) {
@@ -350,5 +349,67 @@ export class Chat implements OnInit, OnDestroy, AfterViewChecked {
 
   goBack() {
     this.router.navigate([this.backRoute()]);
+  }
+
+  private async findOrCreateProjectChatRoom(projectId: string, projectName: string) {
+    try {
+      console.log('🔍 Looking for existing chat room for project:', projectName, 'with projectId:', projectId);
+      
+      // Ensure user data is available first
+      await this.waitForUserData();
+      
+      // Ensure rooms are loaded first
+      await this.loadChatRooms();
+      
+      // Now check if a chat room already exists for this project
+      const rooms = this.chatRooms();
+      console.log('🏠 Available rooms:', rooms.map(r => ({id: r.id, title: r.title, projectId: r.projectId, roomType: r.roomType})));
+      
+      const existingRoom = rooms.find(room => 
+        room.roomType === 'project' && 
+        room.projectId === projectId
+      );
+      
+      if (existingRoom) {
+        console.log('✅ Found existing chat room:', existingRoom.title);
+        this.selectRoom(existingRoom);
+        return;
+      }
+      
+      console.log('❌ No existing chat room found. Creating new project chat room...');
+      
+      // Get current user for participants
+      const currentUser = this.userDataService.getCurrentUserData();
+      const currentUserId = currentUser?.id || '';
+      
+      if (!currentUserId) {
+        throw new Error('Current user ID not available');
+      }
+      
+      // Create new project chat room
+      const newRoom = await this.chatService.createProjectChatRoom({
+        projectId: projectId,
+        projectName: projectName,
+        roomType: 'project',
+        title: `${projectName} - Project Chat`,
+        description: `Chat room for project: ${projectName}`,
+        adminUsers: [currentUserId], // Add current user ID as admin
+        providerUsers: []
+      });
+      
+      console.log('✅ Created new project chat room:', newRoom.title);
+      
+      // Add the new room to our local list
+      const updatedRooms = [...this.chatRooms(), newRoom];
+      this.chatRooms.set(updatedRooms);
+      
+      // Select the newly created room
+      this.selectRoom(newRoom);
+      
+    } catch (error) {
+      console.error('❌ Error finding/creating project chat room:', error);
+      // Still try to load rooms in case the error was just in selection
+      await this.loadChatRooms();
+    }
   }
 }

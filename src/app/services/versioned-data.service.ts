@@ -186,9 +186,6 @@ export class VersionedDataService {
           if (recordData.participants) chatRoomInput.participants = recordData.participants;
           if (recordData.adminUsers) chatRoomInput.adminUsers = recordData.adminUsers;
           if (recordData.providerUsers) chatRoomInput.providerUsers = recordData.providerUsers;
-          if (recordData.lastMessage) chatRoomInput.lastMessage = recordData.lastMessage;
-          if (recordData.lastMessageTime) chatRoomInput.lastMessageTime = recordData.lastMessageTime;
-          if (recordData.lastMessageSender) chatRoomInput.lastMessageSender = recordData.lastMessageSender;
           if (recordData.messageCount !== undefined) chatRoomInput.messageCount = recordData.messageCount;
           if (recordData.unreadCount !== undefined) chatRoomInput.unreadCount = recordData.unreadCount;
           if (recordData.isActive !== undefined) chatRoomInput.isActive = recordData.isActive;
