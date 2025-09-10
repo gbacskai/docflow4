@@ -115,7 +115,7 @@ export class ChatService {
       attachmentUrl: data.attachmentUrl,
       fileSize: data.fileSize,
       fileName: data.fileName,
-      timestamp: data.createdAt || data.timestamp,
+      timestamp: data.updatedAt || data.timestamp,
       isRead: data.isRead || false,
       readBy: data.readBy || [],
       readAt: data.readAt,
@@ -152,7 +152,6 @@ export class ChatService {
       allowFileSharing: data.allowFileSharing !== false,
       maxParticipants: data.maxParticipants,
       lastActivityAt: data.lastActivityAt,
-      createdAt: data.createdAt,
       updatedAt: data.updatedAt
     };
   }
@@ -247,8 +246,8 @@ export class ChatService {
       
       // Sort messages by timestamp (oldest first)
       const sortedMessages = messages.sort((a, b) => {
-        const timeA = new Date(a.createdAt || '').getTime();
-        const timeB = new Date(b.createdAt || '').getTime();
+        const timeA = new Date(a.updatedAt || '').getTime();
+        const timeB = new Date(b.updatedAt || '').getTime();
         return timeA - timeB;
       });
       
@@ -326,7 +325,6 @@ export class ChatService {
           messageType: 'text',
           isRead: false,
           readBy: [],
-          createdAt: new Date().toISOString()
         }
       });
 
@@ -515,7 +513,7 @@ export class ChatService {
           isActive: true,
           allowFileSharing: true,
           lastActivityAt: now,
-          createdAt: now
+          updatedAt: now
         }
       });
 
@@ -561,7 +559,7 @@ export class ChatService {
           isActive: true,
           allowFileSharing: true,
           lastActivityAt: now,
-          createdAt: now
+          updatedAt: now
         }
       });
 

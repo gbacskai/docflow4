@@ -88,6 +88,59 @@
     </div>
   </div>
 
+  <!-- Active Flag Cleanup Section -->
+  <div class="admin-section">
+    <div class="section-header">
+      <h2>🧹 Active Flag Cleanup</h2>
+      <p>Clean up active flags across all tables to ensure data integrity</p>
+    </div>
+    
+    <div class="action-panel">
+      <div class="export-info">
+        <div class="info-item">
+          <strong>What this does:</strong>
+          <ul>
+            <li>Loads all data from every table (Project, Document, User, DocumentType, Workflow, ChatRoom, ChatMessage)</li>
+            <li>Sets the latest record per ID to <code>active = true</code></li>
+            <li>Removes the active key entirely from older records</li>
+            <li>Ensures proper data integrity across all versioned records</li>
+          </ul>
+        </div>
+        <div class="info-item">
+          <strong>⚠️ Important:</strong> This process may take several minutes for large datasets
+        </div>
+      </div>
+      
+      <div class="action-controls">
+        <button 
+          class="btn-warning large" 
+          (click)="cleanupActiveFlagsAllTables()" 
+          [disabled]="activeCleanupLoading()"
+        >
+          @if (activeCleanupLoading()) {
+            <span class="loading-spinner"></span>
+            Cleaning up...
+          } @else {
+            🧹 Cleanup Active Flags
+          }
+        </button>
+
+        @if (activeCleanupStatus()) {
+          <div class="status-message">
+            <button 
+              class="clear-status-btn" 
+              (click)="clearActiveCleanupStatus()" 
+              title="Clear status message"
+            >
+              ✕
+            </button>
+            <pre>{{ activeCleanupStatus() }}</pre>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
   <!-- AWS Resources -->
   <div class="admin-section">
     <div class="section-header">
@@ -399,8 +452,8 @@
   <!-- Clear Database Section -->
   <div class="admin-section">
     <div class="section-header">
-      <h2>🗑️ Clear Database</h2>
-      <p>Permanently delete all data from the database (Document Types, Workflows, Projects, Documents)</p>
+      <h2>🗑️ Clear Database Tables</h2>
+      <p>Permanently delete data from individual database tables or all at once</p>
     </div>
     
     <div class="action-panel">
@@ -408,35 +461,103 @@
         <div class="info-item">
           <strong>⚠️ Warning:</strong>
           <p style="color: #e74c3c; font-weight: 600; margin: 0.5rem 0;">
-            This operation will permanently delete ALL data from the database. This includes:
+            These operations will permanently delete data from the selected tables. Each operation includes:
           </p>
           <ul style="color: #e74c3c;">
-            <li>All Document Types</li>
-            <li>All Workflows</li>
-            <li>All Projects</li>
-            <li>All Documents</li>
+            <li>All current records</li>
+            <li>All version history</li>
+            <li>This operation cannot be undone</li>
           </ul>
         </div>
         <div class="info-item">
-          <strong>Note:</strong> This operation cannot be undone. Make sure to create a backup first if needed.
+          <strong>Note:</strong> Make sure to create a backup first if needed. You can clear individual tables or all tables at once.
         </div>
       </div>
       
-      <div class="action-controls">
+      <div class="table-clear-controls">
+        <h3>Select Tables to Clear:</h3>
+        
+        <div class="clear-options">
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.documentTypes"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Document Types
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.workflows"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Workflows
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.projects"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Projects
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.documents"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Documents
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.users"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Users
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.chatRooms"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Chat Rooms
+            </label>
+            <label class="checkbox-label">
+              <input 
+                type="checkbox" 
+                [(ngModel)]="clearOptions.chatMessages"
+                class="checkbox-input"
+              >
+              <span class="checkmark"></span>
+              Chat Messages
+            </label>
+          </div>
+        </div>
+        
         <button 
-          class="btn-secondary" 
-          style="background: #e74c3c; border-color: #e74c3c;"
-          (click)="clearDatabase()" 
-          [disabled]="clearDatabaseLoading()"
+          class="btn-warning" 
+          (click)="clearSelectedTables()" 
+          [disabled]="clearDatabaseLoading() || !hasClearSelection()"
         >
           @if (clearDatabaseLoading()) {
             <span class="loading-spinner"></span>
-            Clearing Database...
+            Clearing Tables...
           } @else {
-            🗑️ Clear All Data
+            🗑️ Clear Selected Tables
           }
         </button>
-
+        
         @if (clearDatabaseStatus()) {
           <div class="status-message">
             <button 
@@ -450,10 +571,4 @@
     </div>
   </div>
 
-  <!-- Clear Messages Button -->
-  <div class="admin-section">
-    <button class="btn-secondary" (click)="clearMessages()">
-      🧹 Clear All Messages
-    </button>
-  </div>
 </div>

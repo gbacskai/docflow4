@@ -198,6 +198,12 @@ export class Documents implements OnInit {
     if (documentWithFormData.formData) {
       try {
         const existingData = JSON.parse(documentWithFormData.formData);
+        console.log(`🔄 Loading existing document data for edit mode:`, existingData);
+        console.log(`🔄 Raw formData from database:`, documentWithFormData.formData);
+        
+        // Patch form with existing data after form generation is complete
+        // This ensures that even if the document type schema has changed,
+        // we only populate fields that still exist in the current schema
         setTimeout(() => {
           this.dynamicFormService.patchFormValue(existingData);
         }, 100);
@@ -235,6 +241,10 @@ export class Documents implements OnInit {
       const formValue = this.documentForm.value;
       let dynamicFormValue = this.dynamicFormService.getFormValue();
 
+      console.log(`💾 Saving document - Mode: ${this.currentMode()}`);
+      console.log(`💾 Form value:`, formValue);
+      console.log(`💾 Dynamic form value:`, dynamicFormValue);
+
       // Handle file uploads if there are any
       let uploadedFileUrls = {};
       if (this.currentMode() === 'create') {
@@ -244,7 +254,7 @@ export class Documents implements OnInit {
           documentType: formValue.documentType,
           formData: JSON.stringify(dynamicFormValue)
         };
-        const newDocument = await this.createDocument(documentData);
+        const newDocument = await this.createDocument(documentData as any);
         
         // Upload files after creating document
         if (Object.keys(this.dynamicFormService.fileObjects()).length > 0) {
@@ -263,6 +273,8 @@ export class Documents implements OnInit {
           dynamicFormValue = { ...dynamicFormValue, ...uploadedFileUrls };
         }
         
+        console.log(`💾 Updating document ${this.selectedDocument()!.id} with formData:`, JSON.stringify(dynamicFormValue));
+        
         await this.updateDocument(this.selectedDocument()!.id, {
           formData: JSON.stringify(dynamicFormValue),
           status: 'draft'
@@ -277,12 +289,11 @@ export class Documents implements OnInit {
     }
   }
 
-  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>): Promise<Schema['Document']['type']> {
+  async createDocument(document: Omit<Schema['Document']['type'], 'id' | 'version' | 'updatedAt'>): Promise<Schema['Document']['type']> {
     try {
       const result = await this.versionedDataService.createVersionedRecord('Document', {
         data: {
-          ...document,
-          createdAt: new Date().toISOString()
+          ...document
         }
       });
       

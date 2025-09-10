@@ -34,6 +34,8 @@ export class DynamicFormService {
       return;
     }
 
+    console.log(`🔄 Generating new dynamic form schema from definition`);
+
     try {
       const parsed = JSON.parse(definition);
       
@@ -239,6 +241,20 @@ export class DynamicFormService {
   }
 
   private evaluateSingleCondition(condition: string, formGroup: any, arrayData: any): boolean {
+    // Handle isFormValid() condition
+    const isFormValidMatch = condition.match(/isFormValid\(\)\s*([><=!]+)\s*(true|false)/);
+    if (isFormValidMatch) {
+      const [, operator, expectedStr] = isFormValidMatch;
+      const expected = expectedStr === 'true';
+      const formValid = this.isFormValid();
+      
+      switch (operator) {
+        case '==': case '=': return formValid === expected;
+        case '!=': return formValid !== expected;
+        default: throw new Error(`Unsupported operator for isFormValid(): ${operator}`);
+      }
+    }
+
     // Handle allRequired() condition
     const allRequiredMatch = condition.match(/allRequired\(\)\s*([><=!]+)\s*(true|false)/);
     if (allRequiredMatch) {
@@ -498,12 +514,101 @@ export class DynamicFormService {
 
   isFormValid(): boolean {
     const formGroup = this.dynamicFormGroup();
-    return formGroup ? formGroup.valid : true;
+    if (!formGroup) return false;  // Form is invalid if no form group exists
+
+    // console.log('🔍 Checking form validity...');
+    
+    // Check regular form fields (excluding arrays - they're validated separately)
+    const fields = this.dynamicFormFields();
+    for (const field of fields) {
+      if (field.type !== 'array' && field.required) {
+        const control = formGroup.get(field.key);
+        if (!control || control.invalid) {
+          console.log(`❌ Required field '${field.key}' is invalid or missing`);
+          return false;
+        }
+        const value = control.value;
+        if (!value || (typeof value === 'string' && value.trim() === '')) {
+          // console.log(`❌ Required field '${field.key}' is empty (value: "${value}")`);
+          return false;
+        }
+        // console.log(`✅ Required field '${field.key}' is valid: "${value}"`);
+      }
+    }
+
+    // Check array field validation separately
+    const arrayValidation = this.validateArrayFields();
+    // console.log(`🔍 Array validation result: ${arrayValidation}`);
+    // console.log(`🔍 Overall form validity: ${arrayValidation}`);
+    
+    return arrayValidation;
+  }
+
+  /**
+   * Validate array fields with their nested required fields
+   */
+  private validateArrayFields(): boolean {
+    const fields = this.dynamicFormFields();
+    const arrayFieldData = this.arrayFieldData();
+    
+    for (const field of fields) {
+      if (field.type === 'array' && field.required) {
+        const arrayItems = arrayFieldData[field.key] || [];
+        
+        // If array field is required, it must have at least one item
+        if (arrayItems.length === 0) {
+          console.log(`❌ Array field '${field.key}' is required but has no items`);
+          return false;
+        }
+        
+        // Check if each array item has all required sub-fields filled
+        const subFields = this.getArraySubFields(field);
+        // console.log(`🔍 Validating array '${field.key}' with ${arrayItems.length} items, expected subFields:`, subFields.map(sf => `${sf.key}${sf.required ? '*' : ''}`));
+        
+        for (let itemIndex = 0; itemIndex < arrayItems.length; itemIndex++) {
+          const item = arrayItems[itemIndex];
+          // console.log(`🔍 Validating item ${itemIndex}:`, item);
+          
+          for (const subField of subFields) {
+            if (subField.required) {
+              const value = item[subField.key];
+              if (!value || (typeof value === 'string' && value.trim() === '')) {
+                // console.log(`❌ Array item ${itemIndex} in '${field.key}' is missing required field '${subField.key}' (value: "${value}")`);
+                return false;
+              } else {
+                // console.log(`✅ Array item ${itemIndex} in '${field.key}' has valid '${subField.key}': "${value}"`);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Trigger an update to the form validation state
+   * This is needed because array validation is custom and not part of FormGroup
+   */
+  triggerFormValidationUpdate(): void {
+    // We can trigger a signal update or emit an event
+    // For now, we'll just ensure the validation runs by accessing the validation state
+    const isValid = this.isFormValid();
+    console.log(`📝 Form validation update - Form is valid: ${isValid}`);
   }
 
   getFormValue(): any {
     const formGroup = this.dynamicFormGroup();
-    return formGroup ? formGroup.value : {};
+    // Use getRawValue() to include disabled fields in the form data
+    const formValue = formGroup ? formGroup.getRawValue() : {};
+    
+    // Merge array field data with regular form data
+    const arrayData = this.arrayFieldData();
+    const mergedValue = { ...formValue, ...arrayData };
+    
+    console.log('📋 Form value with arrays (including disabled fields):', mergedValue);
+    return mergedValue;
   }
 
   markAllFieldsAsTouched() {
@@ -522,9 +627,19 @@ export class DynamicFormService {
       const fileData: {[key: string]: string[]} = {};
       const existingFileUrlData: {[key: string]: string[]} = {};
       
-      // Handle file fields separately
+      // Separate array data for array fields
+      const arrayData: any = {};
+      
+      console.log(`🔄 Patching form with data:`, data);
+      console.log(`🔄 Current form fields:`, fields.map(f => `${f.key}(${f.type})`));
+      
+      // Handle file and array fields separately - only patch fields that exist in current schema
       fields.forEach(field => {
-        if (field.type === 'file' && data[field.key]) {
+        if (field.type === 'array' && data[field.key]) {
+          // Store array data separately
+          arrayData[field.key] = data[field.key];
+          console.log(`🔄 Loading array data for field '${field.key}':`, data[field.key]);
+        } else if (field.type === 'file' && data[field.key]) {
           const fileUrls = data[field.key];
           if (Array.isArray(fileUrls)) {
             // Store existing file URLs for opening later
@@ -545,17 +660,34 @@ export class DynamicFormService {
             formGroup.get(field.key)?.setValue(fileName);
           }
         } else {
-          // Handle regular fields
+          // Handle regular fields - only set if field exists in current schema
           if (data[field.key] !== undefined) {
+            console.log(`🔄 Setting field '${field.key}' = '${data[field.key]}'`);
             formGroup.get(field.key)?.setValue(data[field.key]);
+          } else {
+            console.log(`⚠️  Field '${field.key}' from current schema not found in saved data`);
           }
         }
       });
+      
+      // Log any fields from saved data that don't exist in current schema
+      const currentFieldKeys = fields.map(f => f.key);
+      const savedDataKeys = Object.keys(data);
+      const orphanedFields = savedDataKeys.filter(key => !currentFieldKeys.includes(key));
+      if (orphanedFields.length > 0) {
+        console.warn(`⚠️  Document contains data for fields that no longer exist in the document type: ${orphanedFields.join(', ')}`);
+      }
       
       // Update uploaded files signal to show file names in UI
       this.uploadedFiles.set(fileData);
       // Store existing file URLs for opening
       this.existingFileUrls.set(existingFileUrlData);
+      
+      // Set array data for array fields
+      if (Object.keys(arrayData).length > 0) {
+        this.arrayFieldData.set(arrayData);
+        console.log('🔄 Array field data loaded:', arrayData);
+      }
       
       // Restore disabled states based on field definitions
       fields.forEach(field => {
@@ -578,7 +710,13 @@ export class DynamicFormService {
     
     // Create new empty item based on schema
     const newItem: any = {};
-    const itemSchema = field.itemSchema || field[`${fieldKey}Schema`] || field.schema;
+    let itemSchema = field.itemSchema || field[`${fieldKey}Schema`] || field.schema;
+    
+    // Also check for common naming patterns like clientSchema for clientItems
+    if (!itemSchema) {
+      const keyWithoutItems = fieldKey.replace(/Items?$/, ''); // Remove 'Items' or 'Item' suffix
+      itemSchema = field[`${keyWithoutItems}Schema`];
+    }
     
     if (itemSchema && typeof itemSchema === 'object') {
       Object.keys(itemSchema).forEach(key => {
@@ -595,7 +733,11 @@ export class DynamicFormService {
     });
     
     // Trigger validation for array changes
-    setTimeout(() => this.evaluateValidationRules(), 300);
+    setTimeout(() => {
+      this.evaluateValidationRules();
+      // Also trigger form validation update
+      this.triggerFormValidationUpdate();
+    }, 300);
   }
 
   removeArrayItem(fieldKey: string, index: number) {
@@ -609,14 +751,25 @@ export class DynamicFormService {
     });
     
     // Trigger validation for array changes
-    setTimeout(() => this.evaluateValidationRules(), 300);
+    setTimeout(() => {
+      this.evaluateValidationRules();
+      // Also trigger form validation update
+      this.triggerFormValidationUpdate();
+    }, 300);
   }
 
   updateArrayItem(fieldKey: string, itemIndex: number, subFieldKey: string, value: any) {
+    console.log(`🔄 updateArrayItem called: ${fieldKey}[${itemIndex}].${subFieldKey} = "${value}"`);
+    
     const currentData = this.arrayFieldData();
     const currentItems = currentData[fieldKey] || [];
     
-    if (itemIndex >= currentItems.length) return;
+    console.log(`📊 Current array data before update:`, currentItems);
+    
+    if (itemIndex >= currentItems.length) {
+      console.log(`❌ Invalid itemIndex ${itemIndex} for array with length ${currentItems.length}`);
+      return;
+    }
     
     const updatedItems = currentItems.map((item, index) => {
       if (index === itemIndex) {
@@ -633,21 +786,45 @@ export class DynamicFormService {
       [fieldKey]: updatedItems
     });
     
+    console.log(`📊 Updated array data:`, updatedItems);
+    
     // Trigger validation for array changes
-    setTimeout(() => this.evaluateValidationRules(), 300);
+    setTimeout(() => {
+      this.evaluateValidationRules();
+      // Also trigger form validation update
+      this.triggerFormValidationUpdate();
+    }, 300);
   }
 
   getArraySubFields(field: any): any[] {
-    if (!field) return [];
+    // console.log(`🔍 getArraySubFields called for field:`, field);
+    
+    if (!field) {
+      //console.log(`❌ No field provided to getArraySubFields`);
+      return [];
+    }
     
     // Try different possible locations for the schema
     let itemSchema = field.itemSchema || field[`${field.key}Schema`] || field.schema;
+    // console.log(`🔍 First attempt - itemSchema:`, itemSchema);
+    
+    // Also check for common naming patterns like clientSchema for clientItems
+    if (!itemSchema) {
+      const keyWithoutItems = field.key.replace(/Items?$/, ''); // Remove 'Items' or 'Item' suffix
+      itemSchema = field[`${keyWithoutItems}Schema`];
+      // console.log(`🔍 Second attempt with '${keyWithoutItems}Schema':`, itemSchema);
+    }
     
     if (!itemSchema && field.items && typeof field.items === 'object') {
       itemSchema = field.items.properties || field.items;
     }
     
-    if (!itemSchema) return [];
+    if (!itemSchema) {
+      // console.log(`❌ No itemSchema found for field '${field.key}'`);
+      return [];
+    }
+    
+    // console.log(`✅ Found itemSchema:`, itemSchema);
     
     // Convert schema to array of field definitions
     const subFields: any[] = [];
@@ -655,8 +832,10 @@ export class DynamicFormService {
     if (typeof itemSchema === 'object') {
       Object.keys(itemSchema).forEach(key => {
         const fieldDef = itemSchema[key];
+        // console.log(`🔍 Processing subField '${key}':`, fieldDef);
+        
         if (typeof fieldDef === 'object') {
-          subFields.push({
+          const subField = {
             key: key,
             label: fieldDef.label || key,
             type: fieldDef.type || 'text',
@@ -664,7 +843,12 @@ export class DynamicFormService {
             description: fieldDef.description || '',
             required: fieldDef.required || false,
             options: fieldDef.options || null
-          });
+          };
+          
+          // console.log(`✅ Created subField:`, subField);
+          subFields.push(subField);
+        } else {
+          // console.log(`❌ Field definition for '${key}' is not an object:`, typeof fieldDef);
         }
       });
     }

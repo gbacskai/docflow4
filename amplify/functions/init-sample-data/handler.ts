@@ -24,7 +24,6 @@ const SAMPLE_DOCUMENT_TYPES = [
     isActive: true,
     usageCount: 0,
     templateCount: 2,
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
@@ -37,7 +36,6 @@ const SAMPLE_DOCUMENT_TYPES = [
     isActive: true,
     usageCount: 0,
     templateCount: 1,
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
@@ -50,7 +48,6 @@ const SAMPLE_DOCUMENT_TYPES = [
     isActive: true,
     usageCount: 0,
     templateCount: 3,
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
@@ -63,7 +60,6 @@ const SAMPLE_DOCUMENT_TYPES = [
     isActive: true,
     usageCount: 0,
     templateCount: 1,
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
 ];
@@ -141,7 +137,6 @@ const SAMPLE_WORKFLOWS = [
       ]
     }),
     status: 'active',
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   },
   {
@@ -198,7 +193,6 @@ const SAMPLE_WORKFLOWS = [
       ]
     }),
     status: 'active',
-    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
 ];

@@ -571,25 +571,33 @@ export class Reporting implements OnInit {
         );
         
         if (workflowResult.success) {
-          console.log(`✅ Workflow execution completed: ${workflowResult.executedRules} rules executed`);
-          if (workflowResult.appliedActions.length > 0) {
+          console.log(`✅ Cascading workflow execution completed: ${workflowResult.cascadeIterations} iterations, ${workflowResult.totalDocumentChanges} total changes`);
+          
+          if (workflowResult.totalDocumentChanges > 0) {
             console.log('📋 Applied actions:', workflowResult.appliedActions);
             
-            // Show user feedback about workflow execution
-            const actionCount = workflowResult.appliedActions.length;
-            const documentCount = workflowResult.updatedDocuments.length;
-            alert(`Workflow executed successfully!\n${workflowResult.executedRules} rules processed\n${actionCount} actions applied\n${documentCount} documents updated`);
+            // Show detailed user feedback about cascading workflow execution
+            const message = `Cascading workflow executed successfully!\n\n` +
+              `🔄 Cascade Iterations: ${workflowResult.cascadeIterations}\n` +
+              `📊 Rules Processed: ${workflowResult.executedRules}\n` +
+              `⚡ Actions Applied: ${workflowResult.appliedActions.length}\n` +
+              `📄 Documents Changed: ${workflowResult.totalDocumentChanges}\n\n` +
+              `The system automatically ran validation rules until no more changes occurred.`;
             
-            // If workflow rules updated other documents, refresh the data
-            if (workflowResult.updatedDocuments.length > 0) {
-              console.log('🔄 Refreshing data due to workflow updates...');
-              await this.loadAllData();
-              this.buildMatrix();
-            }
+            alert(message);
+            
+            // Always refresh data after cascading changes
+            console.log('🔄 Refreshing data due to cascading workflow updates...');
+            await this.loadAllData();
+            this.buildMatrix();
+          } else {
+            // No changes occurred
+            console.log('ℹ️ No workflow rules triggered any document changes');
+            alert('Document saved successfully!\n\nNo workflow rules required changes to other documents.');
           }
         } else {
-          console.error('❌ Workflow execution failed:', workflowResult.error);
-          alert(`Workflow execution failed: ${workflowResult.error}`);
+          console.error('❌ Cascading workflow execution failed:', workflowResult.error);
+          alert(`Cascading workflow execution failed: ${workflowResult.error}`);
         }
       } catch (error) {
         console.error('❌ Error running workflow rules:', error);

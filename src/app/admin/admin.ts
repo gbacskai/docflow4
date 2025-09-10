@@ -56,6 +56,10 @@ export class Admin implements OnInit {
   clearDatabaseLoading = signal(false);
   clearDatabaseStatus = signal<string>('');
   
+  // Individual table clearing functionality
+  clearTableLoading = signal<{[key: string]: boolean}>({});
+  clearTableStatus = signal<{[key: string]: string}>({});
+  
   backupOptions = {
     documentTypes: true,
     workflows: true,
@@ -69,6 +73,16 @@ export class Admin implements OnInit {
     projects: false,
     documents: false,
     conflictResolution: 'ignore' as 'ignore' | 'update'
+  };
+
+  clearOptions = {
+    documentTypes: false,
+    workflows: false,
+    projects: false,
+    documents: false,
+    users: false,
+    chatRooms: false,
+    chatMessages: false
   };
   
   // Form data
@@ -227,8 +241,8 @@ export class Admin implements OnInit {
       // Mock export data
       const mockData = {
         Projects: [
-          { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15' },
-          { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10' },
+          { id: '1', name: 'Website Redesign', status: 'active' },
+          { id: '2', name: 'Mobile App', status: 'active' },
         ],
         DocumentTypes: [
           { id: '1', name: 'Requirements' },
@@ -646,6 +660,10 @@ export class Admin implements OnInit {
     return this.restoreOptions.documentTypes || this.restoreOptions.workflows || this.restoreOptions.projects || this.restoreOptions.documents;
   }
 
+  hasClearSelection(): boolean {
+    return this.clearOptions.documentTypes || this.clearOptions.workflows || this.clearOptions.projects || this.clearOptions.documents || this.clearOptions.users || this.clearOptions.chatRooms || this.clearOptions.chatMessages;
+  }
+
   async createBackup() {
     if (!this.hasBackupSelection()) {
       alert('Please select at least one data type to backup.');
@@ -831,7 +849,7 @@ export class Admin implements OnInit {
             const allDocTypes = existingResult.success ? existingResult.data || [] : [];
             const existingDocTypes = allDocTypes.filter(dt => dt.identifier === docType.identifier);
             
-            const { id, createdAt, updatedAt, ...updateData } = docType;
+            const { id, updatedAt, ...updateData } = docType;
             
             if (existingDocTypes && existingDocTypes.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -853,7 +871,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -880,7 +897,7 @@ export class Admin implements OnInit {
             const allWorkflows = existingResult.success ? existingResult.data || [] : [];
             const existingWorkflows = allWorkflows.filter(w => w.identifier === workflow.identifier);
             
-            const { id, createdAt, updatedAt, ...updateData } = workflow;
+            const { id, updatedAt, ...updateData } = workflow;
             
             if (existingWorkflows && existingWorkflows.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -902,7 +919,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('Workflow', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -929,7 +945,7 @@ export class Admin implements OnInit {
             const allProjects = existingResult.success ? existingResult.data || [] : [];
             const existingProjects = allProjects.filter(p => p.identifier === project.identifier);
             
-            const { id, createdAt, updatedAt, ...updateData } = project;
+            const { id, updatedAt, ...updateData } = project;
             
             if (existingProjects && existingProjects.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -951,7 +967,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('Project', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -980,7 +995,7 @@ export class Admin implements OnInit {
               d.projectId === document.projectId && d.documentType === document.documentType
             );
             
-            const { id, createdAt, updatedAt, ...updateData } = document;
+            const { id, updatedAt, ...updateData } = document;
             
             if (existingDocuments && existingDocuments.length > 0) {
               if (this.restoreOptions.conflictResolution === 'update') {
@@ -1002,7 +1017,6 @@ export class Admin implements OnInit {
               const result = await this.versionedDataService.createVersionedRecord('Document', {
                 data: {
                   ...updateData,
-                  createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString()
                 }
               });
@@ -1208,7 +1222,481 @@ export class Admin implements OnInit {
     }
   }
 
+  async clearSelectedTables() {
+    if (!this.hasClearSelection()) {
+      alert('Please select at least one table to clear.');
+      return;
+    }
+
+    const selectedTables = [];
+    if (this.clearOptions.documentTypes) selectedTables.push('Document Types');
+    if (this.clearOptions.workflows) selectedTables.push('Workflows');
+    if (this.clearOptions.projects) selectedTables.push('Projects');
+    if (this.clearOptions.documents) selectedTables.push('Documents');
+    if (this.clearOptions.users) selectedTables.push('Users');
+    if (this.clearOptions.chatRooms) selectedTables.push('Chat Rooms');
+    if (this.clearOptions.chatMessages) selectedTables.push('Chat Messages');
+
+    const confirmClear = confirm(
+      `This will permanently delete ALL data from the following tables:\n` +
+      `• ${selectedTables.join('\n• ')}\n\n` +
+      'This operation will delete EVERY version of EVERY record and cannot be undone. Are you absolutely sure you want to proceed?'
+    );
+
+    if (!confirmClear) {
+      return;
+    }
+
+    // Double confirmation for safety
+    const doubleConfirm = confirm(
+      'FINAL WARNING: This will delete your selected data permanently. Click OK to continue.'
+    );
+
+    if (!doubleConfirm) {
+      return;
+    }
+
+    this.clearDatabaseLoading.set(true);
+    this.clearDatabaseStatus.set('Starting selective table clear operation...');
+    this.errorMessage.set('');
+
+    try {
+      const client = generateClient<Schema>();
+      let deletedCount = 0;
+      const errors: string[] = [];
+
+      // Clear tables in dependency order (dependent tables first)
+      if (this.clearOptions.documents) {
+        this.clearDatabaseStatus.set('Clearing Documents (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('Document');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Document records (all versions)...`);
+          } else {
+            errors.push(`Documents: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Documents: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.projects) {
+        this.clearDatabaseStatus.set('Clearing Projects (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('Project');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Project records (all versions)...`);
+          } else {
+            errors.push(`Projects: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Projects: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.workflows) {
+        this.clearDatabaseStatus.set('Clearing Workflows (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('Workflow');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} Workflow records (all versions)...`);
+          } else {
+            errors.push(`Workflows: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Workflows: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.documentTypes) {
+        this.clearDatabaseStatus.set('Clearing Document Types (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('DocumentType');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} DocumentType records (all versions)...`);
+          } else {
+            errors.push(`DocumentTypes: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`DocumentTypes: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.chatMessages) {
+        this.clearDatabaseStatus.set('Clearing Chat Messages (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatMessage');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatMessage records (all versions)...`);
+          } else {
+            errors.push(`ChatMessages: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`ChatMessages: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.chatRooms) {
+        this.clearDatabaseStatus.set('Clearing Chat Rooms (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('ChatRoom');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} ChatRoom records (all versions)...`);
+          } else {
+            errors.push(`ChatRooms: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`ChatRooms: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      if (this.clearOptions.users) {
+        this.clearDatabaseStatus.set('Clearing Users (all versions)...');
+        try {
+          const result = await this.versionedDataService.deleteAllVersionsAllRecords('User');
+          if (result.success) {
+            deletedCount += result.deletedCount || 0;
+            this.clearDatabaseStatus.set(`Cleared ${result.deletedCount || 0} User records (all versions)...`);
+          } else {
+            errors.push(`Users: ${result.error || 'Unknown error'}`);
+          }
+        } catch (error: any) {
+          errors.push(`Users: ${error.message || 'Unknown error'}`);
+        }
+      }
+
+      // Show final results
+      if (this.clearOptions.users) {
+        this.clearDatabaseStatus.set('Note: Cognito user accounts require manual deletion from AWS Console...');
+      }
+
+      if (errors.length === 0) {
+        this.clearDatabaseStatus.set(
+          `✅ Successfully cleared selected tables.\n` +
+          `Total records deleted: ${deletedCount}\n` +
+          `Selected tables have been cleared.`
+        );
+      } else {
+        this.clearDatabaseStatus.set(
+          `⚠️ Clear operation completed with errors:\n` +
+          `Total records deleted: ${deletedCount}\n` +
+          `Errors:\n• ${errors.join('\n• ')}`
+        );
+      }
+    } catch (error) {
+      console.error('Clear database error:', error);
+      this.clearDatabaseStatus.set('❌ Clear database failed: ' + (error as Error).message);
+      this.errorMessage.set('Clear database operation failed');
+    } finally {
+      this.clearDatabaseLoading.set(false);
+    }
+  }
+
   clearClearDatabaseStatus() {
     this.clearDatabaseStatus.set('');
+  }
+
+  /**
+   * Clear a specific table by name
+   */
+  async clearTable(tableName: 'DocumentType' | 'Workflow' | 'Project' | 'Document' | 'User') {
+    const tableDisplayNames: {[key: string]: string} = {
+      'DocumentType': 'Document Types',
+      'Workflow': 'Workflows', 
+      'Project': 'Projects',
+      'Document': 'Documents',
+      'User': 'Users'
+    };
+
+    const displayName = tableDisplayNames[tableName] || tableName;
+    
+    const confirmClear = confirm(
+      `This will permanently delete ALL ${displayName} from the database.\n\n` +
+      `This includes:\n` +
+      `• All current records\n` +
+      `• All version history\n` +
+      `• This operation cannot be undone\n\n` +
+      `Are you sure you want to proceed?`
+    );
+
+    if (!confirmClear) {
+      return;
+    }
+
+    // Set loading state
+    const currentLoading = this.clearTableLoading();
+    currentLoading[tableName] = true;
+    this.clearTableLoading.set({...currentLoading});
+
+    // Set initial status
+    const currentStatus = this.clearTableStatus();
+    currentStatus[tableName] = `Starting deletion of ${displayName}...`;
+    this.clearTableStatus.set({...currentStatus});
+
+    this.errorMessage.set('');
+
+    try {
+      currentStatus[tableName] = `Deleting all ${displayName} (all versions)...`;
+      this.clearTableStatus.set({...currentStatus});
+
+      const result = await this.versionedDataService.deleteAllVersionsAllRecords(tableName);
+      
+      if (result.success) {
+        const deletedCount = result.deletedCount || 0;
+        currentStatus[tableName] = `✅ Successfully deleted ${deletedCount} ${displayName} records (all versions)`;
+        this.clearTableStatus.set({...currentStatus});
+        this.successMessage.set(`${displayName} cleared successfully - ${deletedCount} records deleted`);
+      } else {
+        const errorMsg = result.error || 'Unknown error occurred';
+        currentStatus[tableName] = `❌ Failed to delete ${displayName}: ${errorMsg}`;
+        this.clearTableStatus.set({...currentStatus});
+        this.errorMessage.set(`Failed to clear ${displayName}: ${errorMsg}`);
+      }
+      
+    } catch (error) {
+      console.error(`Clear ${tableName} failed:`, error);
+      const errorMsg = (error as Error).message;
+      currentStatus[tableName] = `❌ Error deleting ${displayName}: ${errorMsg}`;
+      this.clearTableStatus.set({...currentStatus});
+      this.errorMessage.set(`Error clearing ${displayName}: ${errorMsg}`);
+    } finally {
+      // Clear loading state
+      const updatedLoading = this.clearTableLoading();
+      updatedLoading[tableName] = false;
+      this.clearTableLoading.set({...updatedLoading});
+    }
+  }
+
+  /**
+   * Clear status message for a specific table
+   */
+  clearSingleTableStatus(tableName: string) {
+    const currentStatus = this.clearTableStatus();
+    delete currentStatus[tableName];
+    this.clearTableStatus.set({...currentStatus});
+  }
+
+  /**
+   * Check if a specific table is currently being cleared
+   */
+  isTableClearing(tableName: string): boolean {
+    return this.clearTableLoading()[tableName] || false;
+  }
+
+  /**
+   * Get status message for a specific table
+   */
+  getTableStatus(tableName: string): string {
+    return this.clearTableStatus()[tableName] || '';
+  }
+
+  // 🧹 ACTIVE FLAG CLEANUP PROCESS
+  activeCleanupLoading = signal(false);
+  activeCleanupStatus = signal<string>('');
+
+  /**
+   * 🧹 Cleanup Process: Load all data for every table and ensure proper active flag management
+   * - Latest record per ID gets active = true
+   * - Old records get active = false
+   */
+  async cleanupActiveFlagsAllTables() {
+    if (!confirm('This will cleanup active flags across ALL tables. This process may take several minutes. Continue?')) {
+      return;
+    }
+
+    this.activeCleanupLoading.set(true);
+    this.activeCleanupStatus.set('Starting active flag cleanup across all tables...');
+    
+    const modelNames = ['Project', 'Document', 'User', 'DocumentType', 'Workflow', 'ChatRoom', 'ChatMessage'];
+    let totalProcessed = 0;
+    let totalCleaned = 0;
+    const errors: string[] = [];
+
+    try {
+      for (const modelName of modelNames) {
+        try {
+          this.activeCleanupStatus.set(`🔄 Processing ${modelName} table...`);
+          
+          const result = await this.cleanupModelActiveFlags(modelName);
+          totalProcessed += result.totalRecords;
+          totalCleaned += result.cleanedRecords;
+          
+          if (result.cleanedRecords > 0) {
+            this.activeCleanupStatus.set(`✅ ${modelName}: ${result.cleanedRecords} records cleaned out of ${result.totalRecords} processed`);
+          } else {
+            this.activeCleanupStatus.set(`✅ ${modelName}: All ${result.totalRecords} records already properly configured`);
+          }
+          
+          // Small delay to show progress
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (error: any) {
+          const errorMsg = `${modelName}: ${error.message || 'Unknown error'}`;
+          errors.push(errorMsg);
+          console.error(`Cleanup error for ${modelName}:`, error);
+        }
+      }
+
+      // Show final results
+      if (errors.length > 0) {
+        this.activeCleanupStatus.set(
+          `⚠️ Cleanup completed with warnings. ${totalCleaned} records cleaned out of ${totalProcessed} total processed. ` +
+          `${errors.length} errors occurred:\n\n${errors.join('\n')}`
+        );
+      } else {
+        const alreadyClean = totalProcessed - totalCleaned;
+        this.activeCleanupStatus.set(
+          `🎯 Active flag cleanup completed successfully!\n\n` +
+          `📊 Summary:\n` +
+          `• Total records processed: ${totalProcessed}\n` +
+          `• Records that needed cleaning: ${totalCleaned}\n` +
+          `• Records already correct: ${alreadyClean}\n` +
+          `• Tables processed: ${modelNames.length}\n\n` +
+          `${totalCleaned > 0 ? '🔧 Fixed data inconsistencies!' : '✨ All data was already properly configured!'}\n` +
+          `✅ All tables now have proper active flag management!`
+        );
+        this.successMessage.set(`Active flag cleanup completed: ${totalCleaned} records cleaned`);
+      }
+      
+    } catch (error) {
+      console.error('Active flag cleanup failed:', error);
+      this.activeCleanupStatus.set('❌ Active flag cleanup failed: ' + (error as Error).message);
+      this.errorMessage.set('Failed to cleanup active flags: ' + (error as Error).message);
+    } finally {
+      this.activeCleanupLoading.set(false);
+    }
+  }
+
+  /**
+   * Cleanup active flags for a specific model
+   */
+  private async cleanupModelActiveFlags(modelName: string): Promise<{totalRecords: number, cleanedRecords: number}> {
+    console.log(`🧹 Starting cleanup for ${modelName}`);
+    
+    // Step 1: Load ALL versions of all records
+    const allVersionsResult = await this.versionedDataService.getAllVersionsAllRecords(modelName);
+    if (!allVersionsResult.success || !allVersionsResult.data) {
+      throw new Error(allVersionsResult.error || 'Failed to load records');
+    }
+
+    const allRecords = allVersionsResult.data;
+    console.log(`📊 ${modelName}: Loaded ${allRecords.length} total records (all versions)`);
+
+    if (allRecords.length === 0) {
+      return { totalRecords: 0, cleanedRecords: 0 };
+    }
+
+    // Step 2: Group records by ID to find latest version of each
+    const groupedById = allRecords.reduce((acc, record) => {
+      const id = record.id;
+      if (!acc[id]) {
+        acc[id] = [];
+      }
+      acc[id].push(record);
+      return acc;
+    }, {} as Record<string, any[]>);
+
+    console.log(`📊 ${modelName}: Found ${Object.keys(groupedById).length} unique record IDs`);
+
+    let cleanedRecords = 0;
+
+    // Step 3: Process each ID group
+    for (const [id, recordVersions] of Object.entries(groupedById)) {
+      try {
+        const recordsArray = recordVersions as any[];
+        
+        // Sort by version timestamp to get latest first
+        const sortedVersions = recordsArray.sort((a: any, b: any) => 
+          new Date(b.version).getTime() - new Date(a.version).getTime()
+        );
+
+        const latestRecord = sortedVersions[0];
+        const oldRecords = sortedVersions.slice(1);
+
+        console.log(`🔄 ${modelName} ID ${id}: ${recordsArray.length} versions, latest: ${latestRecord.version}, latestActive: ${latestRecord.active}`);
+
+        // Step 4: Ensure latest record has active = true
+        if (latestRecord.active !== true) {
+          console.log(`🎯 ${modelName} ID ${id}: Setting latest version to active = true (was: ${latestRecord.active})`);
+          await this.updateRecordActiveFlag(modelName, latestRecord.id, latestRecord.version, true);
+          cleanedRecords++;
+          console.log(`📊 ${modelName}: cleanedRecords incremented to ${cleanedRecords} (latest record fix)`);
+        } else {
+          console.log(`✅ ${modelName} ID ${id}: Latest version already has active = true`);
+        }
+
+        // Step 5: Ensure old records have active = false (not undefined or true)
+        for (const oldRecord of oldRecords) {
+          console.log(`🔍 ${modelName} ID ${id}: Checking old record ${oldRecord.version}, active: ${oldRecord.active} (type: ${typeof oldRecord.active})`);
+          if (oldRecord.active !== false) {
+            console.log(`🚫 ${modelName} ID ${id}: Setting active = false for version ${oldRecord.version} (was: ${oldRecord.active})`);
+            await this.updateRecordActiveFlag(modelName, oldRecord.id, oldRecord.version, false);
+            cleanedRecords++;
+            console.log(`📊 ${modelName}: cleanedRecords incremented to ${cleanedRecords} (old record cleanup)`);
+          } else {
+            console.log(`✅ ${modelName} ID ${id}: Version ${oldRecord.version} already has active = false`);
+          }
+        }
+
+      } catch (error: any) {
+        console.error(`Error processing ${modelName} ID ${id}:`, error);
+        // Continue with other records even if one fails
+      }
+    }
+
+    console.log(`✅ ${modelName} cleanup completed: ${cleanedRecords} records cleaned out of ${allRecords.length} total`);
+    console.log(`📊 ${modelName} FINAL RESULT: totalRecords=${allRecords.length}, cleanedRecords=${cleanedRecords}`);
+    return { totalRecords: allRecords.length, cleanedRecords };
+  }
+
+  /**
+   * Update a record to set active flag to true or false
+   */
+  private async updateRecordActiveFlag(modelName: string, id: string, version: string, active: boolean): Promise<void> {
+    const client = generateClient<Schema>();
+    
+    const updateData: any = {
+      id,
+      version,
+      active,
+      updatedAt: new Date().toISOString()
+    };
+
+    switch (modelName) {
+      case 'Project':
+        await client.models.Project.update(updateData);
+        break;
+      case 'Document':
+        await client.models.Document.update(updateData);
+        break;
+      case 'User':
+        await client.models.User.update(updateData);
+        break;
+      case 'DocumentType':
+        await client.models.DocumentType.update(updateData);
+        break;
+      case 'Workflow':
+        await client.models.Workflow.update(updateData);
+        break;
+      case 'ChatRoom':
+        await client.models.ChatRoom.update(updateData);
+        break;
+      case 'ChatMessage':
+        await client.models.ChatMessage.update(updateData);
+        break;
+      default:
+        throw new Error(`Unknown model: ${modelName}`);
+    }
+  }
+
+
+  clearActiveCleanupStatus() {
+    this.activeCleanupStatus.set('');
   }
 }

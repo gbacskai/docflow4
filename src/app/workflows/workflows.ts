@@ -329,7 +329,6 @@ export class Workflows implements OnInit, OnDestroy {
       
       const result = await client.models.Workflow.create({
         ...workflow,
-        createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
       

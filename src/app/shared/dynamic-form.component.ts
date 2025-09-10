@@ -152,12 +152,12 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                         }
                       } @else {
                         <div class="array-items">
-                          @for (item of dynamicFormService.getArrayItems(field.key); track $index) {
+                          @for (item of dynamicFormService.getArrayItems(field.key); track itemIndex; let itemIndex = $index) {
                             <div class="array-item">
                               <div class="item-header">
-                                <h6>{{ field.label }} #{{ $index + 1 }}</h6>
+                                <h6>{{ field.label }} #{{ itemIndex + 1 }}</h6>
                                 @if (allowArrayEditing) {
-                                  <button type="button" class="remove-item-btn" (click)="dynamicFormService.removeArrayItem(field.key, $index)">
+                                  <button type="button" class="remove-item-btn" (click)="dynamicFormService.removeArrayItem(field.key, itemIndex)">
                                     ×
                                   </button>
                                 }
@@ -166,14 +166,18 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                               @for (subField of dynamicFormService.getArraySubFields(field); track subField.key) {
                                 <div class="form-group">
                                   <label>{{ subField.label }}@if (subField.required) { <span class="required">*</span> }</label>
+                                  {{ logRendering(subField.key + '_' + itemIndex, subField.type, allowArrayEditing) }}
                                   @switch (subField.type) {
                                     @case ('text') {
                                       @if (allowArrayEditing) {
                                         <input 
                                           type="text" 
                                           [value]="item[subField.key] || ''" 
-                                          (input)="dynamicFormService.updateArrayItem(field.key, $index, subField.key, $any($event.target).value)"
+                                          (input)="logInputEvent(field.key, itemIndex, subField.key, $any($event.target).value)"
+                                          (change)="logInputEvent(field.key, itemIndex, subField.key, $any($event.target).value)"
+                                          (blur)="logInputEvent(field.key, itemIndex, subField.key, $any($event.target).value)"
                                           [placeholder]="subField.placeholder"
+                                          [attr.data-field]="field.key + '_' + itemIndex + '_' + subField.key"
                                         />
                                       } @else {
                                         <div class="readonly-value">{{ item[subField.key] || '-' }}</div>
@@ -183,7 +187,7 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                                       @if (allowArrayEditing) {
                                         <textarea 
                                           [value]="item[subField.key] || ''" 
-                                          (input)="dynamicFormService.updateArrayItem(field.key, $index, subField.key, $any($event.target).value)"
+                                          (input)="dynamicFormService.updateArrayItem(field.key, itemIndex, subField.key, $any($event.target).value)"
                                           [placeholder]="subField.placeholder"
                                           rows="2"
                                         ></textarea>
@@ -195,7 +199,7 @@ import { DynamicFormService } from '../services/dynamic-form.service';
                                       @if (allowArrayEditing) {
                                         <select 
                                           [value]="item[subField.key] || ''" 
-                                          (change)="dynamicFormService.updateArrayItem(field.key, $index, subField.key, $any($event.target).value)"
+                                          (change)="dynamicFormService.updateArrayItem(field.key, itemIndex, subField.key, $any($event.target).value)"
                                         >
                                           <option value="">Select...</option>
                                           @if (subField.options) {
@@ -374,5 +378,15 @@ export class DynamicFormComponent {
       return option?.label || item[subField.key];
     }
     return item[subField.key] || '-';
+  }
+
+  logRendering(subFieldKey: string, type: string, allowArrayEditing: boolean): string {
+    //console.log('🔍 Rendering subField', subFieldKey, 'type:', type, 'allowArrayEditing:', allowArrayEditing);
+    return '';
+  }
+
+  logInputEvent(fieldKey: string, index: number, subFieldKey: string, value: string): void {
+    console.log('🎯 Input event triggered for', fieldKey, index, subFieldKey, value);
+    this.dynamicFormService.updateArrayItem(fieldKey, index, subFieldKey, value);
   }
 }

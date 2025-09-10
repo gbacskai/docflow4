@@ -713,7 +713,6 @@ export class Projects implements OnInit, OnDestroy {
           lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
           userType: 'client',
           status: 'active',
-          createdAt: new Date().toISOString()
         }
       });
       
@@ -773,7 +772,7 @@ export class Projects implements OnInit, OnDestroy {
 
       try {
         if (this.currentMode() === 'create') {
-          await this.createProject(projectData);
+          await this.createProject(projectData as any);
         } else if (this.currentMode() === 'edit' && this.selectedProject()) {
           await this.updateProject(this.selectedProject()!.id, projectData);
         }
@@ -794,7 +793,7 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt'>) {
+  async createProject(project: Omit<Schema['Project']['type'], 'id' | 'version' | 'updatedAt'>) {
     try {
       console.log('Creating project with data:', project);
       const client = generateClient<Schema>();
@@ -802,8 +801,7 @@ export class Projects implements OnInit, OnDestroy {
       // Create the project
       const projectResult = await this.versionedDataService.createVersionedRecord('Project', {
         data: {
-          ...project,
-          createdAt: new Date().toISOString()
+          ...project
         }
       });
       
@@ -898,7 +896,6 @@ export class Projects implements OnInit, OnDestroy {
                   projectId: createdProject.id,
                   documentType: docType.id,
                   formData: JSON.stringify(initialFormData),
-                  createdAt: new Date().toISOString()
                 }
               });
             } catch (error) {
@@ -908,7 +905,6 @@ export class Projects implements OnInit, OnDestroy {
                 data: {
                   projectId: createdProject.id,
                   documentType: docType.id,
-                  createdAt: new Date().toISOString()
                 }
               });
             }
@@ -930,7 +926,7 @@ export class Projects implements OnInit, OnDestroy {
     }
   }
 
-  async updateProject(id: string, updates: Omit<Partial<Schema['Project']['type']>, 'id' | 'ownerId' | 'createdAt'>) {
+  async updateProject(id: string, updates: Omit<Partial<Schema['Project']['type']>, 'id' | 'ownerId'>) {
     try {
       const result = await this.versionedDataService.updateVersionedRecord('Project', id, updates);
       
@@ -954,11 +950,13 @@ export class Projects implements OnInit, OnDestroy {
   }
 
   /**
-   * Ensure all required documents exist for a project based on its workflow
+   * Ensure all required documents exist for a project based on its workflow.
+   * This method ONLY ADDS missing documents and NEVER updates existing ones.
    */
   async ensureProjectDocuments(project: Schema['Project']['type']) {
     try {
       console.log('📋 Ensuring documents for project:', project.name);
+      console.log('📋 This operation will ONLY ADD missing documents, never update existing ones');
       
       // Get workflow-specific document types
       const selectedWorkflow = this.workflows().find(w => w.id === project.workflowId);
@@ -980,19 +978,21 @@ export class Projects implements OnInit, OnDestroy {
       // Find missing document types  
       const existingDocumentTypes = new Set(existingDocuments.map((doc: any) => doc.documentType));
       const missingDocumentTypes = requiredDocumentTypes.filter(docType => 
-        !existingDocumentTypes.has(docType.name)
+        !existingDocumentTypes.has(docType.id)
       );
 
       console.log('📋 Missing document types:', missingDocumentTypes.map(dt => dt.name));
 
       if (missingDocumentTypes.length === 0) {
-        console.log('📋 All required documents already exist');
+        console.log('📋 All required documents already exist - no new documents will be created');
         return;
       }
 
-      // Create missing documents
+      // Create ONLY the missing documents (existing documents are left untouched)
+      console.log(`📋 Will create ${missingDocumentTypes.length} new documents (${existingDocuments.length} existing documents will remain unchanged)`);
+      
       const documentPromises = missingDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
-        console.log(`📋 Creating missing document for type: ${docType.name}`);
+        console.log(`📋 Creating NEW document for type: ${docType.name}`);
         
         try {
           // Parse document type definition to create initial form data
@@ -1022,7 +1022,6 @@ export class Projects implements OnInit, OnDestroy {
               projectId: project.id,
               documentType: docType.id,
               formData: JSON.stringify(initialFormData),
-              createdAt: new Date().toISOString()
             }
           });
 
@@ -1069,7 +1068,10 @@ export class Projects implements OnInit, OnDestroy {
         failed: createdDocuments.length - successfullyCreated.length
       });
       
-      console.log(`📋 Successfully created ${successfullyCreated.length} missing documents for project: ${project.name}`);
+      console.log(`📋 Document operation completed for project: ${project.name}`);
+      console.log(`📋 ✅ Created: ${successfullyCreated.length} new documents`);
+      console.log(`📋 🔒 Preserved: ${existingDocuments.length} existing documents (untouched)`);
+      console.log(`📋 Summary: Only new documents were added, existing documents remain unchanged`);
       
       // No need to reload documents in projects component
       // Documents will be automatically available when the documents component loads

@@ -80,17 +80,12 @@ export class AuthService {
             user.username
           );
           
-          // Update last login time in external table
-          await this.externalUserService.updateLastLogin(user.userId);
-          
           // Also maintain compatibility with existing GraphQL tables
           await this.userManagementService.ensureUserEntry(
             user.userId, 
             email, 
             user.username
           );
-          
-          await this.userManagementService.updateLastLogin(user.userId);
         }
         
         this._currentUser.set({

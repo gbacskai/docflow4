@@ -16,9 +16,7 @@ export interface ExternalUser {
   invitedBy?: string;
   createdBy?: string;
   invitedAt?: string;
-  lastLoginAt?: string;
   active: boolean;
-  createdAt: string;
   updatedAt: string;
 }
 
@@ -167,9 +165,7 @@ export class ExternalUserService {
       cognitoUserId: cognitoUserId, // Link to Cognito user
       invitedBy: invitationRecord.invitedBy,
       invitedAt: invitationRecord.invitedAt,
-      lastLoginAt: new Date().toISOString(),
       active: true,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
@@ -204,9 +200,7 @@ export class ExternalUserService {
       interestedDocumentTypes: [],
       status: 'active' as const,
       cognitoUserId: cognitoUserId, // Link to Cognito user
-      lastLoginAt: new Date().toISOString(),
       active: true,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
@@ -254,28 +248,6 @@ export class ExternalUserService {
     }
   }
   
-  /**
-   * Update last login time for existing user using GraphQL API
-   */
-  async updateLastLogin(cognitoUserId: string): Promise<void> {
-    try {
-      const user = await this.findUserByCognitoId(cognitoUserId);
-      
-      if (user) {
-        const { data } = await this.client.models.User.update({
-          id: user.id,
-          version: user.version,
-          lastLoginAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        });
-        
-        console.log('✅ Updated last login time for user:', user.id);
-      }
-    } catch (error) {
-      console.error('Error updating last login:', error);
-      // Don't throw - this shouldn't break the auth flow
-    }
-  }
   
   /**
    * Clean up any remaining non-Cognito user records with the same email using GraphQL API
