@@ -368,22 +368,153 @@ export class VersionedDataService {
           console.log('📋 Project.create result.errors:', result.errors);
           break;
         case 'Document':
-          result = await this.client.models.Document.create(newRecordData);
+          // Create a schema-compliant Document object - exclude system fields that Amplify manages
+          const documentInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid Document fields - exclude system-managed fields
+          if (newRecordData.projectId) documentInput.projectId = newRecordData.projectId;
+          if (newRecordData.documentType) documentInput.documentType = newRecordData.documentType;
+          if (newRecordData.formData) documentInput.formData = newRecordData.formData;
+          if (newRecordData.active !== undefined) documentInput.active = newRecordData.active;
+          
+          console.log('🏗️ Calling Document.create with schema-compliant input:', documentInput);
+          result = await this.client.models.Document.create(documentInput);
+          console.log('📋 Document.create result.errors:', result.errors);
           break;
         case 'User':
-          result = await this.client.models.User.create(newRecordData);
+          // Create a schema-compliant User object - exclude system fields that Amplify manages
+          const userInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid User fields - exclude system-managed fields
+          if (newRecordData.email) userInput.email = newRecordData.email;
+          if (newRecordData.userType) userInput.userType = newRecordData.userType;
+          if (newRecordData.firstName) userInput.firstName = newRecordData.firstName;
+          if (newRecordData.lastName) userInput.lastName = newRecordData.lastName;
+          if (newRecordData.interestedDocumentTypes) userInput.interestedDocumentTypes = newRecordData.interestedDocumentTypes;
+          if (newRecordData.status) userInput.status = newRecordData.status;
+          if (newRecordData.emailVerified !== undefined) userInput.emailVerified = newRecordData.emailVerified;
+          if (newRecordData.cognitoUserId) userInput.cognitoUserId = newRecordData.cognitoUserId;
+          if (newRecordData.invitedBy) userInput.invitedBy = newRecordData.invitedBy;
+          if (newRecordData.createdBy) userInput.createdBy = newRecordData.createdBy;
+          if (newRecordData.invitedAt) userInput.invitedAt = newRecordData.invitedAt;
+          if (newRecordData.lastLoginAt) userInput.lastLoginAt = newRecordData.lastLoginAt;
+          if (newRecordData.active !== undefined) userInput.active = newRecordData.active;
+          
+          console.log('🏗️ Calling User.create with schema-compliant input:', userInput);
+          result = await this.client.models.User.create(userInput);
+          console.log('📋 User.create result.errors:', result.errors);
           break;
         case 'DocumentType':
-          result = await this.client.models.DocumentType.create(newRecordData);
+          // Create a schema-compliant DocumentType object - exclude system fields that Amplify manages
+          const documentTypeInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid DocumentType fields - exclude system-managed fields
+          if (newRecordData.name) documentTypeInput.name = newRecordData.name;
+          if (newRecordData.identifier) documentTypeInput.identifier = newRecordData.identifier;
+          if (newRecordData.description) documentTypeInput.description = newRecordData.description;
+          if (newRecordData.definition) documentTypeInput.definition = newRecordData.definition;
+          if (newRecordData.validationRules) documentTypeInput.validationRules = newRecordData.validationRules;
+          if (newRecordData.category) documentTypeInput.category = newRecordData.category;
+          if (newRecordData.fields) documentTypeInput.fields = newRecordData.fields;
+          if (newRecordData.isActive !== undefined) documentTypeInput.isActive = newRecordData.isActive;
+          if (newRecordData.active !== undefined) documentTypeInput.active = newRecordData.active;
+          if (newRecordData.usageCount !== undefined) documentTypeInput.usageCount = newRecordData.usageCount;
+          if (newRecordData.templateCount !== undefined) documentTypeInput.templateCount = newRecordData.templateCount;
+          
+          console.log('🏗️ Calling DocumentType.create with schema-compliant input:', documentTypeInput);
+          console.log('🔍 documentTypeInput keys:', Object.keys(documentTypeInput));
+          result = await this.client.models.DocumentType.create(documentTypeInput);
+          console.log('📋 DocumentType.create result:', result);
+          console.log('📋 DocumentType.create result.errors:', result.errors);
           break;
         case 'Workflow':
-          result = await this.client.models.Workflow.create(newRecordData);
+          // Create a schema-compliant Workflow object - exclude system fields that Amplify manages
+          const workflowInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid Workflow fields - exclude system-managed fields
+          if (newRecordData.name) workflowInput.name = newRecordData.name;
+          if (newRecordData.identifier) workflowInput.identifier = newRecordData.identifier;
+          if (newRecordData.description) workflowInput.description = newRecordData.description;
+          if (newRecordData.rules) workflowInput.rules = newRecordData.rules;
+          if (newRecordData.actors) workflowInput.actors = newRecordData.actors;
+          if (newRecordData.isActive !== undefined) workflowInput.isActive = newRecordData.isActive;
+          if (newRecordData.active !== undefined) workflowInput.active = newRecordData.active;
+          
+          console.log('🏗️ Calling Workflow.create with schema-compliant input:', workflowInput);
+          result = await this.client.models.Workflow.create(workflowInput);
+          console.log('📋 Workflow.create result.errors:', result.errors);
           break;
         case 'ChatRoom':
-          result = await this.client.models.ChatRoom.create(newRecordData);
+          // Create a schema-compliant ChatRoom object - exclude system fields that Amplify manages
+          const chatRoomInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid ChatRoom fields - exclude system-managed fields
+          if (newRecordData.projectId) chatRoomInput.projectId = newRecordData.projectId;
+          if (newRecordData.projectName) chatRoomInput.projectName = newRecordData.projectName;
+          if (newRecordData.documentId) chatRoomInput.documentId = newRecordData.documentId;
+          if (newRecordData.documentType) chatRoomInput.documentType = newRecordData.documentType;
+          if (newRecordData.roomType) chatRoomInput.roomType = newRecordData.roomType;
+          if (newRecordData.title) chatRoomInput.title = newRecordData.title;
+          if (newRecordData.description) chatRoomInput.description = newRecordData.description;
+          if (newRecordData.participants) chatRoomInput.participants = newRecordData.participants;
+          if (newRecordData.adminUsers) chatRoomInput.adminUsers = newRecordData.adminUsers;
+          if (newRecordData.providerUsers) chatRoomInput.providerUsers = newRecordData.providerUsers;
+          if (newRecordData.messageCount !== undefined) chatRoomInput.messageCount = newRecordData.messageCount;
+          if (newRecordData.unreadCount !== undefined) chatRoomInput.unreadCount = newRecordData.unreadCount;
+          if (newRecordData.isActive !== undefined) chatRoomInput.isActive = newRecordData.isActive;
+          if (newRecordData.active !== undefined) chatRoomInput.active = newRecordData.active;
+          if (newRecordData.isArchived !== undefined) chatRoomInput.isArchived = newRecordData.isArchived;
+          if (newRecordData.allowFileSharing !== undefined) chatRoomInput.allowFileSharing = newRecordData.allowFileSharing;
+          if (newRecordData.maxParticipants !== undefined) chatRoomInput.maxParticipants = newRecordData.maxParticipants;
+          if (newRecordData.lastActivityAt) chatRoomInput.lastActivityAt = newRecordData.lastActivityAt;
+          
+          result = await this.client.models.ChatRoom.create(chatRoomInput);
           break;
         case 'ChatMessage':
-          result = await this.client.models.ChatMessage.create(newRecordData);
+          // Create a schema-compliant ChatMessage object - exclude system fields that Amplify manages
+          const chatMessageInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid ChatMessage fields - exclude system-managed fields
+          if (newRecordData.chatRoomId) chatMessageInput.chatRoomId = newRecordData.chatRoomId;
+          if (newRecordData.senderId) chatMessageInput.senderId = newRecordData.senderId;
+          if (newRecordData.senderName) chatMessageInput.senderName = newRecordData.senderName;
+          if (newRecordData.senderEmail) chatMessageInput.senderEmail = newRecordData.senderEmail;
+          if (newRecordData.senderType) chatMessageInput.senderType = newRecordData.senderType;
+          if (newRecordData.message) chatMessageInput.message = newRecordData.message;
+          if (newRecordData.messageType) chatMessageInput.messageType = newRecordData.messageType;
+          if (newRecordData.attachmentUrl) chatMessageInput.attachmentUrl = newRecordData.attachmentUrl;
+          if (newRecordData.fileSize !== undefined) chatMessageInput.fileSize = newRecordData.fileSize;
+          if (newRecordData.fileName) chatMessageInput.fileName = newRecordData.fileName;
+          if (newRecordData.projectId) chatMessageInput.projectId = newRecordData.projectId;
+          if (newRecordData.documentId) chatMessageInput.documentId = newRecordData.documentId;
+          if (newRecordData.isRead !== undefined) chatMessageInput.isRead = newRecordData.isRead;
+          if (newRecordData.readBy) chatMessageInput.readBy = newRecordData.readBy;
+          if (newRecordData.readAt) chatMessageInput.readAt = newRecordData.readAt;
+          if (newRecordData.deliveredAt) chatMessageInput.deliveredAt = newRecordData.deliveredAt;
+          if (newRecordData.replyToMessageId) chatMessageInput.replyToMessageId = newRecordData.replyToMessageId;
+          if (newRecordData.threadId) chatMessageInput.threadId = newRecordData.threadId;
+          if (newRecordData.active !== undefined) chatMessageInput.active = newRecordData.active;
+          if (newRecordData.editedAt) chatMessageInput.editedAt = newRecordData.editedAt;
+          
+          result = await this.client.models.ChatMessage.create(chatMessageInput);
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
@@ -478,7 +609,25 @@ export class VersionedDataService {
           activeRecords = (await this.client.models.Project.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'Document':
-          activeRecords = (await this.client.models.Document.list({ filter: { active: { eq: true } } })).data;
+          // Handle pagination to get ALL documents (not just first 100)
+          let allDocuments: any[] = [];
+          let nextToken: string | null = null;
+          
+          do {
+            const result: any = await this.client.models.Document.list({ 
+              filter: { active: { eq: true } },
+              limit: 1000, // Increase limit to maximum
+              nextToken: nextToken || undefined
+            });
+            
+            allDocuments = allDocuments.concat(result.data || []);
+            nextToken = result.nextToken || null;
+            
+            console.log(`📄 Document pagination: fetched ${result.data?.length || 0} documents, total so far: ${allDocuments.length}, nextToken: ${nextToken ? 'exists' : 'none'}`);
+          } while (nextToken);
+          
+          activeRecords = allDocuments;
+          console.log(`📄 Document query completed: ${activeRecords.length} total active documents found`);
           break;
         case 'User':
           activeRecords = (await this.client.models.User.list({ filter: { active: { eq: true } } })).data;

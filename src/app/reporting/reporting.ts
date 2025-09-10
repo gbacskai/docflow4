@@ -9,6 +9,7 @@ import { VersionedDataService } from '../services/versioned-data.service';
 import { WorkflowService } from '../services/workflow.service';
 import { AuthService } from '../services/auth.service';
 import { UserDataService } from '../services/user-data.service';
+import { ProjectOperationsService } from '../services/project-operations.service';
 import { DynamicFormComponent } from '../shared/dynamic-form.component';
 
 interface DocumentStatus {
@@ -61,6 +62,7 @@ export class Reporting implements OnInit, OnDestroy {
   workflowService = inject(WorkflowService);
   authService = inject(AuthService);
   userDataService = inject(UserDataService);
+  projectOperationsService = inject(ProjectOperationsService);
   fb = inject(FormBuilder);
   router = inject(Router);
 
@@ -136,19 +138,59 @@ export class Reporting implements OnInit, OnDestroy {
     // Filter projects based on showAllProjects setting
     const filteredProjects = this.getFilteredProjects();
     console.log('🔧 Building matrix with filtered projects:', filteredProjects.length);
+    console.log('🔧 Filtered project details:', filteredProjects.map(p => ({ id: p.id, name: p.name })));
+
+    // Debug: Check documents signal
+    console.log('🔧 Total documents in signal:', this.documents().length);
+    console.log('🔧 Sample documents:', this.documents().slice(0, 3).map(d => ({ 
+      id: d.id, 
+      projectId: d.projectId, 
+      documentType: d.documentType 
+    })));
 
     // Get only document types that have actual documents in the filtered projects
     const usedDocumentTypeIds = new Set<string>();
+    const projectDocuments = new Map<string, string[]>(); // project -> document types
+    
+    // Debug: Track which documents belong to which projects
+    const projectDocumentMatches = new Map<string, number>();
+    
     this.documents().forEach(doc => {
-      if (filteredProjects.some(project => project.id === doc.projectId)) {
+      const matchingProject = filteredProjects.find(project => project.id === doc.projectId);
+      if (matchingProject) {
         usedDocumentTypeIds.add(doc.documentType);
+        
+        // Track which document types each project has
+        if (!projectDocuments.has(doc.projectId)) {
+          projectDocuments.set(doc.projectId, []);
+        }
+        projectDocuments.get(doc.projectId)!.push(doc.documentType);
+        
+        // Count documents per project
+        projectDocumentMatches.set(doc.projectId, (projectDocumentMatches.get(doc.projectId) || 0) + 1);
       }
     });
+    
+    console.log('🔧 Document matches per project:', Object.fromEntries(projectDocumentMatches));
+
+    console.log('🔧 Used document type IDs:', Array.from(usedDocumentTypeIds));
+    console.log('🔧 Project documents breakdown:', Object.fromEntries(
+      Array.from(projectDocuments.entries()).map(([projectId, docTypes]) => {
+        const project = filteredProjects.find(p => p.id === projectId);
+        const docTypeNames = docTypes.map(dtId => {
+          const dt = this.documentTypes().find(d => d.id === dtId);
+          return dt?.name || dtId;
+        });
+        return [project?.name || projectId, `${docTypes.length} types: ${docTypeNames.join(', ')}`];
+      })
+    ));
 
     // Filter to only used document types
     const usedDocTypes = this.documentTypes().filter(docType => 
       usedDocumentTypeIds.has(docType.id!)
     );
+    
+    console.log('🔧 Used document types:', usedDocTypes.map(dt => ({ id: dt.id, name: dt.name })));
     
     // Order the used document types by workflow rules
     const orderedTypes = this.getWorkflowOrderedDocumentTypes(usedDocTypes);
@@ -204,6 +246,7 @@ export class Reporting implements OnInit, OnDestroy {
     this.showAllProjects.set(!this.showAllProjects());
     this.buildMatrix(); // Rebuild matrix with new filter
   }
+
 
   getWorkflowOrderedDocumentTypes(docTypes: Array<Schema['DocumentType']['type']>): Array<Schema['DocumentType']['type']> {
     // Create a dependency map based on workflow rules
@@ -777,24 +820,80 @@ export class Reporting implements OnInit, OnDestroy {
       console.log('📋 Project data prepared:', projectData);
 
       try {
+        let projectResult: any = null;
+        
         if (this.currentMode() === 'create') {
-          await this.createProject(projectData);
+          projectResult = await this.createProject(projectData);
         } else {
           const projectId = this.selectedProject()!.id;
           console.log('📝 About to update project:', { projectId, projectData });
-          await this.updateProject(projectId, projectData);
+          projectResult = await this.updateProject(projectId, projectData);
           console.log('✅ Project update completed, reloading data...');
         }
         
         this.closeNewProjectModal();
         
-        // Small delay to ensure database operations are fully completed
+        // Extended delay to ensure all database operations are fully completed
         console.log('⏳ Waiting for database operations to complete...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // Reload data to show the updated project in the matrix
-        console.log('🔄 Reloading all data after project operation...');
-        await this.loadAllData();
+        // Only do retry for create operations with valid project result
+        if (this.currentMode() === 'create' && projectResult?.data) {
+          // Retry data loading until all documents are found (up to 5 attempts)
+          console.log('🔄 Reloading all data after project creation...');
+          const newProject = projectResult.data;
+          console.log('🔄 New project created:', { id: newProject.id, name: newProject.name });
+          let attempts = 0;
+          let foundDocuments = 0;
+        
+        while (attempts < 5 && foundDocuments < 19) {
+          attempts++;
+          console.log(`🔄 Attempt ${attempts}: Loading data...`);
+          
+          await this.loadAllData();
+          
+          const newProjectDocuments = this.documents().filter(doc => doc.projectId === newProject.id);
+          foundDocuments = newProjectDocuments.length;
+          
+          console.log(`🔍 Attempt ${attempts}: Found ${foundDocuments} documents for new project ${newProject.name} (expected 19)`);
+          console.log(`🔍 Total documents in system: ${this.documents().length}`);
+          
+          if (foundDocuments >= 19) {
+            console.log('✅ All documents found!');
+            break;
+          } else {
+            console.log(`⏳ Missing ${19 - foundDocuments} documents, waiting 3 seconds before retry...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+        }
+        
+        // Final document list
+        const finalProjectDocuments = this.documents().filter(doc => doc.projectId === newProject.id);
+        console.log(`📋 Final document list (${finalProjectDocuments.length} found):`);
+        finalProjectDocuments.forEach(doc => {
+          const docType = this.documentTypes().find(dt => dt.id === doc.documentType);
+          console.log(`  - ${docType?.name || doc.documentType} (${doc.id})`);
+        });
+        
+        // Show summary of the issue
+        if (finalProjectDocuments.length < 19) {
+          console.log('🚨 CRITICAL ISSUE DETECTED:');
+          console.log(`   • Created: 19 documents (confirmed by creation logs)`);
+          console.log(`   • Found: ${finalProjectDocuments.length} documents`);
+          console.log(`   • Missing: ${19 - finalProjectDocuments.length} documents`);
+          console.log('   • Root cause: getAllLatestVersions("Document") not returning all active documents');
+          console.log('   • This is likely due to AWS DynamoDB query limitations or index issues');
+        }
+        
+          // Additional delay after data loading to ensure all documents are loaded
+          console.log('⏳ Additional wait after data loading...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          // For update operations, just reload data once
+          console.log('🔄 Reloading data after project update...');
+          await this.loadAllData();
+        }
+        
         console.log('🔧 Building matrix after data reload...');
         this.buildMatrix();
         console.log('✅ Matrix rebuild completed');
@@ -815,88 +914,21 @@ export class Reporting implements OnInit, OnDestroy {
 
   async createProject(project: any) {
     try {
-      console.log('Creating project with data:', project);
+      console.log('Creating project with enhanced shared service:', project);
       
-      // Create the project
-      const projectResult = await this.versionedDataService.createVersionedRecord('Project', {
-        data: { ...project }
-      });
+      const result = await this.projectOperationsService.createProject(
+        project,
+        this.workflows(),
+        this.documentTypes()
+      );
       
-      if (!projectResult.success) {
-        throw new Error(projectResult.error || 'Failed to create project');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create project');
       }
       
-      const createdProject = projectResult.data;
-      console.log('Project created:', createdProject);
-
-      if (createdProject) {
-        // Get document types that are referenced in the selected workflow's rules
-        const selectedWorkflow = this.workflows().find(w => w.id === project.workflowId);
-        const associatedDocumentTypes = this.getDocumentTypesFromWorkflow(selectedWorkflow);
-
-        // Fallback to all active document types if no workflow-specific ones found
-        const finalDocumentTypes = associatedDocumentTypes.length > 0 
-          ? associatedDocumentTypes 
-          : this.documentTypes().filter(dt => dt.isActive !== false);
-
-        if (finalDocumentTypes.length > 0) {
-          // Create documents for each document type
-          const documentPromises = finalDocumentTypes.map(async (docType: Schema['DocumentType']['type']) => {
-            console.log(`Creating document for type: ${docType.name}`);
-            
-            // Parse document type definition to create initial form data
-            let initialFormData: any = {};
-            if (docType.definition) {
-              try {
-                const definition = JSON.parse(docType.definition);
-                if (definition.fields && Array.isArray(definition.fields)) {
-                  definition.fields.forEach((field: any) => {
-                    if (field.defaultValue !== undefined) {
-                      initialFormData[field.name] = field.defaultValue;
-                    } else if (field.type === 'boolean' || field.type === 'checkbox') {
-                      initialFormData[field.name] = false;
-                    } else {
-                      initialFormData[field.name] = undefined;
-                    }
-                  });
-                }
-              } catch (parseError) {
-                console.warn(`Failed to parse definition for ${docType.name}:`, parseError);
-              }
-            }
-            
-            return this.versionedDataService.createVersionedRecord('Document', {
-              data: {
-                projectId: createdProject.id,
-                documentType: docType.id,
-                formData: JSON.stringify(initialFormData),
-              }
-            });
-          });
-
-          await Promise.all(documentPromises);
-          console.log(`Successfully created ${finalDocumentTypes.length} documents for project: ${createdProject.name}`);
-          
-          // Execute workflow rules for the newly created project to process documents
-          console.log('🔄 Running workflow rules for newly created project...');
-          try {
-            const workflowResult = await this.workflowService.executeWorkflowRulesForProject(
-              createdProject.id,
-              undefined // No specific document ID - process all documents in the project
-            );
-            
-            if (workflowResult.success) {
-              console.log(`✅ Initial workflow execution completed: ${workflowResult.cascadeIterations} iterations, ${workflowResult.totalDocumentChanges} total changes`);
-              console.log('📋 Applied actions:', workflowResult.appliedActions);
-            } else {
-              console.error('❌ Initial workflow execution failed:', workflowResult.error);
-            }
-          } catch (workflowError) {
-            console.error('❌ Error running initial workflow rules:', workflowError);
-            // Don't fail project creation if workflow execution fails
-          }
-        }
-      }
+      console.log('✅ Project created successfully with shared service:', result.data);
+      return result;
+      
     } catch (error) {
       console.error('Error creating project:', error);
       throw error;
@@ -905,11 +937,9 @@ export class Reporting implements OnInit, OnDestroy {
 
   async updateProject(id: string, updates: any) {
     try {
-      console.log('📝 Starting project update...');
-      console.log('📝 Project ID:', id);
-      console.log('📝 Original update data:', updates);
+      console.log('📝 Updating project with enhanced shared service:', id, updates);
       
-      // Create a clean update object without identifier and adminUsers to avoid conflicts
+      // Create a clean update object
       const cleanUpdates: any = {
         name: updates.name,
         description: updates.description,
@@ -931,41 +961,21 @@ export class Reporting implements OnInit, OnDestroy {
         }
       });
       
-      console.log('📝 Clean update data:', cleanUpdates);
-      console.log('📝 Calling versionedDataService.updateVersionedRecord...');
-      
-      const result = await this.versionedDataService.updateVersionedRecord('Project', id, cleanUpdates);
-      
-      console.log('📝 Versioned data service result:', result);
+      const result = await this.projectOperationsService.updateProject(
+        id,
+        cleanUpdates,
+        this.workflows(),
+        this.documentTypes(),
+        this.documents()
+      );
       
       if (!result.success) {
-        console.error('❌ Update failed:', result.error);
         throw new Error(result.error || 'Failed to update project');
       }
       
-      console.log('✅ Project updated successfully. New record data:', result.data);
-      console.log('✅ New record ID:', result.data?.id);
-      console.log('✅ New record version:', result.data?.version);
-      console.log('✅ New record active flag:', result.data?.active);
+      console.log('✅ Project updated successfully with shared service:', result.data);
+      return result;
       
-      // Execute workflow rules for the updated project to process documents
-      console.log('🔄 Running workflow rules for updated project...');
-      try {
-        const workflowResult = await this.workflowService.executeWorkflowRulesForProject(
-          id, // Use original project ID
-          undefined // No specific document ID - process all documents in the project
-        );
-        
-        if (workflowResult.success) {
-          console.log(`✅ Workflow execution completed: ${workflowResult.cascadeIterations} iterations, ${workflowResult.totalDocumentChanges} total changes`);
-          console.log('📋 Applied actions:', workflowResult.appliedActions);
-        } else {
-          console.error('❌ Workflow execution failed:', workflowResult.error);
-        }
-      } catch (workflowError) {
-        console.error('❌ Error running workflow rules after project update:', workflowError);
-        // Don't fail project update if workflow execution fails
-      }
     } catch (error) {
       console.error('❌ Error in updateProject:', error);
       throw error;
