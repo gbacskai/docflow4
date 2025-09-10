@@ -49,7 +49,22 @@ export class ChatService {
   async connect(): Promise<void> {
     try {
       console.log('🔌 Connecting to chat service...');
-      console.log('🔌 Current user data for subscriptions:', this.userDataService.getCurrentUserData());
+      
+      // Wait for user data to be available before connecting
+      let retryCount = 0;
+      const maxRetries = 50; // 5 seconds max wait
+      while (!this.userDataService.getCurrentUserData() && retryCount < maxRetries) {
+        console.log(`⏳ Waiting for user data before chat connection... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retryCount++;
+      }
+      
+      const userData = this.userDataService.getCurrentUserData();
+      if (!userData) {
+        throw new Error('User data not available after waiting');
+      }
+      
+      console.log('🔌 Current user data for subscriptions:', userData);
       
       // Set up real-time subscriptions for new messages
       this.messageSubscription = this.client.models.ChatMessage.onCreate().subscribe({
@@ -142,9 +157,6 @@ export class ChatService {
       participants: data.participants || [],
       adminUsers: data.adminUsers,
       providerUsers: data.providerUsers,
-      lastMessage: data.lastMessage,
-      lastMessageTime: data.lastMessageTime,
-      lastMessageSender: data.lastMessageSender,
       messageCount: data.messageCount || 0,
       unreadCount: data.unreadCount || 0,
       isActive: data.isActive !== false,
@@ -163,9 +175,18 @@ export class ChatService {
         throw new Error('User not authenticated');
       }
 
+      // Wait for user data to be available
+      let retryCount = 0;
+      const maxRetries = 50; // 5 seconds max wait
+      while (!this.userDataService.getCurrentUserData() && retryCount < maxRetries) {
+        console.log(`📋 Waiting for user data before fetching chat rooms... (${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retryCount++;
+      }
+
       const currentUserData = this.userDataService.getCurrentUserData();
       if (!currentUserData) {
-        throw new Error('User data not available');
+        throw new Error('User data not available after waiting');
       }
 
       console.log('📋 Fetching chat rooms for user:', currentUserData.id);
@@ -214,9 +235,6 @@ export class ChatService {
           participants: [currentUserData.id, 'admin-1', 'provider-1'],
           adminUsers: ['admin-1'],
           providerUsers: ['provider-1'],
-          lastMessage: 'The design mockups are ready for review. Please check them out!',
-          lastMessageTime: new Date(Date.now() - 3600000).toISOString(),
-          lastMessageSender: 'Design Team',
           messageCount: 15,
           unreadCount: 2,
           isActive: true,
@@ -284,9 +302,18 @@ export class ChatService {
       throw new Error('User not authenticated');
     }
 
+    // Wait for user data to be available
+    let retryCount = 0;
+    const maxRetries = 50; // 5 seconds max wait
+    while (!this.userDataService.getCurrentUserData() && retryCount < maxRetries) {
+      console.log(`📤 Waiting for user data before sending message... (${retryCount + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retryCount++;
+    }
+
     const currentUserData = this.userDataService.getCurrentUserData();
     if (!currentUserData) {
-      throw new Error('User data not available');
+      throw new Error('User data not available after waiting');
     }
 
     console.log('📤 Sending message:', { 
@@ -307,9 +334,44 @@ export class ChatService {
       });
       
       // Get the latest version of the chat room to reference it properly
+      console.log('🔍 Looking for chat room with ID:', request.chatRoomId);
       const roomResult = await this.versionedDataService.getLatestVersion('ChatRoom', request.chatRoomId);
+      console.log('🏠 Room lookup result:', {
+        success: roomResult.success, 
+        hasData: !!roomResult.data,
+        error: roomResult.error
+      });
+      
       if (!roomResult.success || !roomResult.data) {
-        throw new Error('Chat room not found');
+        console.error('❌ Chat room not found with ID:', request.chatRoomId);
+        console.error('❌ Error details:', roomResult.error);
+        
+        // Try to wait a bit and retry once in case of eventual consistency issues
+        console.log('⏳ Retrying room lookup after delay...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const retryResult = await this.versionedDataService.getLatestVersion('ChatRoom', request.chatRoomId);
+        if (!retryResult.success || !retryResult.data) {
+          console.error('❌ Chat room still not found after retry');
+          
+          // Debug: List all chat rooms to see what exists
+          try {
+            const allRoomsResult = await this.versionedDataService.getAllLatestVersions('ChatRoom');
+            console.log('🔍 All available ChatRooms:', allRoomsResult.data?.map(r => ({
+              id: r.id, 
+              title: r.title, 
+              projectId: r.projectId
+            })) || []);
+          } catch (debugError) {
+            console.error('❌ Failed to list all rooms for debugging:', debugError);
+          }
+          
+          throw new Error(`Chat room not found: ${retryResult.error || roomResult.error || 'Unknown error'}`);
+        }
+        
+        console.log('✅ Found chat room after retry');
+        roomResult.success = retryResult.success;
+        roomResult.data = retryResult.data;
       }
       
       const messageResult = await this.versionedDataService.createVersionedRecord('ChatMessage', {
@@ -343,9 +405,6 @@ export class ChatService {
       // Transform to local ChatMessage format
       const transformedMessage = this.transformToLocalChatMessage(newMessage);
 
-      // Update chat room's last message
-      await this.updateRoomLastMessage(request.chatRoomId, transformedMessage);
-
       console.log('✅ Message sent with Amplify Data successfully');
       return transformedMessage;
     } catch (error) {
@@ -369,19 +428,6 @@ export class ChatService {
     }
   }
 
-  private async updateRoomLastMessage(chatRoomId: string, message: ChatMessage): Promise<void> {
-    try {
-      await this.versionedDataService.updateVersionedRecord('ChatRoom', chatRoomId, {
-        lastMessage: message.message,
-        lastMessageTime: message.timestamp,
-        lastMessageSender: message.senderName,
-        lastActivityAt: new Date().toISOString()
-      });
-      console.log('✅ Updated room last message with versioned data');
-    } catch (error) {
-      console.error('❌ Error updating room last message:', error);
-    }
-  }
 
   onNewMessage(handler: (message: ChatMessage) => void): void {
     this.messageHandlers.push(handler);
@@ -505,9 +551,6 @@ export class ChatService {
           participants: [...(request.adminUsers || []), ...(request.providerUsers || [])],
           adminUsers: request.adminUsers || [],
           providerUsers: request.providerUsers || [],
-          lastMessage: `Welcome to ${request.title}!`,
-          lastMessageTime: now,
-          lastMessageSender: 'System',
           messageCount: 0,
           unreadCount: 0,
           isActive: true,
@@ -524,6 +567,12 @@ export class ChatService {
       const transformedRoom = this.transformToLocalChatRoom(roomResult.data);
 
       console.log('✅ Project chat room created with Amplify Data successfully');
+      console.log('🆔 Created room ID:', transformedRoom.id);
+      console.log('🆔 Created room details:', {
+        id: transformedRoom.id, 
+        projectId: transformedRoom.projectId, 
+        title: transformedRoom.title
+      });
       return transformedRoom;
     } catch (error) {
       console.error('❌ Error creating project chat room:', error);
@@ -551,9 +600,6 @@ export class ChatService {
           participants: [...(request.adminUsers || []), ...(request.providerUsers || [])],
           adminUsers: request.adminUsers || [],
           providerUsers: request.providerUsers || [],
-          lastMessage: `Welcome to the ${request.documentType} document chat!`,
-          lastMessageTime: now,
-          lastMessageSender: 'System',
           messageCount: 0,
           unreadCount: 0,
           isActive: true,

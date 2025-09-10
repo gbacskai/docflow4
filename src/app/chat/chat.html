@@ -40,12 +40,7 @@
                 }
               </div>
               
-              @if (room.lastMessage) {
-                <p class="last-message">{{ room.lastMessage }}</p>
-                <span class="last-time">{{ formatTime(room.lastMessageTime || '') }}</span>
-              } @else {
-                <p class="no-messages">No messages yet</p>
-              }
+              <p class="no-messages">{{ room.unreadCount > 0 ? room.unreadCount + ' unread messages' : 'No messages yet' }}</p>
             </div>
             
             <div class="room-status">
@@ -187,66 +182,12 @@
     }
   </div>
 
-  <!-- Right Sidebar - Participants & Info -->
+  <!-- Right Sidebar - Empty for now -->
   @if (showRightSidebar() && selectedRoom()) {
     <div class="chat-sidebar right-sidebar">
       <div class="sidebar-header">
-        <h3>👥 Participants</h3>
+        <h3>Chat Info</h3>
         <button class="close-sidebar" (click)="toggleRightSidebar()">×</button>
-      </div>
-
-      <div class="participants-list">
-        <div class="participant-group">
-          <h4>Project Admins</h4>
-          <div class="participant-item admin">
-            <div class="participant-avatar">A</div>
-            <div class="participant-info">
-              <span class="participant-name">Admin User</span>
-              <span class="participant-status online">Online</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="participant-group">
-          <h4>Document Providers</h4>
-          <div class="participant-item provider">
-            <div class="participant-avatar">P</div>
-            <div class="participant-info">
-              <span class="participant-name">Provider User</span>
-              <span class="participant-status offline">Last seen 2h ago</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="chat-info-section">
-        <h4>📋 Project Info</h4>
-        <div class="project-details">
-          <div class="detail-item">
-            <strong>Project:</strong> {{ selectedRoom()?.projectName }}
-          </div>
-          <div class="detail-item">
-            <strong>Status:</strong> Active
-          </div>
-          <div class="detail-item">
-            <strong>Created:</strong> Today
-          </div>
-        </div>
-      </div>
-
-      <div class="chat-actions-section">
-        <h4>⚙️ Actions</h4>
-        <div class="action-buttons">
-          <button class="action-btn">
-            📎 Share Files
-          </button>
-          <button class="action-btn">
-            🔔 Notifications
-          </button>
-          <button class="action-btn">
-            📊 View Project
-          </button>
-        </div>
       </div>
     </div>
   }
