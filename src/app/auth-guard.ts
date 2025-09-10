@@ -30,9 +30,9 @@ export const landingGuard: CanActivateFn = async (route, state) => {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  // If user is authenticated, redirect to home
+  // If user is authenticated, redirect to reporting
   if (authService.isAuthenticated()) {
-    router.navigate(['/home']);
+    router.navigate(['/reporting']);
     return false;
   }
 

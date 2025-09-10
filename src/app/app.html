@@ -17,6 +17,11 @@
         <span class="hamburger-line"></span>
       </button>
       <h1>DocFlow4</h1>
+      @if (isOnReportingPage()) {
+        <button class="new-project-btn" (click)="openNewProjectModal()">
+          ➕ New Project
+        </button>
+      }
     </div>
     
     <!-- Mobile Overlay -->

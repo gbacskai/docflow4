@@ -268,10 +268,18 @@ export class VersionedDataService {
     id: string,
     updateData: any
   ): Promise<{ success: boolean; data?: any; error?: string }> {
+    console.log('🚀 === STARTING updateVersionedRecord ===');
+    console.log('🚀 Model:', modelName);
+    console.log('🚀 ID:', id);
+    console.log('🚀 Update data:', updateData);
+    
     try {
       const version = this.generateTimestamp();
+      console.log('🚀 Generated version:', version);
       
+      console.log('🔍 Getting latest record for ID:', id);
       const latestRecord = await this.getLatestVersion(modelName, id);
+      console.log('🔍 Latest record result:', latestRecord);
       if (!latestRecord.success || !latestRecord.data) {
         return {
           success: false,
@@ -279,22 +287,85 @@ export class VersionedDataService {
         };
       }
 
-      const newRecordData = {
-        ...latestRecord.data,
-        ...updateData,
+      // Create clean record data with only valid Project schema fields
+      let newRecordData: any = {
         id,
         version,
         active: true,
         updatedAt: version
       };
 
+      // Add Project-specific fields from the original record and updates
+      if (modelName === 'Project') {
+        // Use the same pattern as createVersionedRecord
+        newRecordData = {
+          id,
+          version,
+          name: updateData.name || latestRecord.data.name,
+          description: updateData.description || latestRecord.data.description,
+          ownerId: updateData.ownerId || latestRecord.data.ownerId,
+          active: true,
+          updatedAt: version
+        };
+
+        // Add optional fields only if they exist and have values
+        if (latestRecord.data.identifier) {
+          newRecordData.identifier = latestRecord.data.identifier;
+        }
+        if (updateData.adminUsers !== undefined || latestRecord.data.adminUsers !== undefined) {
+          newRecordData.adminUsers = updateData.adminUsers || latestRecord.data.adminUsers || [];
+        }
+        if (updateData.workflowId !== undefined || latestRecord.data.workflowId !== undefined) {
+          newRecordData.workflowId = updateData.workflowId || latestRecord.data.workflowId;
+        }
+        if (updateData.status !== undefined || latestRecord.data.status !== undefined) {
+          newRecordData.status = updateData.status || latestRecord.data.status;
+        }
+      } else {
+        // For other models, use the original approach
+        newRecordData = {
+          ...latestRecord.data,
+          ...updateData,
+          id,
+          version,
+          active: true,
+          updatedAt: version
+        };
+      }
+      
+      console.log('🔧 Clean record data for', modelName, ':', newRecordData);
+
       // 🚀 ACTIVE FLAG MANAGEMENT - 4-Step Process before update:
       await this.deactivateExistingActiveRecords(modelName, id);
 
+      console.log('🆕 Creating new record with data:', newRecordData);
+      
       let result;
       switch (modelName) {
         case 'Project':
-          result = await this.client.models.Project.create(newRecordData);
+          // Create a minimal schema-compliant Project object - only core required fields
+          const projectInput: any = {
+            id: newRecordData.id,
+            version: newRecordData.version
+          };
+          
+          // Only add valid Project fields - exclude system-managed fields
+          if (newRecordData.name) projectInput.name = newRecordData.name;
+          if (newRecordData.identifier) projectInput.identifier = newRecordData.identifier;
+          if (newRecordData.description) projectInput.description = newRecordData.description;
+          if (newRecordData.status) projectInput.status = newRecordData.status;
+          if (newRecordData.ownerId) projectInput.ownerId = newRecordData.ownerId;
+          if (newRecordData.adminUsers) projectInput.adminUsers = newRecordData.adminUsers;
+          if (newRecordData.workflowId) projectInput.workflowId = newRecordData.workflowId;
+          if (newRecordData.active !== undefined) projectInput.active = newRecordData.active;
+          
+          console.log('🏗️ Calling Project.create with schema-compliant input:', projectInput);
+          console.log('🔍 projectInput keys:', Object.keys(projectInput));
+          console.log('🔍 projectInput values:', Object.values(projectInput));
+          result = await this.client.models.Project.create(projectInput);
+          console.log('📋 Project.create result:', result);
+          console.log('📋 Project.create result.data:', result.data);
+          console.log('📋 Project.create result.errors:', result.errors);
           break;
         case 'Document':
           result = await this.client.models.Document.create(newRecordData);
@@ -320,12 +391,18 @@ export class VersionedDataService {
 
       // ✨ ACTIVE FLAG MANAGEMENT COMPLETED - Updated record created with active = true, old records deactivated
       
+      console.log('📤 About to return success result with data:', result.data);
+      
       return {
         success: true,
         data: result.data
       };
     } catch (error: any) {
-      console.error(`Error updating versioned ${String(modelName)}:`, error);
+      console.error(`❌ CAUGHT ERROR in updateVersionedRecord for ${String(modelName)}:`, error);
+      console.error(`❌ Error type:`, typeof error);
+      console.error(`❌ Error message:`, error.message);
+      console.error(`❌ Error stack:`, error.stack);
+      
       return {
         success: false,
         error: error.message || 'Unknown error occurred'

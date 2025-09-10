@@ -144,7 +144,7 @@ export class Auth {
     if (result.success) {
       this.authService.setAuthSuccess('Login successful!');
       this.loginForm.reset();
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/reporting']);
     }
     // Error is already set by AuthService, no need for additional handling
 
