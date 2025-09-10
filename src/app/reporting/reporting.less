@@ -177,10 +177,21 @@
             text-align: center;
             border-bottom: 2px solid #dee2e6;
 
+            &.chat-header {
+              background: #daf4f0;
+              position: sticky;
+              left: 0;
+              z-index: 11;
+              min-width: 60px;
+              text-align: center;
+              color: #27ae60;
+              font-weight: 700;
+            }
+
             &.project-header {
               background: #e9ecef;
               position: sticky;
-              left: 0;
+              left: 60px;
               z-index: 10;
               min-width: 200px;
               text-align: left;
@@ -209,13 +220,38 @@
         .matrix-row {
           display: contents;
 
+          .chat-cell {
+            background: #e8f8f5;
+            padding: 1rem;
+            font-size: 1.2rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: sticky;
+            left: 0;
+            z-index: 6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #27ae60;
+            
+            &:hover {
+              background: #d5f4e6;
+              transform: scale(1.1);
+            }
+
+            &.clickable {
+              cursor: pointer;
+            }
+          }
+
           .project-cell {
             background: #f8f9fa;
             padding: 1rem;
             font-weight: 500;
             color: #2c3e50;
             position: sticky;
-            left: 0;
+            left: 60px;
             z-index: 5;
             border-right: 2px solid #dee2e6;
             min-width: 200px;

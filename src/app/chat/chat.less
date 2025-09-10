@@ -1,8 +1,11 @@
 .chat-page {
   height: 100vh;
+  max-height: 100vh;
   display: flex;
   background: #f8fafc;
   overflow: hidden;
+  margin-top: -60px;
+  padding-top: 60px;
 }
 
 .chat-sidebar {
@@ -285,6 +288,9 @@
   flex-direction: column;
   background: white;
   min-width: 0;
+  height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  overflow: hidden;
 }
 
 .chat-header {
@@ -294,6 +300,7 @@
   align-items: center;
   justify-content: space-between;
   background: white;
+  flex-shrink: 0;
   
   .chat-info {
     .back-button {
@@ -361,6 +368,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: 0;
 }
 
 .loading-messages, .empty-messages {
@@ -521,6 +529,7 @@
   border-top: 1px solid #e2e8f0;
   padding: 1rem 1.5rem;
   background: white;
+  flex-shrink: 0;
   
   .input-container {
     display: flex;
@@ -757,6 +766,10 @@
 @media (max-width: 768px) {
   .chat-page {
     height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    margin-top: -60px;
+    padding-top: 60px;
   }
   
   .left-sidebar {
@@ -766,6 +779,8 @@
   
   .chat-main {
     display: none;
+    height: calc(100vh - 60px);
+    max-height: calc(100vh - 60px);
     
     &.mobile-show {
       display: flex;

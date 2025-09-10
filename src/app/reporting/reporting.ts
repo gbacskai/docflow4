@@ -1,5 +1,6 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { DynamicFormService } from '../services/dynamic-form.service';
@@ -47,6 +48,7 @@ export class Reporting implements OnInit {
   dynamicFormService = inject(DynamicFormService);
   versionedDataService = inject(VersionedDataService);
   workflowService = inject(WorkflowService);
+  router = inject(Router);
 
   get isFormValid(): boolean {
     return this.dynamicFormService.isFormValid();
@@ -119,8 +121,8 @@ export class Reporting implements OnInit {
   }
 
   updateGridTemplate() {
-    const numColumns = this.orderedDocumentTypes().length + 1; // +1 for project name column
-    const gridTemplate = `200px repeat(${this.orderedDocumentTypes().length}, 60px)`;
+    const numColumns = this.orderedDocumentTypes().length + 2; // +1 for chat column, +1 for project name column
+    const gridTemplate = `60px 200px repeat(${this.orderedDocumentTypes().length}, 60px)`;
     
     // Update CSS custom property for grid template
     setTimeout(() => {
@@ -615,5 +617,16 @@ export class Reporting implements OnInit {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  navigateToProjectChat(project: Schema['Project']['type']) {
+    // Navigate to chat page with query parameters to select the project
+    this.router.navigate(['/chat'], {
+      queryParams: {
+        projectId: project.id,
+        projectName: project.name,
+        from: 'reporting'
+      }
+    });
   }
 }
