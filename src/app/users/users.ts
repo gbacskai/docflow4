@@ -448,7 +448,6 @@ export class Users implements OnInit, OnDestroy {
           emailVerified: false, // Email not verified yet
           invitedAt: new Date().toISOString(),
           invitedBy: currentUserId, // Current authenticated user ID
-          createdAt: new Date().toISOString()
         }
       });
       
@@ -494,7 +493,6 @@ export class Users implements OnInit, OnDestroy {
           interestedDocumentTypes: userData.interestedDocumentTypes || [],
           status: userData.status || 'active',
           emailVerified: false, // Email not verified yet
-          createdAt: new Date().toISOString(),
           createdBy: currentUserId
         }
       });
@@ -696,7 +694,6 @@ export class Users implements OnInit, OnDestroy {
           status: 'active',
           emailVerified: true,
           cognitoUserId: currentUserId,
-          createdAt: new Date().toISOString()
         }
       });
       

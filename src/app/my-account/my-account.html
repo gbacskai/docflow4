@@ -215,7 +215,9 @@
                       </div>
                       <div class="document-type-details">
                         <h4>{{ docType.name }}</h4>
-                        <p>{{ docType.definition }}</p>
+                        @if (docType.description) {
+                          <p>{{ docType.description }}</p>
+                        }
                         @if (docType.category) {
                           <span class="document-type-category">{{ docType.category }}</span>
                         }

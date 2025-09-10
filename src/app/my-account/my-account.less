@@ -411,7 +411,6 @@
     width: 450px;
     background: white;
     height: 100vh;
-    overflow-y: auto;
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
@@ -423,6 +422,7 @@
       padding: 1.5rem;
       border-bottom: 1px solid #e5e7eb;
       background: #f8f9fa;
+      flex-shrink: 0;
       
       h3 {
         margin: 0;
@@ -451,6 +451,7 @@
       padding: 1rem 1.5rem;
       border-bottom: 1px solid #e5e7eb;
       background: white;
+      flex-shrink: 0;
 
       .search-input-wrapper {
         position: relative;
@@ -504,6 +505,7 @@
     
     .sidebar-content {
       flex: 1;
+      overflow-y: auto;
       padding: 0;
 
       .no-document-types-found {
@@ -597,6 +599,7 @@
       border-top: 1px solid #e5e7eb;
       padding: 1.5rem;
       background: #f8f9fa;
+      flex-shrink: 0;
       
       .selection-summary {
         color: #374151;

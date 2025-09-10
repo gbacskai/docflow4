@@ -84,20 +84,22 @@ export class AdminService {
       if (importData.tables.DocumentTypes) {
         for (const docType of importData.tables.DocumentTypes) {
           try {
+            // Only include valid fields that exist in the current schema
+            const documentTypeData: any = {};
+            
+            if (docType.name) documentTypeData.name = docType.name;
+            if (docType.identifier) documentTypeData.identifier = docType.identifier;
+            if (docType.definition) documentTypeData.definition = docType.definition;
+            if (docType.validationRules) documentTypeData.validationRules = docType.validationRules;
+            if (docType.category) documentTypeData.category = docType.category;
+            if (docType.fields) documentTypeData.fields = docType.fields;
+            if (docType.isActive !== undefined) documentTypeData.isActive = docType.isActive;
+            if (docType.usageCount !== undefined) documentTypeData.usageCount = docType.usageCount;
+            if (docType.templateCount !== undefined) documentTypeData.templateCount = docType.templateCount;
+            
             const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
               id: docType.id,
-              data: {
-                name: docType.name,
-                identifier: docType.identifier,
-                definition: docType.definition,
-                validationRules: docType.validationRules,
-                category: docType.category,
-                fields: docType.fields || [],
-                isActive: docType.isActive,
-                usageCount: docType.usageCount || 0,
-                templateCount: docType.templateCount,
-                createdAt: docType.createdAt || new Date().toISOString()
-              }
+              data: documentTypeData
             });
             
             if (result.success) {
@@ -115,17 +117,19 @@ export class AdminService {
       if (importData.tables.Workflows) {
         for (const workflow of importData.tables.Workflows) {
           try {
+            // Only include valid fields that exist in the current schema
+            const workflowData: any = {};
+            
+            if (workflow.name) workflowData.name = workflow.name;
+            if (workflow.identifier) workflowData.identifier = workflow.identifier;
+            if (workflow.description) workflowData.description = workflow.description;
+            if (workflow.rules) workflowData.rules = workflow.rules;
+            if (workflow.actors) workflowData.actors = workflow.actors;
+            if (workflow.isActive !== undefined) workflowData.isActive = workflow.isActive;
+            
             const result = await this.versionedDataService.createVersionedRecord('Workflow', {
               id: workflow.id,
-              data: {
-                name: workflow.name,
-                identifier: workflow.identifier,
-                description: workflow.description,
-                rules: workflow.rules || [],
-                actors: workflow.actors || [],
-                isActive: workflow.isActive,
-                createdAt: workflow.createdAt || new Date().toISOString()
-              }
+              data: workflowData
             });
             
             if (result.success) {
@@ -143,18 +147,20 @@ export class AdminService {
       if (importData.tables.Projects) {
         for (const project of importData.tables.Projects) {
           try {
+            // Only include valid fields that exist in the current schema
+            const projectData: any = {};
+            
+            if (project.name) projectData.name = project.name;
+            if (project.identifier) projectData.identifier = project.identifier;
+            if (project.description) projectData.description = project.description;
+            if (project.status) projectData.status = project.status;
+            if (project.ownerId) projectData.ownerId = project.ownerId;
+            if (project.adminUsers) projectData.adminUsers = project.adminUsers;
+            if (project.workflowId) projectData.workflowId = project.workflowId;
+            
             const result = await this.versionedDataService.createVersionedRecord('Project', {
               id: project.id,
-              data: {
-                name: project.name,
-                identifier: project.identifier,
-                description: project.description,
-                status: project.status,
-                ownerId: project.ownerId,
-                adminUsers: project.adminUsers || [],
-                workflowId: project.workflowId,
-                createdAt: project.createdAt || new Date().toISOString()
-              }
+              data: projectData
             });
             
             if (result.success) {
@@ -172,14 +178,16 @@ export class AdminService {
       if (importData.tables.Documents) {
         for (const document of importData.tables.Documents) {
           try {
+            // Only include valid fields that exist in the current schema
+            const documentData: any = {};
+            
+            if (document.projectId) documentData.projectId = document.projectId;
+            if (document.documentType) documentData.documentType = document.documentType;
+            if (document.formData) documentData.formData = document.formData;
+            
             const result = await this.versionedDataService.createVersionedRecord('Document', {
               id: document.id,
-              data: {
-                projectId: document.projectId,
-                documentType: document.documentType,
-                formData: document.formData,
-                createdAt: document.createdAt || new Date().toISOString()
-              }
+              data: documentData
             });
             
             if (result.success) {
@@ -283,7 +291,6 @@ export class AdminService {
           const result = await this.versionedDataService.createVersionedRecord('DocumentType', {
             data: {
               ...docType,
-              createdAt: new Date().toISOString()
             }
           });
           

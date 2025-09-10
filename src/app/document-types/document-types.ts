@@ -471,7 +471,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
       console.log('Submitting document type data:', docTypeData);
 
       if (this.currentMode() === 'create') {
-        await this.createDocumentType(docTypeData);
+        await this.createDocumentType(docTypeData as any);
       } else if (this.currentMode() === 'edit' && this.selectedDocumentType()) {
         await this.updateDocumentType(this.selectedDocumentType()!.id, docTypeData);
       }
@@ -485,7 +485,7 @@ export class DocumentTypes implements OnInit, OnDestroy {
     }
   }
 
-  async createDocumentType(docType: Omit<Schema['DocumentType']['type'], 'id' | 'version' | 'createdAt' | 'updatedAt' | 'usageCount' | 'templateCount' | 'fields'>) {
+  async createDocumentType(docType: Omit<Schema['DocumentType']['type'], 'id' | 'version' | 'updatedAt' | 'usageCount' | 'templateCount' | 'fields'>) {
     try {
       // Check uniqueness before creating - use API call for accurate check
       const checkResult = await this.versionedDataService.getAllLatestVersions('DocumentType');
@@ -504,7 +504,6 @@ export class DocumentTypes implements OnInit, OnDestroy {
           ...docType,
           fields: [],
           usageCount: 0,
-          createdAt: new Date().toISOString()
         }
       });
       

@@ -54,7 +54,6 @@ export interface ChatRoom {
   allowFileSharing?: boolean;
   maxParticipants?: number;
   lastActivityAt?: string;
-  createdAt?: string;
   updatedAt?: string;
 }
 

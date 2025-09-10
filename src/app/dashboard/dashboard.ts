@@ -22,10 +22,10 @@ export class Dashboard {
   
   // Mock data for demonstration
   mockProjects = signal([
-    { id: '1', name: 'Website Redesign', status: 'active', createdAt: '2024-01-15', updatedAt: '2024-01-20' },
-    { id: '2', name: 'Mobile App', status: 'active', createdAt: '2024-01-10', updatedAt: '2024-01-18' },
-    { id: '3', name: 'Documentation Update', status: 'completed', createdAt: '2024-01-05', updatedAt: '2024-01-15' },
-    { id: '4', name: 'API Integration', status: 'archived', createdAt: '2023-12-20', updatedAt: '2024-01-01' }
+    { id: '1', name: 'Website Redesign', status: 'active', updatedAt: '2024-01-20' },
+    { id: '2', name: 'Mobile App', status: 'active', updatedAt: '2024-01-18' },
+    { id: '3', name: 'Documentation Update', status: 'completed', updatedAt: '2024-01-15' },
+    { id: '4', name: 'API Integration', status: 'archived', updatedAt: '2024-01-01' }
   ]);
   
   
@@ -54,7 +54,7 @@ export class Dashboard {
   // Recent activity
   recentProjects = computed(() => 
     this.mockProjects()
-      .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 5)
   );
 
