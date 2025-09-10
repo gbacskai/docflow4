@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -33,7 +33,7 @@ interface ProjectRow {
   templateUrl: './reporting.html',
   styleUrl: './reporting.less'
 })
-export class Reporting implements OnInit {
+export class Reporting implements OnInit, OnDestroy {
   projects = signal<Array<Schema['Project']['type']>>([]);
   documents = signal<Array<Schema['Document']['type']>>([]);
   workflows = signal<Array<Schema['Workflow']['type']>>([]);
@@ -46,7 +46,7 @@ export class Reporting implements OnInit {
   showDocumentModal = signal(false);
   saving = signal(false);
   executingWorkflow = signal(false);
-  showAllProjects = signal(false); // By default, show only active projects
+  showAllProjects = signal(true); // By default, show all projects since toggle was removed
   
   // New Project functionality
   users = signal<Array<Schema['User']['type']>>([]);
@@ -64,6 +64,11 @@ export class Reporting implements OnInit {
   fb = inject(FormBuilder);
   router = inject(Router);
 
+  // Event listener reference for cleanup
+  private newProjectModalHandler = () => {
+    this.openNewProjectModal();
+  };
+
   newProjectForm: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3)]],
     description: ['', [Validators.required, Validators.minLength(10)]],
@@ -79,6 +84,14 @@ export class Reporting implements OnInit {
   async ngOnInit() {
     await this.loadAllData();
     this.buildMatrix();
+    
+    // Listen for new project modal events from app component
+    window.addEventListener('openNewProjectModal', this.newProjectModalHandler);
+  }
+
+  ngOnDestroy() {
+    // Clean up event listener
+    window.removeEventListener('openNewProjectModal', this.newProjectModalHandler);
   }
 
   async loadAllData() {
@@ -93,11 +106,25 @@ export class Reporting implements OnInit {
         this.versionedDataService.getAllLatestVersions('User')
       ]);
 
-      this.projects.set(projectsResult.success ? projectsResult.data || [] : []);
-      this.documents.set(documentsResult.success ? documentsResult.data || [] : []);
-      this.workflows.set(workflowsResult.success ? workflowsResult.data || [] : []);
-      this.documentTypes.set(documentTypesResult.success ? documentTypesResult.data || [] : []);
-      this.users.set(usersResult.success ? usersResult.data || [] : []);
+      const projectsData = projectsResult.success ? projectsResult.data || [] : [];
+      const documentsData = documentsResult.success ? documentsResult.data || [] : [];
+      const workflowsData = workflowsResult.success ? workflowsResult.data || [] : [];
+      const documentTypesData = documentTypesResult.success ? documentTypesResult.data || [] : [];
+      const usersData = usersResult.success ? usersResult.data || [] : [];
+
+      console.log('📊 Loaded data counts:', {
+        projects: projectsData.length,
+        documents: documentsData.length,
+        workflows: workflowsData.length,
+        documentTypes: documentTypesData.length,
+        users: usersData.length
+      });
+
+      this.projects.set(projectsData);
+      this.documents.set(documentsData);
+      this.workflows.set(workflowsData);
+      this.documentTypes.set(documentTypesData);
+      this.users.set(usersData);
     } catch (error) {
       console.error('Error loading reporting data:', error);
     } finally {
@@ -108,6 +135,7 @@ export class Reporting implements OnInit {
   buildMatrix() {
     // Filter projects based on showAllProjects setting
     const filteredProjects = this.getFilteredProjects();
+    console.log('🔧 Building matrix with filtered projects:', filteredProjects.length);
 
     // Get only document types that have actual documents in the filtered projects
     const usedDocumentTypeIds = new Set<string>();
@@ -159,13 +187,17 @@ export class Reporting implements OnInit {
 
   getFilteredProjects(): Array<Schema['Project']['type']> {
     const allProjects = this.projects();
+    console.log('📋 All projects:', allProjects.map(p => ({ id: p.id, name: p.name, status: p.status })));
     
     if (this.showAllProjects()) {
+      console.log('📋 Showing all projects');
       return allProjects;
     }
     
     // Show only active projects by default
-    return allProjects.filter(project => project.status === 'active');
+    const activeProjects = allProjects.filter(project => project.status === 'active');
+    console.log('📋 Active projects only:', activeProjects.map(p => ({ id: p.id, name: p.name, status: p.status })));
+    return activeProjects;
   }
 
   toggleShowAllProjects() {
@@ -728,9 +760,8 @@ export class Reporting implements OnInit {
       }
       
       const formValue = this.newProjectForm.value;
-      const projectData = {
+      const projectData: any = {
         name: formValue.name,
-        identifier: formValue.name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'),
         description: formValue.description,
         ownerId: formValue.ownerId,
         adminUsers: [], // Empty admin users for simplicity
@@ -738,17 +769,35 @@ export class Reporting implements OnInit {
         status: formValue.status as 'active' | 'completed' | 'archived'
       };
 
+      // Only add identifier for new projects
+      if (this.currentMode() === 'create') {
+        projectData.identifier = formValue.name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+      }
+      
+      console.log('📋 Project data prepared:', projectData);
+
       try {
         if (this.currentMode() === 'create') {
           await this.createProject(projectData);
         } else {
-          await this.updateProject(this.selectedProject()!.id, projectData);
+          const projectId = this.selectedProject()!.id;
+          console.log('📝 About to update project:', { projectId, projectData });
+          await this.updateProject(projectId, projectData);
+          console.log('✅ Project update completed, reloading data...');
         }
         
         this.closeNewProjectModal();
+        
+        // Small delay to ensure database operations are fully completed
+        console.log('⏳ Waiting for database operations to complete...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // Reload data to show the updated project in the matrix
+        console.log('🔄 Reloading all data after project operation...');
         await this.loadAllData();
+        console.log('🔧 Building matrix after data reload...');
         this.buildMatrix();
+        console.log('✅ Matrix rebuild completed');
       } catch (error) {
         console.error('Error saving project:', error);
         alert('Failed to save project: ' + (error as Error).message);
@@ -856,17 +905,69 @@ export class Reporting implements OnInit {
 
   async updateProject(id: string, updates: any) {
     try {
-      console.log('Updating project with data:', updates);
+      console.log('📝 Starting project update...');
+      console.log('📝 Project ID:', id);
+      console.log('📝 Original update data:', updates);
       
-      const result = await this.versionedDataService.updateVersionedRecord('Project', id, updates);
+      // Create a clean update object without identifier and adminUsers to avoid conflicts
+      const cleanUpdates: any = {
+        name: updates.name,
+        description: updates.description,
+        ownerId: updates.ownerId,
+        workflowId: updates.workflowId,
+        status: updates.status
+      };
+
+      // Ensure status is a valid enum value
+      if (!['active', 'completed', 'archived'].includes(cleanUpdates.status)) {
+        console.warn('⚠️ Invalid status value, defaulting to "active":', cleanUpdates.status);
+        cleanUpdates.status = 'active';
+      }
+
+      // Remove null/undefined values to avoid GraphQL issues
+      Object.keys(cleanUpdates).forEach(key => {
+        if (cleanUpdates[key] === null || cleanUpdates[key] === undefined) {
+          delete cleanUpdates[key];
+        }
+      });
+      
+      console.log('📝 Clean update data:', cleanUpdates);
+      console.log('📝 Calling versionedDataService.updateVersionedRecord...');
+      
+      const result = await this.versionedDataService.updateVersionedRecord('Project', id, cleanUpdates);
+      
+      console.log('📝 Versioned data service result:', result);
       
       if (!result.success) {
+        console.error('❌ Update failed:', result.error);
         throw new Error(result.error || 'Failed to update project');
       }
       
-      console.log('Project updated successfully:', result.data);
+      console.log('✅ Project updated successfully. New record data:', result.data);
+      console.log('✅ New record ID:', result.data?.id);
+      console.log('✅ New record version:', result.data?.version);
+      console.log('✅ New record active flag:', result.data?.active);
+      
+      // Execute workflow rules for the updated project to process documents
+      console.log('🔄 Running workflow rules for updated project...');
+      try {
+        const workflowResult = await this.workflowService.executeWorkflowRulesForProject(
+          id, // Use original project ID
+          undefined // No specific document ID - process all documents in the project
+        );
+        
+        if (workflowResult.success) {
+          console.log(`✅ Workflow execution completed: ${workflowResult.cascadeIterations} iterations, ${workflowResult.totalDocumentChanges} total changes`);
+          console.log('📋 Applied actions:', workflowResult.appliedActions);
+        } else {
+          console.error('❌ Workflow execution failed:', workflowResult.error);
+        }
+      } catch (workflowError) {
+        console.error('❌ Error running workflow rules after project update:', workflowError);
+        // Don't fail project update if workflow execution fails
+      }
     } catch (error) {
-      console.error('Error updating project:', error);
+      console.error('❌ Error in updateProject:', error);
       throw error;
     }
   }
