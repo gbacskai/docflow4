@@ -92,6 +92,28 @@
       border-radius: 1px;
     }
   }
+
+  .new-project-btn {
+    background: @success-color;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: @transition-base;
+    white-space: nowrap;
+
+    &:hover {
+      background: darken(@success-color, 10%);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
 }
 
 // Mobile overlay for closing sidebar
