@@ -127,7 +127,7 @@
                 <div class="activity-content">
                   <div class="activity-title">{{ project.name }}</div>
                   <div class="activity-meta">
-                    <span class="activity-date">{{ formatDate(project.updatedAt || project.createdAt) }}</span>
+                    <span class="activity-date">{{ formatDate(project.updatedAt) }}</span>
                   </div>
                 </div>
                 <div class="activity-status" [class]="'status-' + project.status">

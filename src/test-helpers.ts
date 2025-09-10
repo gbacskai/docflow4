@@ -112,8 +112,7 @@ export class TestHelpers {
     };
 
     const mockUserManagementService = {
-      ensureUserEntry: jasmine.createSpy('ensureUserEntry').and.returnValue(Promise.resolve({})),
-      updateLastLogin: jasmine.createSpy('updateLastLogin').and.returnValue(Promise.resolve({}))
+      ensureUserEntry: jasmine.createSpy('ensureUserEntry').and.returnValue(Promise.resolve({}))
     };
 
     const mockVersionedDataService = {

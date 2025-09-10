@@ -28,7 +28,7 @@ export class VersionedDataService {
   }
 
   generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
   async createVersionedRecord(
@@ -47,6 +47,13 @@ export class VersionedDataService {
         updatedAt: version
       };
 
+      // 🚀 ACTIVE FLAG MANAGEMENT - 4-Step Process:
+      // 1) Search where active is true
+      // 2) Remove active flag from the old document  
+      // 3) Update the old record (with no active flag)
+      // 4) Insert the new record with active = true
+      await this.deactivateExistingActiveRecords(modelName, recordId);
+
       // Use direct DynamoDB service to bypass auto-generated tables
       if (this.useDirectDB) {
         console.log(`🎯 Using direct DynamoDB for ${modelName}`);
@@ -57,25 +64,173 @@ export class VersionedDataService {
       let result;
       switch (modelName) {
         case 'Project':
-          result = await this.client.models.Project.create(recordData);
+          // Create a schema-compliant Project object
+          const projectInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid Project fields
+          if (recordData.name) projectInput.name = recordData.name;
+          if (recordData.identifier) projectInput.identifier = recordData.identifier;
+          if (recordData.description) projectInput.description = recordData.description;
+          if (recordData.status) projectInput.status = recordData.status;
+          if (recordData.ownerId) projectInput.ownerId = recordData.ownerId;
+          if (recordData.adminUsers) projectInput.adminUsers = recordData.adminUsers;
+          if (recordData.workflowId) projectInput.workflowId = recordData.workflowId;
+          
+          result = await this.client.models.Project.create(projectInput);
           break;
         case 'Document':
-          result = await this.client.models.Document.create(recordData);
+          // Create a schema-compliant Document object
+          const documentInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid Document fields
+          if (recordData.projectId) documentInput.projectId = recordData.projectId;
+          if (recordData.documentType) documentInput.documentType = recordData.documentType;
+          if (recordData.formData) documentInput.formData = recordData.formData;
+          
+          result = await this.client.models.Document.create(documentInput);
           break;
         case 'User':
-          result = await this.client.models.User.create(recordData);
+          // Create a schema-compliant User object
+          const userInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid User fields based on current schema
+          if (recordData.email) userInput.email = recordData.email;
+          if (recordData.userType) userInput.userType = recordData.userType;
+          if (recordData.firstName) userInput.firstName = recordData.firstName;
+          if (recordData.lastName) userInput.lastName = recordData.lastName;
+          if (recordData.interestedDocumentTypes) userInput.interestedDocumentTypes = recordData.interestedDocumentTypes;
+          if (recordData.status) userInput.status = recordData.status;
+          if (recordData.emailVerified !== undefined) userInput.emailVerified = recordData.emailVerified;
+          if (recordData.cognitoUserId) userInput.cognitoUserId = recordData.cognitoUserId;
+          if (recordData.invitedBy) userInput.invitedBy = recordData.invitedBy;
+          if (recordData.createdBy) userInput.createdBy = recordData.createdBy;
+          if (recordData.invitedAt) userInput.invitedAt = recordData.invitedAt;
+          if (recordData.lastLoginAt) userInput.lastLoginAt = recordData.lastLoginAt;
+          
+          result = await this.client.models.User.create(userInput);
           break;
         case 'DocumentType':
-          result = await this.client.models.DocumentType.create(recordData);
+          console.log('🔍 DocumentType recordData being sent to GraphQL:', recordData);
+          console.log('🔍 DocumentType recordData keys:', Object.keys(recordData));
+          
+          // Create a schema-compliant DocumentType object
+          const documentTypeInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid DocumentType fields
+          if (recordData.name) documentTypeInput.name = recordData.name;
+          if (recordData.identifier) documentTypeInput.identifier = recordData.identifier;
+          if (recordData.description) documentTypeInput.description = recordData.description;
+          if (recordData.definition) documentTypeInput.definition = recordData.definition;
+          if (recordData.validationRules) documentTypeInput.validationRules = recordData.validationRules;
+          if (recordData.category) documentTypeInput.category = recordData.category;
+          if (recordData.fields) documentTypeInput.fields = recordData.fields;
+          if (recordData.isActive !== undefined) documentTypeInput.isActive = recordData.isActive;
+          if (recordData.usageCount !== undefined) documentTypeInput.usageCount = recordData.usageCount;
+          if (recordData.templateCount !== undefined) documentTypeInput.templateCount = recordData.templateCount;
+          
+          console.log('🔍 DocumentType filtered input:', documentTypeInput);
+          result = await this.client.models.DocumentType.create(documentTypeInput);
           break;
         case 'Workflow':
-          result = await this.client.models.Workflow.create(recordData);
+          // Create a schema-compliant Workflow object
+          const workflowInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid Workflow fields
+          if (recordData.name) workflowInput.name = recordData.name;
+          if (recordData.identifier) workflowInput.identifier = recordData.identifier;
+          if (recordData.description) workflowInput.description = recordData.description;
+          if (recordData.rules) workflowInput.rules = recordData.rules;
+          if (recordData.actors) workflowInput.actors = recordData.actors;
+          if (recordData.isActive !== undefined) workflowInput.isActive = recordData.isActive;
+          
+          result = await this.client.models.Workflow.create(workflowInput);
           break;
         case 'ChatRoom':
-          result = await this.client.models.ChatRoom.create(recordData);
+          // Create a schema-compliant ChatRoom object
+          const chatRoomInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid ChatRoom fields
+          if (recordData.projectId) chatRoomInput.projectId = recordData.projectId;
+          if (recordData.projectName) chatRoomInput.projectName = recordData.projectName;
+          if (recordData.documentId) chatRoomInput.documentId = recordData.documentId;
+          if (recordData.documentType) chatRoomInput.documentType = recordData.documentType;
+          if (recordData.roomType) chatRoomInput.roomType = recordData.roomType;
+          if (recordData.title) chatRoomInput.title = recordData.title;
+          if (recordData.description) chatRoomInput.description = recordData.description;
+          if (recordData.participants) chatRoomInput.participants = recordData.participants;
+          if (recordData.adminUsers) chatRoomInput.adminUsers = recordData.adminUsers;
+          if (recordData.providerUsers) chatRoomInput.providerUsers = recordData.providerUsers;
+          if (recordData.lastMessage) chatRoomInput.lastMessage = recordData.lastMessage;
+          if (recordData.lastMessageTime) chatRoomInput.lastMessageTime = recordData.lastMessageTime;
+          if (recordData.lastMessageSender) chatRoomInput.lastMessageSender = recordData.lastMessageSender;
+          if (recordData.messageCount !== undefined) chatRoomInput.messageCount = recordData.messageCount;
+          if (recordData.unreadCount !== undefined) chatRoomInput.unreadCount = recordData.unreadCount;
+          if (recordData.isActive !== undefined) chatRoomInput.isActive = recordData.isActive;
+          if (recordData.isArchived !== undefined) chatRoomInput.isArchived = recordData.isArchived;
+          
+          result = await this.client.models.ChatRoom.create(chatRoomInput);
           break;
         case 'ChatMessage':
-          result = await this.client.models.ChatMessage.create(recordData);
+          // Create a schema-compliant ChatMessage object
+          const chatMessageInput: any = {
+            id: recordData.id,
+            version: recordData.version,
+            active: recordData.active,
+            updatedAt: recordData.updatedAt
+          };
+          
+          // Only add valid ChatMessage fields
+          if (recordData.chatRoomId) chatMessageInput.chatRoomId = recordData.chatRoomId;
+          if (recordData.senderId) chatMessageInput.senderId = recordData.senderId;
+          if (recordData.senderName) chatMessageInput.senderName = recordData.senderName;
+          if (recordData.senderEmail) chatMessageInput.senderEmail = recordData.senderEmail;
+          if (recordData.senderType) chatMessageInput.senderType = recordData.senderType;
+          if (recordData.message) chatMessageInput.message = recordData.message;
+          if (recordData.messageType) chatMessageInput.messageType = recordData.messageType;
+          if (recordData.attachmentUrl) chatMessageInput.attachmentUrl = recordData.attachmentUrl;
+          if (recordData.fileSize !== undefined) chatMessageInput.fileSize = recordData.fileSize;
+          if (recordData.fileName) chatMessageInput.fileName = recordData.fileName;
+          if (recordData.projectId) chatMessageInput.projectId = recordData.projectId;
+          if (recordData.documentId) chatMessageInput.documentId = recordData.documentId;
+          if (recordData.isRead !== undefined) chatMessageInput.isRead = recordData.isRead;
+          if (recordData.readBy) chatMessageInput.readBy = recordData.readBy;
+          if (recordData.readAt) chatMessageInput.readAt = recordData.readAt;
+          if (recordData.deliveredAt) chatMessageInput.deliveredAt = recordData.deliveredAt;
+          if (recordData.replyToMessageId) chatMessageInput.replyToMessageId = recordData.replyToMessageId;
+          if (recordData.threadId) chatMessageInput.threadId = recordData.threadId;
+          if (recordData.editedAt) chatMessageInput.editedAt = recordData.editedAt;
+          
+          result = await this.client.models.ChatMessage.create(chatMessageInput);
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
@@ -99,6 +254,8 @@ export class VersionedDataService {
           error: `GraphQL error: ${errorMessages}`
         };
       }
+
+      // ✨ ACTIVE FLAG MANAGEMENT COMPLETED - New record created with active = true, old records deactivated
       
       return {
         success: true,
@@ -138,6 +295,9 @@ export class VersionedDataService {
         updatedAt: version
       };
 
+      // 🚀 ACTIVE FLAG MANAGEMENT - 4-Step Process before update:
+      await this.deactivateExistingActiveRecords(modelName, id);
+
       let result;
       switch (modelName) {
         case 'Project':
@@ -164,6 +324,8 @@ export class VersionedDataService {
         default:
           throw new Error(`Unknown model: ${modelName}`);
       }
+
+      // ✨ ACTIVE FLAG MANAGEMENT COMPLETED - Updated record created with active = true, old records deactivated
       
       return {
         success: true,
@@ -217,8 +379,11 @@ export class VersionedDataService {
         };
       }
 
-      // With active=true filter, there should be exactly one record
-      const latestRecord = records[0];
+      // With active=true filter, there should be exactly one record, but sort just in case
+      const sortedRecords = records.sort((a: any, b: any) => 
+        new Date(b.version).getTime() - new Date(a.version).getTime()
+      );
+      const latestRecord = sortedRecords[0];
 
       return {
         success: true,
@@ -237,78 +402,96 @@ export class VersionedDataService {
     modelName: string
   ): Promise<{ success: boolean; data?: any[]; error?: string }> {
     try {
-      let latestRecords;
+      let activeRecords;
       switch (modelName) {
         case 'Project':
-          latestRecords = (await this.client.models.Project.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.Project.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'Document':
-          latestRecords = (await this.client.models.Document.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.Document.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'User':
-          latestRecords = (await this.client.models.User.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.User.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'DocumentType':
-          latestRecords = (await this.client.models.DocumentType.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.DocumentType.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'Workflow':
-          latestRecords = (await this.client.models.Workflow.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.Workflow.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'ChatRoom':
-          latestRecords = (await this.client.models.ChatRoom.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.ChatRoom.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'ChatMessage':
-          latestRecords = (await this.client.models.ChatMessage.list({ filter: { active: { eq: true } } })).data;
+          activeRecords = (await this.client.models.ChatMessage.list({ filter: { active: { eq: true } } })).data;
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
       }
 
-      if (!latestRecords) {
+      if (!activeRecords) {
         return {
           success: true,
           data: []
         };
       }
 
-      // Filter to ensure only latest version per ID (in case Lambda function didn't process duplicates)
+      // Since we're filtering by active=true, we should have only one record per ID
+      // But let's still deduplicate in case there are multiple active records (shouldn't happen with proper management)
       const latestByIdMap = new Map<string, any>();
       
-      for (const record of latestRecords) {
-        const existingRecord = latestByIdMap.get(record.id);
-        if (!existingRecord || new Date(record.version) > new Date(existingRecord.version)) {
-          latestByIdMap.set(record.id, record);
+      // Group records by ID
+      const groupedById = activeRecords.reduce((acc, record) => {
+        const id = record.id;
+        if (!acc[id]) {
+          acc[id] = [];
         }
-      }
-      
-      const deduplicatedRecords = Array.from(latestByIdMap.values());
-      
-      if (deduplicatedRecords.length !== latestRecords.length) {
-        console.warn(`${modelName} - Found ${latestRecords.length} active records, deduplicated to ${deduplicatedRecords.length}. Lambda function may not be processing correctly.`);
-        console.log(`${modelName} - Detailed duplicate info:`, {
-          totalActive: latestRecords.length,
-          afterDeduplication: deduplicatedRecords.length,
-          duplicatesByID: this.analyzeDuplicates(latestRecords)
-        });
+        acc[id].push(record);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      // Process each ID group - with proper active management, there should be only one active record per ID
+      for (const [id, recordsForId] of Object.entries(groupedById)) {
+        const recordsArray = recordsForId as any[];
         
-        // Optionally trigger manual cleanup (but only in development)
-        if (process.env['NODE_ENV'] === 'development') {
-          console.log(`${modelName} - Development mode: Consider running manual cleanup for duplicate records`);
+        if (recordsArray.length === 1) {
+          // Normal case - one active record per ID
+          latestByIdMap.set(id, recordsArray[0]);
+        } else {
+          // Data inconsistency detected - multiple active records for same ID
+          console.warn(`⚠️ ${modelName} - Found ${recordsArray.length} active records for ID: ${id} - performing automatic deduplication`);
+          
+          // Sort by version timestamp and keep the latest one
+          const sortedRecords = recordsArray.sort((a, b) => 
+            new Date(b.version).getTime() - new Date(a.version).getTime()
+          );
+          
+          const latestRecord = sortedRecords[0];
+          const oldRecords = sortedRecords.slice(1);
+          
+          // Keep the latest active record
+          latestByIdMap.set(id, latestRecord);
+          
+          // 🚀 DEDUPLICATION: Remove active flag from old records and update DynamoDB
+          console.log(`🧹 ${modelName} - Deduplicating: keeping latest version ${latestRecord.version}, deactivating ${oldRecords.length} older active records`);
+          await this.deduplicateOldActiveRecords(modelName, oldRecords);
         }
       }
       
-      console.log(`${modelName} - Latest active records found: ${deduplicatedRecords.length}`);
-      if (deduplicatedRecords.length > 0) {
-        console.log(`${modelName} - Sample latest record:`, {
-          id: (deduplicatedRecords[0] as any).id,
-          version: (deduplicatedRecords[0] as any).version,
-          active: (deduplicatedRecords[0] as any).active
+      const latestRecords = Array.from(latestByIdMap.values());
+      
+      console.log(`${modelName} - Active records found: ${latestRecords.length}`);
+      if (latestRecords.length > 0) {
+        console.log(`${modelName} - Sample active record:`, {
+          id: (latestRecords[0] as any).id,
+          version: (latestRecords[0] as any).version,
+          active: (latestRecords[0] as any).active
         });
       }
 
       return {
         success: true,
-        data: deduplicatedRecords
+        data: latestRecords
       };
     } catch (error: any) {
       console.error(`Error getting all latest versions for ${String(modelName)}:`, error);
@@ -519,6 +702,175 @@ export class VersionedDataService {
     }
   }
 
+  /**
+   * 🚀 ACTIVE FLAG MANAGEMENT - 4-Step Process Implementation
+   * 1) Search where active is true
+   * 2) Set active flag to false for the old documents  
+   * 3) Update the old records (with active = false)
+   * 4) New record will be inserted with active = true (handled by caller)
+   */
+  private async deactivateExistingActiveRecords(modelName: string, recordId: string): Promise<void> {
+    try {
+      console.log(`🔍 Step 1: Searching for active records with ID: ${recordId} in ${modelName}`);
+      
+      // Step 1: Search where active is true for this record ID
+      let activeRecords;
+      switch (modelName) {
+        case 'Project':
+          activeRecords = (await this.client.models.Project.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        case 'Document':
+          activeRecords = (await this.client.models.Document.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        case 'User':
+          activeRecords = (await this.client.models.User.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        case 'DocumentType':
+          activeRecords = (await this.client.models.DocumentType.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        case 'Workflow':
+          activeRecords = (await this.client.models.Workflow.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        case 'ChatRoom':
+          activeRecords = (await this.client.models.ChatRoom.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        case 'ChatMessage':
+          activeRecords = (await this.client.models.ChatMessage.list({ filter: { and: [{ id: { eq: recordId } }, { active: { eq: true } }] } })).data;
+          break;
+        default:
+          throw new Error(`Unknown model: ${modelName}`);
+      }
+
+      if (!activeRecords || activeRecords.length === 0) {
+        console.log(`✅ No active records found for ${modelName} ID: ${recordId}`);
+        return;
+      }
+
+      console.log(`🔄 Step 2-3: Found ${activeRecords.length} active records to set to inactive for ${modelName} ID: ${recordId}`);
+
+      // Steps 2-3: Set active flag to false and update each record
+      for (const activeRecord of activeRecords) {
+        try {
+          console.log(`🚫 Setting active = false for ${modelName} ${activeRecord.id}:${activeRecord.version}`);
+          
+          // Create update data with active = false (Step 2: Set active flag to false)
+          const updateData: any = {
+            id: activeRecord.id,
+            version: activeRecord.version,
+            active: false,
+            updatedAt: new Date().toISOString()
+          };
+
+          // Step 3: Update the old record (with active = false)
+          switch (modelName) {
+            case 'Project':
+              await this.client.models.Project.update(updateData);
+              break;
+            case 'Document':
+              await this.client.models.Document.update(updateData);
+              break;
+            case 'User':
+              await this.client.models.User.update(updateData);
+              break;
+            case 'DocumentType':
+              await this.client.models.DocumentType.update(updateData);
+              break;
+            case 'Workflow':
+              await this.client.models.Workflow.update(updateData);
+              break;
+            case 'ChatRoom':
+              await this.client.models.ChatRoom.update(updateData);
+              break;
+            case 'ChatMessage':
+              await this.client.models.ChatMessage.update(updateData);
+              break;
+            default:
+              throw new Error(`Unknown model: ${modelName}`);
+          }
+          
+          console.log(`✅ Successfully set active = false for ${modelName} ${activeRecord.id}:${activeRecord.version}`);
+        } catch (error: any) {
+          console.error(`❌ Failed to deactivate ${modelName} ${activeRecord.id}:${activeRecord.version}:`, error);
+          // Continue with other records even if one fails
+        }
+      }
+      
+      console.log(`🎯 Completed active flag management for ${modelName} ID: ${recordId}`);
+    } catch (error: any) {
+      console.error(`❌ Error in deactivateExistingActiveRecords for ${modelName} ${recordId}:`, error);
+      throw error; // Re-throw to prevent creating the new record if deactivation fails
+    }
+  }
+
+  /**
+   * 🧹 DEDUPLICATION: Remove active key from old documents and update them back to DynamoDB
+   * This runs synchronously to ensure the database is updated before returning results
+   */
+  private async deduplicateOldActiveRecords(modelName: string, oldActiveRecords: any[]): Promise<void> {
+    try {
+      console.log(`🧹 Deduplication started for ${modelName} - processing ${oldActiveRecords.length} old active records`);
+      
+      for (const oldRecord of oldActiveRecords) {
+        try {
+          console.log(`🚫 Removing active key from ${modelName} ${oldRecord.id}:${oldRecord.version} and updating to DynamoDB`);
+          
+          // Create update data WITHOUT the active field to remove it entirely
+          const updateData: any = {
+            id: oldRecord.id,
+            version: oldRecord.version,
+            updatedAt: new Date().toISOString()
+            // NOTE: Deliberately omitting 'active' field to remove it from the record
+          };
+
+          // Update the record in DynamoDB to remove the active key
+          let updateResult;
+          switch (modelName) {
+            case 'Project':
+              updateResult = await this.client.models.Project.update(updateData);
+              break;
+            case 'Document':
+              updateResult = await this.client.models.Document.update(updateData);
+              break;
+            case 'User':
+              updateResult = await this.client.models.User.update(updateData);
+              break;
+            case 'DocumentType':
+              updateResult = await this.client.models.DocumentType.update(updateData);
+              break;
+            case 'Workflow':
+              updateResult = await this.client.models.Workflow.update(updateData);
+              break;
+            case 'ChatRoom':
+              updateResult = await this.client.models.ChatRoom.update(updateData);
+              break;
+            case 'ChatMessage':
+              updateResult = await this.client.models.ChatMessage.update(updateData);
+              break;
+            default:
+              throw new Error(`Unknown model: ${modelName}`);
+          }
+          
+          // Check for GraphQL errors
+          if (updateResult?.errors && updateResult.errors.length > 0) {
+            const errorMessages = updateResult.errors.map((err: any) => err.message).join(', ');
+            console.error(`GraphQL errors updating ${modelName} ${oldRecord.id}:${oldRecord.version}:`, updateResult.errors);
+            throw new Error(`GraphQL error: ${errorMessages}`);
+          }
+          
+          console.log(`✅ Successfully removed active key from ${modelName} ${oldRecord.id}:${oldRecord.version} and updated to DynamoDB`);
+        } catch (error: any) {
+          console.error(`❌ Failed to remove active key from ${modelName} ${oldRecord.id}:${oldRecord.version}:`, error);
+          // Continue with other records even if one fails
+        }
+      }
+      
+      console.log(`🎯 Deduplication completed for ${modelName} - all updates written to DynamoDB`);
+    } catch (error: any) {
+      console.error(`❌ Deduplication failed for ${modelName}:`, error);
+      throw error; // Re-throw to indicate the operation failed
+    }
+  }
+
   analyzeDuplicates(records: any[]): Record<string, { count: number; versions: string[] }> {
     const duplicatesById: Record<string, { count: number; versions: string[] }> = {};
     
@@ -545,118 +897,11 @@ export class VersionedDataService {
   }
 
   /**
-   * Manual cleanup method for duplicate active records
-   * This can be called when the Lambda function isn't processing correctly
+   * Manual cleanup method - No longer needed since active field is removed
+   * All records exist, and getAllLatestVersions automatically returns the latest version by timestamp
    */
   async manualCleanupDuplicates(modelName: string): Promise<{ success: boolean; cleaned: number; error?: string }> {
-    console.log(`🧹 Manual cleanup started for ${modelName}`);
-    
-    try {
-      // Get all active records
-      const allActiveResult = await this.getAllLatestVersions(modelName);
-      if (!allActiveResult.success || !allActiveResult.data) {
-        return { success: false, cleaned: 0, error: allActiveResult.error };
-      }
-
-      const activeRecords = allActiveResult.data;
-      const duplicates = this.analyzeDuplicates(activeRecords);
-      const duplicateIds = Object.keys(duplicates);
-
-      if (duplicateIds.length === 0) {
-        console.log(`${modelName} - No duplicates found, cleanup not needed`);
-        return { success: true, cleaned: 0 };
-      }
-
-      console.log(`${modelName} - Found ${duplicateIds.length} IDs with duplicates:`, duplicates);
-      
-      let totalCleaned = 0;
-
-      for (const duplicateId of duplicateIds) {
-        const duplicateInfo = duplicates[duplicateId];
-        console.log(`${modelName} - Cleaning up ID: ${duplicateId}, versions: ${duplicateInfo.versions.join(', ')}`);
-
-        // Get all active versions for this ID
-        const activeVersions = activeRecords.filter((record: any) => record.id === duplicateId);
-
-        if (activeVersions.length <= 1) {
-          console.log(`${modelName} - ID ${duplicateId} already has only one active version`);
-          continue;
-        }
-
-        // Sort by version timestamp and keep only the latest
-        const sortedActive = activeVersions.sort((a: any, b: any) => 
-          new Date(b.version).getTime() - new Date(a.version).getTime()
-        );
-
-        const latestVersion = sortedActive[0];
-        const versionsToDeactivate = sortedActive.slice(1);
-
-        console.log(`${modelName} - Keeping latest version: ${latestVersion.version}, deactivating ${versionsToDeactivate.length} older versions`);
-
-        // Deactivate older versions by removing the 'active' attribute
-        for (const versionToDeactivate of versionsToDeactivate) {
-          try {
-            await this.removeActiveAttribute(modelName, versionToDeactivate.id, versionToDeactivate.version);
-            totalCleaned++;
-            console.log(`${modelName} - Deactivated version: ${versionToDeactivate.version} for ID: ${duplicateId}`);
-          } catch (error) {
-            console.error(`${modelName} - Failed to deactivate version ${versionToDeactivate.version} for ID ${duplicateId}:`, error);
-          }
-        }
-      }
-
-      console.log(`🧹 Manual cleanup completed for ${modelName}. Cleaned ${totalCleaned} duplicate records.`);
-      return { success: true, cleaned: totalCleaned };
-
-    } catch (error: any) {
-      console.error(`❌ Error during manual cleanup for ${modelName}:`, error);
-      return { success: false, cleaned: 0, error: error.message };
-    }
-  }
-
-  private async removeActiveAttribute(modelName: string, id: string, version: string): Promise<void> {
-    const client = generateClient<Schema>();
-    
-    switch (modelName) {
-      case 'Project':
-        await client.models.Project.update({
-          id,
-          version,
-          // Remove active by not including it in the update
-          updatedAt: new Date().toISOString()
-        });
-        break;
-      case 'Document':
-        await client.models.Document.update({
-          id,
-          version,
-          updatedAt: new Date().toISOString()
-        });
-        break;
-      case 'User':
-        await client.models.User.update({
-          id,
-          version,
-          updatedAt: new Date().toISOString()
-        });
-        break;
-      case 'DocumentType':
-        await client.models.DocumentType.update({
-          id,
-          version,
-          updatedAt: new Date().toISOString()
-        });
-        break;
-      case 'Workflow':
-        await client.models.Workflow.update({
-          id,
-          version,
-          updatedAt: new Date().toISOString()
-        });
-        break;
-      // Add other models as needed
-      default:
-        throw new Error(`Unknown model: ${modelName}`);
-    }
+    console.log(`ℹ️ Manual cleanup not needed for ${modelName} - active field removed, using timestamp-based latest versions`);
+    return { success: true, cleaned: 0 };
   }
 }
