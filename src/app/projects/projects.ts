@@ -8,6 +8,7 @@ import { UserDataService } from '../services/user-data.service';
 import { VersionedDataService } from '../services/versioned-data.service';
 import { ChatService } from '../services/chat.service';
 import { DynamicFormService } from '../services/dynamic-form.service';
+import { ProjectOperationsService } from '../services/project-operations.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -54,6 +55,7 @@ export class Projects implements OnInit, OnDestroy {
   private userDataService = inject(UserDataService);
   private chatService = inject(ChatService);
   private dynamicFormService = inject(DynamicFormService);
+  private projectOperationsService = inject(ProjectOperationsService);
   private router = inject(Router);
   private searchTimeout: any = null;
   private projectSearchTimeout: any = null;

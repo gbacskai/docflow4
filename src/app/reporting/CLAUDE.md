@@ -32,3 +32,12 @@ Provides comprehensive reporting functionality with analytics dashboard and data
 - **Data Services** - Integrates with all data models for comprehensive reporting
 - **AWS Analytics** - Potential integration with AWS analytics services
 - **Real-time Data** - Current system state and activity reporting
+
+## When Creating or editing a new Project (in the reporting or project page)
+- **Document Creation** - Create all documents based on
+     - selected workflow and document types associated to the workflow 
+     - via validation rules (validation or action) even multiple documents are in the validation or action
+     - Only if not exists, do not update any existing document
+- **Document Validation rules** - Run all Document validation rules and save each document
+- **Workflow Rules** - Run all workflow rules until no document changed, make sure all document been saved
+- **Fuctions are shared** - make sure the functions/procedures are shared between the reporting and project page
