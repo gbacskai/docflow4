@@ -27,7 +27,7 @@ export class Documents implements OnInit {
   loadingDocumentTypes = signal(false);
   loadingProjects = signal(false);
   showForm = signal(false);
-  currentMode = signal<'create' | 'edit'>('create');
+  currentMode = signal<'create' | 'edit' | 'view'>('create');
   selectedDocument = signal<Schema['Document']['type'] | null>(null);
   processing = signal(false);
   
@@ -215,6 +215,41 @@ export class Documents implements OnInit {
     this.showForm.set(true);
   }
 
+  openViewForm(document: Schema['Document']['type']) {
+    this.currentMode.set('view');
+    this.selectedDocument.set(document);
+    
+    this.documentForm.patchValue({
+      projectId: document.projectId,
+      documentType: document.documentType
+    });
+    
+    // Disable all form fields in view mode
+    this.documentForm.disable();
+    
+    // Generate dynamic form for the document type
+    this.onDocumentTypeChange(document.documentType);
+    
+    // Populate dynamic form with existing data if available
+    const documentWithFormData = document as any;
+    if (documentWithFormData.formData) {
+      try {
+        const existingData = JSON.parse(documentWithFormData.formData);
+        setTimeout(() => {
+          this.dynamicFormService.patchFormValue(existingData);
+          // Disable dynamic form fields in view mode
+          const dynamicForm = this.dynamicFormService.dynamicFormGroup();
+          if (dynamicForm) {
+            dynamicForm.disable();
+          }
+        }, 100);
+      } catch (error) {
+        console.error('Error parsing existing form data for view mode:', error);
+      }
+    }
+    
+    this.showForm.set(true);
+  }
 
   closeForm() {
     this.showForm.set(false);

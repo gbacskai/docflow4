@@ -1,4 +1,16 @@
 <div class="reporting-page">
+  <!-- Standard Header -->
+  <header class="page-header">
+    <div class="title-section">
+      <h1>📊 Reporting & Analytics</h1>
+    </div>
+    <div class="header-actions">
+      <!-- Export functionality could go here -->
+      <button class="secondary-button" (click)="exportData()" [disabled]="loading()">
+        📥 Export Data
+      </button>
+    </div>
+  </header>
 
   @if (loading()) {
     <div class="loading">
