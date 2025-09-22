@@ -643,6 +643,9 @@ export class Projects implements OnInit, OnDestroy {
       workflowId: project.workflowId || '',
       status: project.status
     });
+
+    // Disable workflow field to prevent changes after project creation
+    this.newProjectForm.get('workflowId')?.disable();
   }
 
   openViewProject(project: Schema['Project']['type']) {
@@ -673,6 +676,9 @@ export class Projects implements OnInit, OnDestroy {
     this.newProjectForm.reset();
     this.newProjectForm.patchValue({ status: 'active' });
     this.newProjectForm.enable();
+    
+    // Re-enable workflow field for new project creation
+    this.newProjectForm.get('workflowId')?.enable();
   }
 
   async setCurrentUserAsOwner() {
@@ -755,7 +761,8 @@ export class Projects implements OnInit, OnDestroy {
         this.updatingProject.set(true);
       }
       
-      const formValue = this.newProjectForm.value;
+      // Use getRawValue() to include disabled controls (like workflowId in edit mode)
+      const formValue = this.newProjectForm.getRawValue();
       const adminUsersArray = Array.isArray(formValue.adminUsers) 
         ? formValue.adminUsers
         : [];

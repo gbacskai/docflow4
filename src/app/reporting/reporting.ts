@@ -855,6 +855,9 @@ export class Reporting implements OnInit, OnDestroy {
       workflowId: project.workflowId || '',
       status: project.status
     });
+
+    // Disable workflow field to prevent changes after project creation
+    this.newProjectForm.get('workflowId')?.disable();
   }
 
   closeNewProjectModal() {
@@ -865,6 +868,9 @@ export class Reporting implements OnInit, OnDestroy {
     this.editingProject.set(false);
     this.currentMode.set('create');
     this.selectedProject.set(null);
+    
+    // Re-enable workflow field for new project creation
+    this.newProjectForm.get('workflowId')?.enable();
   }
 
   async setCurrentUserAsOwner() {
@@ -903,7 +909,8 @@ export class Reporting implements OnInit, OnDestroy {
         this.editingProject.set(true);
       }
       
-      const formValue = this.newProjectForm.value;
+      // Use getRawValue() to include disabled controls (like workflowId in edit mode)
+      const formValue = this.newProjectForm.getRawValue();
       const projectData: any = {
         name: formValue.name,
         description: formValue.description,
