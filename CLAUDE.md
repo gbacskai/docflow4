@@ -218,3 +218,11 @@ spyOn(component, 'loadDomains').and.callFake(async () => {
 - Test scripts auto-detect project root to work in both local and AWS CodeBuild environments
 - AWS CodeBuild paths like `/codebuild/output/src*/src/dockflow4` are handled automatically
 - No hardcoded paths in test files for maximum portability
+
+**Admin Files**
+- CHANGELOG.md
+- UI_STYLE_GUILDE.md
+- TEST_REPORT.md
+- SECURITY_AUDIT.md
+
+

@@ -73,12 +73,16 @@
             id="workflowId" 
             formControlName="workflowId" 
             [class.error]="newProjectForm.get('workflowId')?.invalid && newProjectForm.get('workflowId')?.touched"
+            [disabled]="currentMode() === 'edit'"
           >
             <option value="">Select a workflow</option>
             @for (workflow of workflows(); track workflow.id) {
               <option [value]="workflow.id">{{ workflow.name }}</option>
             }
           </select>
+          @if (currentMode() === 'edit') {
+            <div class="help-text">⚠️ Workflow cannot be changed after project creation</div>
+          }
           @if (newProjectForm.get('workflowId')?.invalid && newProjectForm.get('workflowId')?.touched) {
             <div class="error-message">Workflow selection is required</div>
           }

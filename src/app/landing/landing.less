@@ -1,17 +1,17 @@
+@import '../../styles.less';
+
 .landing-page {
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
+    .page-container;
   }
 
   // Header
   .header {
-    background: #fff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background: @white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -29,36 +29,25 @@
 
         h1 {
           font-size: 1.8rem;
-          font-weight: 700;
-          color: #2c3e50;
+          font-weight: @font-weight-bold;
+          color: @black-color;
           margin: 0;
         }
 
         .version {
-          background: #3498db;
-          color: white;
+          background: @primary-color;
+          color: @white;
           padding: 0.25rem 0.5rem;
-          border-radius: 12px;
+          border-radius: @border-radius-large;
           font-size: 0.75rem;
-          font-weight: 600;
+          font-weight: @font-weight-bold;
         }
       }
 
       .login-btn {
-        background: #3498db;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-
-        &:hover {
-          background: #2980b9;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-        }
+        .btn;
+        .btn-primary;
+        font-weight: @font-weight-semi;
       }
     }
   }
@@ -66,7 +55,7 @@
   // Hero Section
   .hero {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    color: @white;
     padding: 4rem 0;
 
     .container {
@@ -79,7 +68,7 @@
     .hero-content {
       .hero-title {
         font-size: 3rem;
-        font-weight: 700;
+        font-weight: @font-weight-bold;
         margin-bottom: 1.5rem;
         line-height: 1.2;
       }
@@ -96,28 +85,24 @@
         gap: 1rem;
 
         .cta-btn {
+          .btn;
           padding: 1rem 2rem;
-          border: none;
-          border-radius: 8px;
           font-size: 1.1rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
+          font-weight: @font-weight-semi;
+          border-radius: @border-radius-large;
 
           &.primary {
-            background: #e74c3c;
-            color: white;
+            background: @danger-color;
+            color: @white;
 
-            &:hover {
-              background: #c0392b;
-              transform: translateY(-2px);
-              box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+            &:hover:not(:disabled) {
+              background: darken(@danger-color, 10%);
             }
           }
 
           &.secondary {
             background: rgba(255, 255, 255, 0.2);
-            color: white;
+            color: @white;
             border: 2px solid rgba(255, 255, 255, 0.3);
 
             &:hover {
@@ -135,9 +120,8 @@
 
       .feature-preview {
         .preview-card {
+          .card;
           background: rgba(255, 255, 255, 0.15);
-          border-radius: 12px;
-          padding: 1.5rem;
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.2);
 
@@ -146,7 +130,7 @@
 
             .preview-title {
               font-size: 1.2rem;
-              font-weight: 600;
+              font-weight: @font-weight-semi;
             }
           }
 
@@ -154,13 +138,14 @@
             .preview-item {
               padding: 0.75rem;
               margin-bottom: 0.5rem;
-              border-radius: 6px;
+              border-radius: @border-radius-large;
               background: rgba(255, 255, 255, 0.1);
               font-size: 0.95rem;
+              transition: @transition-base;
 
               &.active {
-                background: rgba(46, 204, 113, 0.3);
-                border-left: 3px solid #2ecc71;
+                background: rgba(@success-color, 0.3);
+                border-left: 3px solid @success-color;
               }
             }
           }
@@ -180,14 +165,14 @@
 
       h2 {
         font-size: 2.5rem;
-        color: #2c3e50;
+        color: @black-color;
         margin-bottom: 1rem;
-        font-weight: 700;
+        font-weight: @font-weight-bold;
       }
 
       p {
         font-size: 1.2rem;
-        color: #7f8c8d;
+        color: @dark-gray;
         max-width: 600px;
         margin: 0 auto;
       }
@@ -199,16 +184,13 @@
       gap: 2rem;
 
       .feature-card {
-        background: white;
+        .card;
         padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease;
         text-align: center;
 
         &:hover {
           transform: translateY(-5px);
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
         }
 
         .feature-icon {
@@ -218,13 +200,13 @@
 
         h3 {
           font-size: 1.5rem;
-          color: #2c3e50;
+          color: @black-color;
           margin-bottom: 1rem;
-          font-weight: 600;
+          font-weight: @font-weight-semi;
         }
 
         p {
-          color: #7f8c8d;
+          color: @dark-gray;
           line-height: 1.6;
         }
       }
@@ -267,27 +249,27 @@
         .step-number {
           width: 60px;
           height: 60px;
-          background: #3498db;
-          color: white;
+          background: @primary-color;
+          color: @white;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 1.5rem;
-          font-weight: 700;
+          font-weight: @font-weight-bold;
           margin: 0 auto 1.5rem;
         }
 
         .step-content {
           h3 {
             font-size: 1.3rem;
-            color: #2c3e50;
+            color: @black-color;
             margin-bottom: 0.5rem;
-            font-weight: 600;
+            font-weight: @font-weight-semi;
           }
 
           p {
-            color: #7f8c8d;
+            color: @dark-gray;
             line-height: 1.6;
           }
         }

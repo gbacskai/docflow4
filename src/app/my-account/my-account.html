@@ -1,14 +1,23 @@
 <div class="my-account-container">
   @if (isAuthenticated()) {
-    <div class="account-header">
-      <div class="user-avatar-large">
-        <span>{{ (currentUser()?.email || 'U')[0].toUpperCase() }}</span>
+    <!-- Standard Header -->
+    <header class="page-header">
+      <div class="title-section">
+        <div class="user-avatar-large">
+          <span>{{ (currentUser()?.email || 'U')[0].toUpperCase() }}</span>
+        </div>
+        <div class="user-details">
+          <h1>My Account</h1>
+          <p class="user-email">{{ currentUser()?.email }}</p>
+        </div>
       </div>
-      <div class="user-details">
-        <h1>My Account</h1>
-        <p class="user-email">{{ currentUser()?.email }}</p>
+      <div class="header-actions">
+        <!-- Account actions could go here -->
+        <button class="secondary-button" (click)="editProfile()" *ngIf="!editMode">
+          ✏️ Edit Profile
+        </button>
       </div>
-    </div>
+    </header>
 
     <div class="account-sections">
       <div class="section-card">
