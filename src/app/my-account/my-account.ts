@@ -34,6 +34,11 @@ export class MyAccount implements OnInit, OnDestroy {
   docTypeSearchQuery = signal<string>('');
   showProfileEditForm = signal(false);
   
+  // Computed properties for template compatibility
+  get editMode(): boolean {
+    return this.showProfileEditForm();
+  }
+  
   @ViewChild('docTypeSearchInput') docTypeSearchInput!: ElementRef<HTMLInputElement>;
   
   private searchTimeout: any = null;
@@ -81,6 +86,11 @@ export class MyAccount implements OnInit, OnDestroy {
         interestedDocumentTypes: (userData.interestedDocumentTypes || []).filter(id => id !== null)
       });
     }
+  }
+
+  editProfile() {
+    this.showProfileEditForm.set(true);
+    this.loadUserDataForEditing();
   }
 
   toggleProfileEditForm() {

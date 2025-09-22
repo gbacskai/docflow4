@@ -1,0 +1,152 @@
+@import '../../../styles.less';
+@import './buttons.less';
+@import './search-inputs.less';
+
+// Standard page header pattern used across all pages
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 10px;
+  
+  h1 {
+    font-size: 2.5rem;
+    color: @black-color;
+    margin: 0;
+    font-weight: @font-weight-light;
+  }
+}
+
+// Title section (left side of header)
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  
+  h1 {
+    font-size: 2.5rem;
+    color: @black-color;
+    margin: 0;
+    font-weight: @font-weight-light;
+  }
+  
+  // Optional filter buttons or secondary actions
+  .filter-toggle-btn, .toggle-view-btn {
+    .btn-interactive;
+    background: @light-gray;
+    color: @black-color;
+    border: 1px solid @medium-gray;
+    padding: 0.5rem 0.75rem;
+    border-radius: @border-radius-base;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: @font-weight-semi;
+    
+    &:hover {
+      background: @medium-gray;
+      border-color: @dark-gray;
+    }
+    
+    &.active {
+      background: @primary-color;
+      color: @white;
+      border-color: @primary-color;
+    }
+  }
+}
+
+// Header actions (right side of header)
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  
+  // Search wrapper already defined in search-inputs.less
+  .search-wrapper {
+    .search-wrapper;
+    
+    &.header-search .search-input {
+      width: 300px;
+    }
+  }
+  
+  // Primary action button
+  .add-button, .create-button, .invite-button {
+    .btn-interactive;
+    background: @primary-color;
+    color: @white;
+    padding: 0.75rem 1.5rem;
+    border-radius: @border-radius-base;
+    font-weight: @font-weight-semi;
+    font-size: 0.9rem;
+    
+    &:hover:not(:disabled) {
+      background: darken(@primary-color, 10%);
+    }
+  }
+  
+  // Secondary action buttons
+  .secondary-button {
+    .btn-interactive;
+    background: @medium-gray;
+    color: @black-color;
+    padding: 0.75rem 1.5rem;
+    border-radius: @border-radius-base;
+    font-weight: @font-weight-semi;
+    font-size: 0.9rem;
+    
+    &:hover:not(:disabled) {
+      background: darken(@medium-gray, 10%);
+    }
+  }
+}
+
+// Responsive behavior
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    
+    .title-section {
+      width: 100%;
+      
+      h1 {
+        font-size: 2rem;
+      }
+    }
+    
+    .header-actions {
+      width: 100%;
+      flex-wrap: wrap;
+      
+      .search-wrapper {
+        flex: 1;
+        min-width: 200px;
+        
+        &.header-search .search-input {
+          width: 100%;
+        }
+      }
+      
+      .add-button, .create-button, .invite-button {
+        white-space: nowrap;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    .header-actions {
+      flex-direction: column;
+      align-items: stretch;
+      
+      .search-wrapper,
+      .add-button, .create-button, .invite-button {
+        width: 100%;
+      }
+    }
+  }
+}

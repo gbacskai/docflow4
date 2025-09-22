@@ -1,9 +1,13 @@
 <div class="document-types-page" [class.has-inline-edit]="editingInlineId()">
   <header class="page-header">
-    <!-- Page title -->
-    <h1>Document Types</h1>
+    <div class="title-section">
+      <h1>📋 Document Types</h1>
+      <button class="toggle-view-btn" (click)="toggleShowAllItems()" [class.active]="showAllItems()">
+        {{ showAllItems() ? 'Show Active Only' : 'Show All Items' }}
+      </button>
+    </div>
     <div class="header-actions">
-      <div class="search-wrapper">
+      <div class="search-wrapper header-search">
         <input 
           type="text"
           class="search-input"
@@ -15,9 +19,6 @@
           <button class="clear-search-btn" (click)="clearDocTypeSearch()">✕</button>
         }
       </div>
-      <button class="toggle-view-btn" (click)="toggleShowAllItems()" [class.active]="showAllItems()">
-        {{ showAllItems() ? 'Show Active Only' : 'Show All Items' }}
-      </button>
       <button class="add-button" (click)="openCreateForm()">
         + New Document Type
       </button>

@@ -1,3 +1,5 @@
+@import '../../styles.less';
+
 .auth-container {
   min-height: 100vh;
   display: flex;
@@ -8,9 +10,9 @@
 }
 
 .auth-card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  .card;
+  background: @white;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
   width: 100%;
   max-width: 400px;
   overflow: hidden;
@@ -21,15 +23,15 @@
 
   h2 {
     font-size: 1.875rem;
-    font-weight: 700;
+    font-weight: @font-weight-bold;
     text-align: center;
-    color: #1f2937;
+    color: @black-color;
     margin-bottom: 0.5rem;
   }
 
   .auth-subtitle {
     text-align: center;
-    color: #6b7280;
+    color: @dark-gray;
     margin-bottom: 2rem;
     font-size: 0.875rem;
   }
@@ -41,131 +43,66 @@
   label {
     display: block;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: #374151;
+    font-weight: @font-weight-semi;
+    color: @black-color;
     margin-bottom: 0.5rem;
   }
 
   input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    transition: all 0.2s;
-    box-sizing: border-box;
-
-    &:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    &.error {
-      border-color: #ef4444;
-      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
-    }
-
-    &::placeholder {
-      color: #9ca3af;
-    }
+    .form-control;
   }
 }
 
 .error-message {
-  color: #ef4444;
+  color: @danger-color;
   font-size: 0.75rem;
   margin-top: 0.5rem;
 }
 
 .alert {
   padding: 0.75rem 1rem;
-  border-radius: 6px;
+  border-radius: @border-radius-base;
   font-size: 0.875rem;
   margin-bottom: 1rem;
 
   &.alert-error {
-    background-color: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
+    background-color: #ffeaea;
+    color: @danger-color;
+    border: 1px solid @danger-color;
   }
 
   &.alert-success {
-    background-color: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
+    background-color: fade(@success-color, 20%);
+    color: darken(@success-color, 20%);
+    border: 1px solid @success-color;
   }
 }
 
 .btn-primary {
+  .btn;
+  .btn-primary;
   width: 100%;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  border: none;
   padding: 0.875rem 1.5rem;
-  border-radius: 6px;
-  font-weight: 600;
   font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
   margin-bottom: 1rem;
-
-  &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
 }
 
 .btn-secondary {
+  .btn;
+  .btn-default;
   width: 100%;
-  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-  color: white;
-  border: none;
   padding: 0.75rem 1.25rem;
-  border-radius: 6px;
-  font-weight: 600;
   font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
 }
 
 .auth-switch {
   text-align: center;
   padding-top: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid @light-gray;
 
   p {
     margin: 0;
-    color: #6b7280;
+    color: @dark-gray;
     font-size: 0.875rem;
   }
 }
@@ -173,15 +110,15 @@
 .link-btn {
   background: none;
   border: none;
-  color: #3b82f6;
+  color: @primary-color;
   cursor: pointer;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: @font-weight-semi;
   text-decoration: underline;
-  transition: color 0.2s;
+  transition: @transition-fast;
 
   &:hover {
-    color: #2563eb;
+    color: darken(@primary-color, 10%);
   }
 }
 
@@ -211,19 +148,19 @@
   .verification-instructions {
     h3 {
       font-size: 1.125rem;
-      font-weight: 600;
-      color: #1f2937;
+      font-weight: @font-weight-semi;
+      color: @black-color;
       margin-bottom: 1rem;
     }
 
     p {
-      color: #6b7280;
+      color: @dark-gray;
       font-size: 0.875rem;
       line-height: 1.5;
       margin-bottom: 0.75rem;
 
       strong {
-        color: #374151;
+        color: @black-color;
       }
 
       &:last-child {

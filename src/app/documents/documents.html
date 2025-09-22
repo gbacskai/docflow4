@@ -1,6 +1,8 @@
 <div class="documents-page">
   <header class="page-header">
-    <h1>Documents</h1>
+    <div class="title-section">
+      <h1>📄 Documents</h1>
+    </div>
     <div class="header-actions">
       <div class="search-wrapper">
         <input 
@@ -25,7 +27,11 @@
     <div class="document-form">
         <!-- Create/Edit Form -->
         <div class="form-header">
-          <h2>{{ currentMode() === 'create' ? 'Create Document Request' : 'Edit Document Request' }}</h2>
+          <h2>
+            @if (currentMode() === 'create') { Create Document Request }
+            @if (currentMode() === 'edit') { Edit Document Request }
+            @if (currentMode() === 'view') { View Document Request }
+          </h2>
           <button class="close-btn" (click)="closeForm()">✕</button>
         </div>
 
@@ -106,13 +112,36 @@
               >
                 {{ processing() ? 'Saving...' : 'Create' }}
               </button>
-            } @else {
+            } @else if (currentMode() === 'edit') {
+              <button 
+                type="button" 
+                class="btn-cancel" 
+                (click)="closeForm()"
+                [disabled]="processing()"
+              >
+                Cancel
+              </button>
               <button 
                 type="submit" 
                 class="btn-submit" 
                 [disabled]="processing()"
               >
                 {{ processing() ? 'Saving...' : 'Update' }}
+              </button>
+            } @else if (currentMode() === 'view') {
+              <button 
+                type="button" 
+                class="btn-cancel" 
+                (click)="closeForm()"
+              >
+                Close
+              </button>
+              <button 
+                type="button" 
+                class="btn-submit" 
+                (click)="openEditForm(selectedDocument()!)"
+              >
+                Edit Document
               </button>
             }
           </div>
@@ -137,14 +166,19 @@
     }
 
     @for (document of filteredDocuments(); track document.id) {
-      <div class="document-card" (click)="openEditForm(document)">
-        <div class="document-content">
+      <div class="document-card">
+        <div class="type-content">
           <h3>{{ getProjectName(document.projectId) }} - {{ getDocumentTypeName(document.documentType) }}</h3>
-          <div class="document-meta">
-            <span class="document-type">{{ getDocumentTypeName(document.documentType) }}</span>
-            <span class="project">{{ getProjectName(document.projectId) }}</span>
-            <span class="created-date">{{ document.createdAt | date:'MMM dd, yyyy' }}</span>
+          <p>Document for {{ getProjectName(document.projectId) }} project</p>
+          <div class="type-meta">
+            <span class="document-type">📄 {{ getDocumentTypeName(document.documentType) }}</span>
+            <span class="project">📁 {{ getProjectName(document.projectId) }}</span>
+            <span class="created-date">📅 {{ document.createdAt | date:'MMM dd, yyyy' }}</span>
           </div>
+        </div>
+        <div class="type-actions">
+          <button class="action-btn-small" (click)="openEditForm(document)">Edit</button>
+          <button class="action-btn-small secondary" (click)="openViewForm(document)">View</button>
         </div>
       </div>
     }
