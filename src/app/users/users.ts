@@ -16,6 +16,7 @@ import { UserManagementService } from '../services/user-management.service';
 })
 export class Users implements OnInit, OnDestroy {
   users = signal<Array<Schema['User']['type']>>([]);
+  filteredUsers = signal<Array<Schema['User']['type']>>([]);
   documentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   filteredDocumentTypes = signal<Array<Schema['DocumentType']['type']>>([]);
   currentUserData = signal<Schema['User']['type'] | null>(null);
@@ -29,6 +30,10 @@ export class Users implements OnInit, OnDestroy {
   showDocumentTypesSidebar = signal(false);
   tempSelectedDocumentTypes = signal<string[]>([]);
   docTypeSearchQuery = signal<string>('');
+  
+  // User search functionality
+  userSearchQuery = signal<string>('');
+  searchingUsers = signal(false);
   
   @ViewChild('docTypeSearchInput') docTypeSearchInput!: ElementRef<HTMLInputElement>;
   
@@ -81,10 +86,13 @@ export class Users implements OnInit, OnDestroy {
       const client = generateClient<Schema>();
       const result = await this.versionedDataService.getAllLatestVersions('User');
         const data = result.success ? result.data || [] : [];
-      this.users.set(data.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')));
+      const sortedUsers = data.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+      this.users.set(sortedUsers);
+      this.filteredUsers.set(sortedUsers);
     } catch (error) {
       console.error('Error loading users:', error);
       this.users.set([]);
+      this.filteredUsers.set([]);
     } finally {
       this.loading.set(false);
     }
@@ -386,6 +394,41 @@ export class Users implements OnInit, OnDestroy {
     } finally {
       this.searchingDocumentTypes.set(false);
     }
+  }
+
+  // User Search Methods
+  onUserSearchInputChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const query = target.value.toLowerCase().trim();
+    this.userSearchQuery.set(query);
+    
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+
+    this.searchTimeout = setTimeout(() => {
+      if (!query) {
+        this.filteredUsers.set(this.users());
+      } else {
+        const filtered = this.users().filter(user =>
+          (user.firstName?.toLowerCase().includes(query)) ||
+          (user.lastName?.toLowerCase().includes(query)) ||
+          (user.email?.toLowerCase().includes(query)) ||
+          (user.userType?.toLowerCase().includes(query)) ||
+          (user.status?.toLowerCase().includes(query))
+        );
+        this.filteredUsers.set(filtered);
+      }
+    }, 300);
+  }
+
+  clearUserSearch() {
+    this.userSearchQuery.set('');
+    this.filteredUsers.set(this.users());
+  }
+
+  getFilteredUsers() {
+    return this.filteredUsers();
   }
 
   // Form Submission Methods

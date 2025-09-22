@@ -96,6 +96,72 @@ export class Reporting implements OnInit, OnDestroy {
     window.removeEventListener('openNewProjectModal', this.newProjectModalHandler);
   }
 
+  exportData() {
+    try {
+      // Prepare export data with current reporting matrix and summary statistics
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        exportedBy: this.authService.currentUser()?.email || 'Unknown',
+        reportType: 'Project Matrix Report',
+        
+        // Summary statistics
+        summary: {
+          totalProjects: this.projects().length,
+          activeProjects: this.projects().filter(p => p.status === 'active').length,
+          totalDocuments: this.documents().length,
+          totalDocumentTypes: this.orderedDocumentTypes().length,
+          totalWorkflows: this.workflows().length,
+          totalUsers: this.users().length
+        },
+        
+        // Project matrix data
+        projectMatrix: this.projectMatrix().map(row => ({
+          projectId: row.project.id,
+          projectName: row.project.name,
+          projectStatus: row.project.status,
+          projectOwner: this.getUserName(row.project.ownerId!),
+          workflow: this.getWorkflowName(row.project.workflowId || ''),
+          documents: row.cells.map(cell => ({
+            documentType: this.getDocumentTypeName(this.orderedDocumentTypes()[row.cells.indexOf(cell)].id!),
+            documentId: cell.document?.id || null,
+            status: cell.status.status,
+            statusIcon: cell.status.icon,
+            formData: cell.document?.formData ? JSON.parse(cell.document.formData) : null,
+            lastUpdated: cell.document?.updatedAt || null
+          }))
+        })),
+        
+        // Raw data for detailed analysis
+        rawData: {
+          projects: this.projects(),
+          documents: this.documents(),
+          documentTypes: this.orderedDocumentTypes(),
+          workflows: this.workflows(),
+          users: this.users()
+        }
+      };
+
+      // Create and download JSON file
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `docflow4-reporting-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('📥 Reporting data exported successfully');
+      
+    } catch (error) {
+      console.error('Error exporting reporting data:', error);
+      alert('Failed to export data. Please try again.');
+    }
+  }
+
   async loadAllData() {
     try {
       this.loading.set(true);
@@ -109,10 +175,20 @@ export class Reporting implements OnInit, OnDestroy {
       ]);
 
       const projectsData = projectsResult.success ? projectsResult.data || [] : [];
-      const documentsData = documentsResult.success ? documentsResult.data || [] : [];
+      let documentsData = documentsResult.success ? documentsResult.data || [] : [];
       const workflowsData = workflowsResult.success ? workflowsResult.data || [] : [];
       const documentTypesData = documentTypesResult.success ? documentTypesResult.data || [] : [];
       const usersData = usersResult.success ? usersResult.data || [] : [];
+
+      // If documents seem insufficient, try fallback method that queries all documents
+      if (documentsData.length < 5 && projectsData.length > 0) {
+        console.log(`⚠️ Document count (${documentsData.length}) seems low for ${projectsData.length} projects. Trying fallback method...`);
+        const fallbackResult = await this.versionedDataService.getAllLatestVersions('Document', true);
+        if (fallbackResult.success && fallbackResult.data && fallbackResult.data.length > documentsData.length) {
+          console.log(`✅ Fallback method found ${fallbackResult.data.length} documents instead of ${documentsData.length}`);
+          documentsData = fallbackResult.data;
+        }
+      }
 
       console.log('📊 Loaded data counts:', {
         projects: projectsData.length,
@@ -121,6 +197,19 @@ export class Reporting implements OnInit, OnDestroy {
         documentTypes: documentTypesData.length,
         users: usersData.length
       });
+      
+      // Debug: Show sample documents with their IDs and active status
+      if (documentsData.length > 0) {
+        console.log('📄 Sample documents loaded:', documentsData.slice(0, 5).map(doc => ({
+          id: doc.id,
+          projectId: doc.projectId,
+          documentType: doc.documentType,
+          version: doc.version,
+          active: (doc as any).active,
+          updatedAt: doc.updatedAt,
+          hasFormData: !!doc.formData
+        })));
+      }
 
       this.projects.set(projectsData);
       this.documents.set(documentsData);
@@ -621,6 +710,18 @@ export class Reporting implements OnInit, OnDestroy {
     try {
       this.saving.set(true);
       
+      // Debug logging to understand the document structure
+      console.log('🔍 Document being saved:', {
+        id: document.id,
+        projectId: document.projectId,
+        documentType: document.documentType,
+        version: document.version,
+        active: (document as any).active,
+        updatedAt: document.updatedAt,
+        hasFormData: !!document.formData,
+        fullDocument: document
+      });
+      
       if (!this.isFormValid) {
         this.dynamicFormService.markAllFieldsAsTouched();
         alert('Please fill in all required fields correctly.');
@@ -754,6 +855,9 @@ export class Reporting implements OnInit, OnDestroy {
       workflowId: project.workflowId || '',
       status: project.status
     });
+
+    // Disable workflow field to prevent changes after project creation
+    this.newProjectForm.get('workflowId')?.disable();
   }
 
   closeNewProjectModal() {
@@ -764,6 +868,9 @@ export class Reporting implements OnInit, OnDestroy {
     this.editingProject.set(false);
     this.currentMode.set('create');
     this.selectedProject.set(null);
+    
+    // Re-enable workflow field for new project creation
+    this.newProjectForm.get('workflowId')?.enable();
   }
 
   async setCurrentUserAsOwner() {
@@ -802,7 +909,8 @@ export class Reporting implements OnInit, OnDestroy {
         this.editingProject.set(true);
       }
       
-      const formValue = this.newProjectForm.value;
+      // Use getRawValue() to include disabled controls (like workflowId in edit mode)
+      const formValue = this.newProjectForm.getRawValue();
       const projectData: any = {
         name: formValue.name,
         description: formValue.description,
@@ -833,66 +941,9 @@ export class Reporting implements OnInit, OnDestroy {
         
         this.closeNewProjectModal();
         
-        // Extended delay to ensure all database operations are fully completed
-        console.log('⏳ Waiting for database operations to complete...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        // Only do retry for create operations with valid project result
-        if (this.currentMode() === 'create' && projectResult?.data) {
-          // Retry data loading until all documents are found (up to 5 attempts)
-          console.log('🔄 Reloading all data after project creation...');
-          const newProject = projectResult.data;
-          console.log('🔄 New project created:', { id: newProject.id, name: newProject.name });
-          let attempts = 0;
-          let foundDocuments = 0;
-        
-        while (attempts < 5 && foundDocuments < 19) {
-          attempts++;
-          console.log(`🔄 Attempt ${attempts}: Loading data...`);
-          
-          await this.loadAllData();
-          
-          const newProjectDocuments = this.documents().filter(doc => doc.projectId === newProject.id);
-          foundDocuments = newProjectDocuments.length;
-          
-          console.log(`🔍 Attempt ${attempts}: Found ${foundDocuments} documents for new project ${newProject.name} (expected 19)`);
-          console.log(`🔍 Total documents in system: ${this.documents().length}`);
-          
-          if (foundDocuments >= 19) {
-            console.log('✅ All documents found!');
-            break;
-          } else {
-            console.log(`⏳ Missing ${19 - foundDocuments} documents, waiting 3 seconds before retry...`);
-            await new Promise(resolve => setTimeout(resolve, 3000));
-          }
-        }
-        
-        // Final document list
-        const finalProjectDocuments = this.documents().filter(doc => doc.projectId === newProject.id);
-        console.log(`📋 Final document list (${finalProjectDocuments.length} found):`);
-        finalProjectDocuments.forEach(doc => {
-          const docType = this.documentTypes().find(dt => dt.id === doc.documentType);
-          console.log(`  - ${docType?.name || doc.documentType} (${doc.id})`);
-        });
-        
-        // Show summary of the issue
-        if (finalProjectDocuments.length < 19) {
-          console.log('🚨 CRITICAL ISSUE DETECTED:');
-          console.log(`   • Created: 19 documents (confirmed by creation logs)`);
-          console.log(`   • Found: ${finalProjectDocuments.length} documents`);
-          console.log(`   • Missing: ${19 - finalProjectDocuments.length} documents`);
-          console.log('   • Root cause: getAllLatestVersions("Document") not returning all active documents');
-          console.log('   • This is likely due to AWS DynamoDB query limitations or index issues');
-        }
-        
-          // Additional delay after data loading to ensure all documents are loaded
-          console.log('⏳ Additional wait after data loading...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
-          // For update operations, just reload data once
-          console.log('🔄 Reloading data after project update...');
-          await this.loadAllData();
-        }
+        // Reload data after project operations
+        console.log('🔄 Reloading data after project operation...');
+        await this.loadAllData();
         
         console.log('🔧 Building matrix after data reload...');
         this.buildMatrix();

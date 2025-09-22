@@ -153,14 +153,57 @@ export class ProjectOperationsService {
     console.log(`🔍 Getting required document types for workflowId: ${workflowId}`);
     console.log(`🔍 Total available document types: ${documentTypes.length}`);
     
-    // For now, create ALL active document types to ensure nothing is missed
-    // This follows the pattern from the original reporting component
-    const allActiveTypes = documentTypes.filter(dt => dt.isActive !== false);
+    // If no workflow selected, return empty array
+    if (!workflowId) {
+      console.warn(`⚠️ No workflow selected. No documents will be created.`);
+      return [];
+    }
     
-    console.log(`🔍 Selected ${allActiveTypes.length} active document types:`, 
-      allActiveTypes.map(dt => dt.name).join(', '));
+    // Find the selected workflow
+    const selectedWorkflow = workflows.find(w => w.id === workflowId);
+    if (!selectedWorkflow) {
+      console.warn(`⚠️ Workflow not found: ${workflowId}. No documents will be created.`);
+      return [];
+    }
     
-    return allActiveTypes;
+    console.log(`🔍 Found workflow: ${selectedWorkflow.name}`);
+    
+    // Extract document types referenced in workflow rules
+    const workflowDocTypes = this.extractDocumentTypesFromWorkflow(selectedWorkflow, documentTypes);
+    
+    // Also extract document types from DocumentType validation rules
+    const allReferencedTypes = new Set<string>();
+    
+    // Add workflow-referenced types
+    workflowDocTypes.forEach(dt => allReferencedTypes.add(dt.id!));
+    
+    // Also scan DocumentType validation rules for cross-references
+    documentTypes.filter(dt => dt.isActive !== false).forEach(docType => {
+      const docTypeWithRules = docType as any;
+      if (docTypeWithRules.validationRules) {
+        const crossReferencedTypes = this.extractDocumentTypesFromValidationRules(
+          docTypeWithRules.validationRules,
+          documentTypes
+        );
+        crossReferencedTypes.forEach(dt => allReferencedTypes.add(dt.id!));
+      }
+    });
+    
+    // Get final list of required document types
+    const requiredTypes = documentTypes.filter(dt => 
+      dt.isActive !== false && allReferencedTypes.has(dt.id!)
+    );
+    
+    console.log(`🔍 Selected ${requiredTypes.length} workflow-required document types:`, 
+      requiredTypes.map(dt => dt.name).join(', '));
+    
+    // If no document types found in workflow rules, log warning but don't create all types
+    if (requiredTypes.length === 0) {
+      console.warn(`⚠️ No document types found in workflow rules for "${selectedWorkflow.name}". ` +
+        `Check that the workflow rules reference document types by their identifier.`);
+    }
+    
+    return requiredTypes;
   }
 
   /**
