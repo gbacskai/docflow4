@@ -130,6 +130,26 @@ export class Admin implements OnInit {
     }
   }
 
+  async refreshData() {
+    this.isLoading.set(true);
+    this.loadingMessage.set('Refreshing all data...');
+    this.errorMessage.set('');
+    
+    try {
+      await Promise.all([
+        this.loadExports(),
+        this.loadTableNames()
+      ]);
+      
+      this.successMessage.set('All data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      this.errorMessage.set('Error occurred while refreshing data');
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
   async refreshExports() {
     await this.loadExports();
     this.successMessage.set('Exports list refreshed');

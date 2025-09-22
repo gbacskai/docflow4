@@ -385,13 +385,18 @@
   }
 
   <div class="users-list">
-    @if (users().length === 0 && !loading()) {
+    @if (filteredUsers().length === 0 && !loading()) {
       <div class="empty-state">
-        <p>No users found. Create your first user or send an invitation to get started.</p>
+        @if (userSearchQuery()) {
+          <p>No users found matching "{{ userSearchQuery() }}". Try a different search term.</p>
+          <button class="btn-clear-search" (click)="clearUserSearch()">Clear Search</button>
+        } @else {
+          <p>No users found. Create your first user or send an invitation to get started.</p>
+        }
       </div>
     }
 
-    @for (user of users(); track user.id) {
+    @for (user of filteredUsers(); track user.id) {
       <div class="user-card" [class]="getUserStatusColor(user.status)">
         <div class="user-content">
           <div class="user-header">

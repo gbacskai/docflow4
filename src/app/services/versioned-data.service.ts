@@ -263,6 +263,68 @@ export class VersionedDataService {
     }
   }
 
+  /**
+   * Debug method to search for a record by ID across all possible query methods
+   */
+  async debugSearchRecordById(modelName: string, id: string): Promise<any> {
+    console.log(`🔍 DEBUG: Comprehensive search for ${modelName} with ID: ${id}`);
+    
+    try {
+      // Method 1: Search with active=true filter
+      let activeRecords: any[] = [];
+      switch (modelName) {
+        case 'Document':
+          activeRecords = (await this.client.models.Document.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data || [];
+          break;
+        case 'Project':
+          activeRecords = (await this.client.models.Project.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: true } }] } })).data || [];
+          break;
+        default:
+          activeRecords = [];
+      }
+      console.log(`🔍 Active records found: ${activeRecords.length}`, activeRecords);
+      
+      // Method 2: Search without any filter (get ALL records, then filter)
+      let allRecords: any[] = [];
+      switch (modelName) {
+        case 'Document':
+          allRecords = (await this.client.models.Document.list()).data || [];
+          break;
+        case 'Project':
+          allRecords = (await this.client.models.Project.list()).data || [];
+          break;
+        default:
+          allRecords = [];
+      }
+      const matchingRecords = allRecords.filter(record => record.id === id);
+      console.log(`🔍 All records with matching ID: ${matchingRecords.length}`, matchingRecords);
+      
+      // Method 3: Search with active=false filter
+      let inactiveRecords: any[] = [];
+      switch (modelName) {
+        case 'Document':
+          inactiveRecords = (await this.client.models.Document.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: false } }] } })).data || [];
+          break;
+        case 'Project':
+          inactiveRecords = (await this.client.models.Project.list({ filter: { and: [{ id: { eq: id } }, { active: { eq: false } }] } })).data || [];
+          break;
+        default:
+          inactiveRecords = [];
+      }
+      console.log(`🔍 Inactive records found: ${inactiveRecords.length}`, inactiveRecords);
+      
+      return {
+        activeRecords,
+        allMatchingRecords: matchingRecords,
+        inactiveRecords,
+        totalAllRecords: allRecords.length
+      };
+    } catch (error) {
+      console.error(`🔍 DEBUG: Error during comprehensive search:`, error);
+      return { error: (error as Error).message };
+    }
+  }
+
   async updateVersionedRecord(
     modelName: string,
     id: string,
@@ -281,10 +343,43 @@ export class VersionedDataService {
       const latestRecord = await this.getLatestVersion(modelName, id);
       console.log('🔍 Latest record result:', latestRecord);
       if (!latestRecord.success || !latestRecord.data) {
-        return {
-          success: false,
-          error: 'Original record not found'
-        };
+        // Enhanced error handling: Run comprehensive debug search
+        console.log('🔍 No active record found, running comprehensive debug search...');
+        const debugResult = await this.debugSearchRecordById(modelName, id);
+        console.log('🔍 Debug search results:', debugResult);
+        
+        // Try to use any record found during debug search
+        let allRecordsWithId: any[] = debugResult.allMatchingRecords || [];
+        if (allRecordsWithId.length === 0 && debugResult.activeRecords?.length) {
+          allRecordsWithId = debugResult.activeRecords;
+        }
+        if (allRecordsWithId.length === 0 && debugResult.inactiveRecords?.length) {
+          allRecordsWithId = debugResult.inactiveRecords;
+        }
+        
+        if (allRecordsWithId && allRecordsWithId.length > 0) {
+          // Find the latest record by version timestamp, regardless of active flag
+          const sortedRecords = allRecordsWithId.sort((a: any, b: any) => 
+            new Date(b.version).getTime() - new Date(a.version).getTime()
+          );
+          const latestAnyRecord = sortedRecords[0];
+          console.log('🔍 Using latest record regardless of active flag:', {
+            version: latestAnyRecord.version,
+            active: latestAnyRecord.active,
+            updatedAt: latestAnyRecord.updatedAt
+          });
+          
+          // Use this record as the base for the update
+          console.log('🔧 Proceeding with update using latest available record');
+          var latestRecordData = latestAnyRecord;
+        } else {
+          return {
+            success: false,
+            error: `No record found with ID ${id}. Debug shows ${debugResult.totalAllRecords} total records in table.`
+          };
+        }
+      } else {
+        var latestRecordData = latestRecord.data;
       }
 
       // Create clean record data with only valid Project schema fields
@@ -301,30 +396,30 @@ export class VersionedDataService {
         newRecordData = {
           id,
           version,
-          name: updateData.name || latestRecord.data.name,
-          description: updateData.description || latestRecord.data.description,
-          ownerId: updateData.ownerId || latestRecord.data.ownerId,
+          name: updateData.name || latestRecordData.name,
+          description: updateData.description || latestRecordData.description,
+          ownerId: updateData.ownerId || latestRecordData.ownerId,
           active: true,
           updatedAt: version
         };
 
         // Add optional fields only if they exist and have values
-        if (latestRecord.data.identifier) {
-          newRecordData.identifier = latestRecord.data.identifier;
+        if (latestRecordData.identifier) {
+          newRecordData.identifier = latestRecordData.identifier;
         }
-        if (updateData.adminUsers !== undefined || latestRecord.data.adminUsers !== undefined) {
-          newRecordData.adminUsers = updateData.adminUsers || latestRecord.data.adminUsers || [];
+        if (updateData.adminUsers !== undefined || latestRecordData.adminUsers !== undefined) {
+          newRecordData.adminUsers = updateData.adminUsers || latestRecordData.adminUsers || [];
         }
-        if (updateData.workflowId !== undefined || latestRecord.data.workflowId !== undefined) {
-          newRecordData.workflowId = updateData.workflowId || latestRecord.data.workflowId;
+        if (updateData.workflowId !== undefined || latestRecordData.workflowId !== undefined) {
+          newRecordData.workflowId = updateData.workflowId || latestRecordData.workflowId;
         }
-        if (updateData.status !== undefined || latestRecord.data.status !== undefined) {
-          newRecordData.status = updateData.status || latestRecord.data.status;
+        if (updateData.status !== undefined || latestRecordData.status !== undefined) {
+          newRecordData.status = updateData.status || latestRecordData.status;
         }
       } else {
         // For other models, use the original approach
         newRecordData = {
-          ...latestRecord.data,
+          ...latestRecordData,
           ...updateData,
           id,
           version,
@@ -600,7 +695,8 @@ export class VersionedDataService {
   }
 
   async getAllLatestVersions(
-    modelName: string
+    modelName: string,
+    retryWithoutActiveFilter: boolean = false
   ): Promise<{ success: boolean; data?: any[]; error?: string }> {
     try {
       let activeRecords;
@@ -609,25 +705,63 @@ export class VersionedDataService {
           activeRecords = (await this.client.models.Project.list({ filter: { active: { eq: true } } })).data;
           break;
         case 'Document':
-          // Handle pagination to get ALL documents (not just first 100)
-          let allDocuments: any[] = [];
-          let nextToken: string | null = null;
-          
-          do {
-            const result: any = await this.client.models.Document.list({ 
-              filter: { active: { eq: true } },
-              limit: 1000, // Increase limit to maximum
-              nextToken: nextToken || undefined
-            });
+          if (retryWithoutActiveFilter) {
+            // Fallback: Query ALL documents and filter in memory
+            console.log(`📄 Document fallback: Querying ALL documents and filtering active ones in memory`);
+            let allDocs: any[] = [];
+            let nextToken: string | null = null;
             
-            allDocuments = allDocuments.concat(result.data || []);
-            nextToken = result.nextToken || null;
+            do {
+              const result: any = await this.client.models.Document.list({ 
+                limit: 1000,
+                nextToken: nextToken || undefined
+              });
+              
+              const fetchedDocs = result.data || [];
+              allDocs = allDocs.concat(fetchedDocs);
+              nextToken = result.nextToken || null;
+              
+              console.log(`📄 Fallback pagination: fetched ${fetchedDocs.length} documents, total so far: ${allDocs.length}`);
+            } while (nextToken);
             
-            console.log(`📄 Document pagination: fetched ${result.data?.length || 0} documents, total so far: ${allDocuments.length}, nextToken: ${nextToken ? 'exists' : 'none'}`);
-          } while (nextToken);
-          
-          activeRecords = allDocuments;
-          console.log(`📄 Document query completed: ${activeRecords.length} total active documents found`);
+            // Filter active documents in memory
+            activeRecords = allDocs.filter(doc => doc.active === true);
+            console.log(`📄 Fallback completed: Found ${activeRecords.length} active documents out of ${allDocs.length} total documents`);
+          } else {
+            // Normal approach: Handle pagination to get ALL active documents with retry mechanism
+            let allDocuments: any[] = [];
+            let nextToken: string | null = null;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            do {
+              const result: any = await this.client.models.Document.list({ 
+                filter: { active: { eq: true } },
+                limit: 1000, // Increase limit to maximum
+                nextToken: nextToken || undefined
+              });
+              
+              const fetchedDocs = result.data || [];
+              allDocuments = allDocuments.concat(fetchedDocs);
+              nextToken = result.nextToken || null;
+              
+              console.log(`📄 Document pagination: fetched ${fetchedDocs.length} documents, total so far: ${allDocuments.length}, nextToken: ${nextToken ? 'exists' : 'none'}`);
+              
+              // If this is the first page and we got fewer than expected documents, implement retry with backoff
+              if (!nextToken && retryCount < maxRetries && allDocuments.length < 10) {
+                console.log(`⚠️ Document query returned ${allDocuments.length} documents, which might be too low for recent operations. Retrying in ${Math.pow(2, retryCount)} seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+                retryCount++;
+                allDocuments = []; // Reset and retry
+                nextToken = null;
+                continue;
+              }
+              
+            } while (nextToken);
+            
+            activeRecords = allDocuments;
+            console.log(`📄 Document query completed: ${activeRecords.length} total active documents found after ${retryCount} retries`);
+          }
           break;
         case 'User':
           activeRecords = (await this.client.models.User.list({ filter: { active: { eq: true } } })).data;
@@ -785,29 +919,42 @@ export class VersionedDataService {
     id: string,
     version: string
   ): Promise<{ success: boolean; error?: string }> {
+    console.log(`🗑️ Deleting ${modelName} record ${id}:${version}`);
+    
     try {
+      // For versioned data system, we mark records as inactive instead of hard deleting
+      // This maintains data integrity and version history
+      const updateData: any = {
+        id,
+        version,
+        active: false,
+        updatedAt: new Date().toISOString()
+      };
+
+      console.log(`🚫 Setting active = false for ${modelName} ${id}:${version}`);
+
       let result;
       switch (modelName) {
         case 'Project':
-          result = await this.client.models.Project.delete({ id, version });
+          result = await this.client.models.Project.update(updateData);
           break;
         case 'Document':
-          result = await this.client.models.Document.delete({ id, version });
+          result = await this.client.models.Document.update(updateData);
           break;
         case 'User':
-          result = await this.client.models.User.delete({ id, version });
+          result = await this.client.models.User.update(updateData);
           break;
         case 'DocumentType':
-          result = await this.client.models.DocumentType.delete({ id, version });
+          result = await this.client.models.DocumentType.update(updateData);
           break;
         case 'Workflow':
-          result = await this.client.models.Workflow.delete({ id, version });
+          result = await this.client.models.Workflow.update(updateData);
           break;
         case 'ChatRoom':
-          result = await this.client.models.ChatRoom.delete({ id, version });
+          result = await this.client.models.ChatRoom.update(updateData);
           break;
         case 'ChatMessage':
-          result = await this.client.models.ChatMessage.delete({ id, version });
+          result = await this.client.models.ChatMessage.update(updateData);
           break;
         default:
           throw new Error(`Unknown model: ${modelName}`);
@@ -816,18 +963,19 @@ export class VersionedDataService {
       // Check for GraphQL errors in the response
       if (result && result.errors && result.errors.length > 0) {
         const errorMessages = result.errors.map((err: any) => err.message).join(', ');
-        console.error(`GraphQL errors deleting ${String(modelName)} ${id}:${version}:`, result.errors);
+        console.error(`GraphQL errors marking ${String(modelName)} ${id}:${version} as inactive:`, result.errors);
         return {
           success: false,
           error: `GraphQL error: ${errorMessages}`
         };
       }
 
+      console.log(`✅ Successfully marked ${modelName} ${id}:${version} as inactive (deleted)`);
       return {
         success: true
       };
     } catch (error: any) {
-      console.error(`Error deleting versioned ${String(modelName)}:`, error);
+      console.error(`Error marking versioned ${String(modelName)} as inactive:`, error);
       return {
         success: false,
         error: error.message || 'Unknown error occurred'
